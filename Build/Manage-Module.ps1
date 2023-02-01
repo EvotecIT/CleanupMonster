@@ -32,7 +32,7 @@ $Configuration = @{
 
             RequiredModules            = @(
                 @{ ModuleName = 'PSSharedGoods'; ModuleVersion = "Latest"; Guid = 'ee272aa8-baaa-4edf-9f45-b6d6f7d844fe' }
-                @{ ModuleName = 'Mailozaurr'; ModuleVersion = "Latest"; Guid = '2b0ea9f1-3ff1-4300-b939-106d5da608fa' }
+                #@{ ModuleName = 'Mailozaurr'; ModuleVersion = "Latest"; Guid = '2b0ea9f1-3ff1-4300-b939-106d5da608fa' }
                 @{ ModuleName = 'PSWriteHTML'; ModuleVersion = "Latest"; Guid = 'a7bdf640-f5cb-4acf-9de0-365b322d245c' }
                 @{ ModuleName = 'PSWriteColor'; ModuleVersion = "Latest"; Guid = '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' }
                 @{ ModuleName = 'PSEventViewer'; ModuleVersion = "Latest"; Guid = '5df72a79-cdf6-4add-b38d-bcacf26fb7bc' }
