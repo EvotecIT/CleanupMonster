@@ -11,6 +11,6 @@ Locale: en-US
 {{ Fill in the Description }}
 
 ## CleanupActiveDirectory Cmdlets
-### [Optimize-ADComputers](Optimize-ADComputers.md)
+### [Invoke-ADComputersCleanup](Invoke-ADComputersCleanup.md)
 {{ Fill in the Synopsis }}
 
