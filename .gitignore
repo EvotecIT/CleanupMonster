@@ -4,6 +4,7 @@ Ignore/*
 Examples/Output/*
 Examples/Reports/*
 Examples/Logs/*
+Examples/Package/*
 Examples/*.xml
 Releases/*
 Artefacts/*
