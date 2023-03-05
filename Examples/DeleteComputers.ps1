@@ -2,13 +2,20 @@
 
 # Run the script
 $Configuration = @{
+    Disable                        = $true
     DisableNoServicePrincipalName  = $null
+    DisableIsEnabled               = $true
     DisableLastLogonDateMoreThan   = 90
     DisablePasswordLastSetMoreThan = 90
     DisableExcludeSystems          = @(
         # 'Windows Server*'
     )
     DisableIncludeSystems          = @()
+    DisableLimit                   = 2 # 0 means unlimited, ignored for reports
+    DisableModifyDescription       = $false
+    DisableAdminModifyDescription  = $true
+
+    Delete                         = $true
     DeleteIsEnabled                = $false
     DeleteNoServicePrincipalName   = $null
     DeleteLastLogonDateMoreThan    = 180
@@ -21,22 +28,21 @@ $Configuration = @{
 
     )
     DeleteLimit                    = 2 # 0 means unlimited, ignored for reports
-    DisableLimit                   = 2 # 0 means unlimited, ignored for reports
-    DisableModifyDescription       = $true
+
     Exclusions                     = @(
         'OU=Domain Controllers'
-        #'OU=Servers,OU=Production'
+        'OU=Servers,OU=Production'
     )
+
     Filter                         = '*'
-    ReportOnly                     = $false
-    WhatIfDisable                  = $true
+    WhatIfDisable                  = $false
     WhatIfDelete                   = $true
     LogPath                        = "$PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log"
-    ListProcessed                  = "$PSScriptRoot\DeleteComputers_ListProcessed.xml"
+    DataStorePath                  = "$PSScriptRoot\DeleteComputers_ListProcessed.xml"
     ReportPath                     = "$PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
     ShowHTML                       = $true
 }
 
 # Run one time as admin: Write-Event -ID 10 -LogName 'Application' -EntryType Information -Category 0 -Message 'Initialize' -Source 'CleanupComputers'
-$Output = Invoke-ADComputersCleanup @Configuration -EnableDisableFeature -EnableDeleteFeature
+$Output = Invoke-ADComputersCleanup @Configuration
 $Output
