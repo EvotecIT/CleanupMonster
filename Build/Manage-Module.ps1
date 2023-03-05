@@ -7,13 +7,13 @@ $Configuration = @{
 
         Manifest   = @{
             # Version number of this module.
-            ModuleVersion              = '0.0.1'
+            ModuleVersion              = '1.0.0'
             # Supported PSEditions
             CompatiblePSEditions       = @('Desktop', 'Core')
 
             PowerShellVersion          = '5.1'
             # ID used to uniquely identify this module
-            GUID                       = 'c162c3b8-962c-4ded-bb5f-0a0ea941965d'
+            GUID                       = '71f471e1-7398-487e-bd1b-35787b154a1f'
             # Author of this module
             Author                     = 'Przemyslaw Klys'
             # Company or vendor of this module
@@ -21,14 +21,13 @@ $Configuration = @{
             # Copyright statement for this module
             Copyright                  = "(c) 2011 - $((Get-Date).Year) Przemyslaw Klys @ Evotec. All rights reserved."
             # Description of the functionality provided by this module
-            Description                = "This module allows to synchronize users to/from Office 365."
+            Description                = "This module provides an easy way to cleanup Active Directory from dead/old objects."
             # Minimum version of the Windows PowerShell engine required by this module
-            Tags                       = 'windows'
+            Tags                       = 'windows', 'activedirectory'
             # A URL to the main website for this project.
             ProjectUri                 = 'https://github.com/EvotecIT/CleanupActiveDirectory'
-
             # A URL to an icon representing this module.
-            #IconUri                    = 'https://evotec.xyz/wp-content/uploads/2023/01/O365Synchronizer.png'
+            IconUri                    = 'https://evotec.xyz/wp-content/uploads/2023/03/CleanupActiveDirectory.png'
 
             RequiredModules            = @(
                 @{ ModuleName = 'PSSharedGoods'; ModuleVersion = "Latest"; Guid = 'ee272aa8-baaa-4edf-9f45-b6d6f7d844fe' }
@@ -106,7 +105,7 @@ $Configuration = @{
                 RemoveComments = $false
             }
             Integrate      = @{
-                ApprovedModules = @('PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword')
+                ApprovedModules = @('PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'PSEventViewer')
             }
         }
         Standard          = @{
