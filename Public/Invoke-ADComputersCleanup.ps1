@@ -1,8 +1,143 @@
 ﻿function Invoke-ADComputersCleanup {
+    <#
+    .SYNOPSIS
+    Active Directory Cleanup function that can disable or delete computers that have not been logged on for a certain amount of time.
+
+    .DESCRIPTION
+    Active Directory Cleanup function that can disable or delete computers that have not been logged on for a certain amount of time.
+    It has many options to customize the cleanup process.
+
+    .PARAMETER Disable
+    Enable the disable process, meaning the computers that meet the criteria will be disabled.
+
+    .PARAMETER Delete
+    Enable the delete process, meaning the computers that meet the criteria will be deleted.
+
+    .PARAMETER DisableIsEnabled
+    Disable computer only if it's Enabled or only if it's Disabled. By default it will try to disable all computers that are either disabled or enabled.
+    While counter-intuitive for already disabled computers, this is useful if you want preproceess computers for deletion and need to get them on the list.
+
+    .PARAMETER DisableNoServicePrincipalName
+    Disable computer only if it has a ServicePrincipalName or only if it doesn't have a ServicePrincipalName.
+    By default it doesn't care if it has a ServicePrincipalName or not.
+
+    .PARAMETER DisableLastLogonDateMoreThan
+    Disable computer only if it has a LastLogonDate that is more than the specified number of days.
+
+    .PARAMETER DisablePasswordLastSetMoreThan
+    Disable computer only if it has a PasswordLastSet that is more than the specified number of days.
+
+    .PARAMETER DisableExcludeSystems
+    Disable computer only if it's not on the list of excluded operating systems.
+    If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+    It's using OperatingSystem property of the computer object for comparison.
+
+    .PARAMETER DisableIncludeSystems
+    Disable computer only if it's on the list of included operating systems.
+    If you want to include Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DeleteIsEnabled
+    Delete computer only if it's Enabled or only if it's Disabled. By default it will try to delete all computers that are either disabled or enabled.
+
+    .PARAMETER DeleteNoServicePrincipalName
+    Delete computer only if it has a ServicePrincipalName or only if it doesn't have a ServicePrincipalName.
+    By default it doesn't care if it has a ServicePrincipalName or not.
+
+    .PARAMETER DeleteLastLogonDateMoreThan
+    Delete computer only if it has a LastLogonDate that is more than the specified number of days.
+
+    .PARAMETER DeletePasswordLastSetMoreThan
+    Delete computer only if it has a PasswordLastSet that is more than the specified number of days.
+
+    .PARAMETER DeleteListProcessedMoreThan
+    Delete computer only if it has been processed by this script more than the specified number of days ago.
+    This is useful if you want to delete computers that have been disabled for a certain amount of time.
+    It uses XML file to store the list of processed computers, so please make sure to not remove it or it will start over.
+
+    .PARAMETER DeleteExcludeSystems
+    Delete computer only if it's not on the list of excluded operating systems.
+    If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+    It's using OperatingSystem property of the computer object for comparison.
+
+    .PARAMETER DeleteIncludeSystems
+    Delete computer only if it's on the list of included operating systems.
+    If you want to include Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DeleteLimit
+    Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
+    This is to prevent accidental deletion of all computers that meet the criteria.
+    Adjust the limit to your needs.
+
+    .PARAMETER DisableLimit
+    Limit the number of computers that will be disabled. 0 = unlimited. Default is 1.
+    This is to prevent accidental disabling of all computers that meet the criteria.
+    Adjust the limit to your needs.
+
+    .PARAMETER Exclusions
+
+
+    .PARAMETER DisableModifyDescription
+    Modify the description of the computer object to include the date and time when it was disabled.
+    By default it will not modify the description.
+
+    .PARAMETER DisableModifyAdminDescription
+    Modify the admin description of the computer object to include the date and time when it was disabled.
+    By default it will not modify the admin description.
+
+    .PARAMETER Filter
+    Filter to use when searching for computers in Get-ADComputer cmdlet. Default is '*'
+
+    .PARAMETER DataStorePath
+    Path to the XML file that will be used to store the list of processed computers, current run, and history data.
+    Default is $PSScriptRoot\ProcessedComputers.xml
+
+    .PARAMETER ReportOnly
+    Only generate the report, don't disable or delete computers.
+
+    .PARAMETER WhatIfDelete
+    WhatIf parameter for the Delete process. It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
+
+    .PARAMETER WhatIfDisable
+    WhatIf parameter for the Disable process. It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
+
+    .PARAMETER LogPath
+    Path to the log file. Default is no logging to file.
+
+    .PARAMETER LogMaximum
+    Maximum number of log files to keep. Default is 5.
+
+    .PARAMETER Suppress
+    Suppress output of the object and only display to console
+
+    .PARAMETER ShowHTML
+    Show HTML report in the browser once the function is complete
+
+    .PARAMETER Online
+    Online parameter causes HTML report to use CDN for CSS and JS files. This can be useful to minimize the size of the HTML report.
+    Otherwise the report will start with at least 2MB in size.
+
+    .PARAMETER ReportPath
+    Path to the HTML report file. Default is $PSScriptRoot\ProcessedComputers.html
+
+    .EXAMPLE
+    An example
+
+    .NOTES
+    General notes
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [switch] $Disable,
         [switch] $Delete,
+        [nullable[bool]] $DisableIsEnabled,
         [nullable[bool]] $DisableNoServicePrincipalName = $null,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
         [nullable[int]] $DisablePasswordLastSetMoreThan = 180,
@@ -19,8 +154,9 @@
         [int] $DisableLimit = 1, # 0 = unlimited
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [switch] $DisableModifyDescription,
+        [switch] $DisableModifyAdminDescription,
         [string] $Filter = '*',
-        [string] $ListProcessed,
+        [string] $DataStorePath,
         [switch] $ReportOnly,
         [switch] $WhatIfDelete,
         [switch] $WhatIfDisable,
@@ -45,6 +181,7 @@
 
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
+        IsEnabled               = $DisableIsEnabled
         NoServicePrincipalName  = $DisableNoServicePrincipalName
         LastLogonDateMoreThan   = $DisableLastLogonDateMoreThan
         PasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan
@@ -61,21 +198,24 @@
         IncludeSystems          = $DeleteIncludeSystems
     }
 
-    if (-not $ListProcessed) {
-        $ListProcessed = $($MyInvocation.PSScriptRoot) + '\ProcessedComputers.xml'
+    if (-not $DataStorePath) {
+        $DataStorePath = $($MyInvocation.PSScriptRoot) + '\ProcessedComputers.xml'
     }
     if (-not $ReportPath) {
         $ReportPath = $($MyInvocation.PSScriptRoot) + '\ProcessedComputers.html'
     }
 
-    $AllInformaton = [ordered] @{
-        ProcessedComputers = [System.Collections.Generic.List[PSCustomObject]]::new()
-        DisabledComputers  = [System.Collections.Generic.List[PSCustomObject]]::new()
-        DeletedComputers   = [System.Collections.Generic.List[PSCustomObject]]::new()
-    }
-
     $Today = Get-Date
     $Properties = 'DistinguishedName', 'DNSHostName', 'SamAccountName', 'Enabled', 'OperatingSystem', 'OperatingSystemVersion', 'LastLogonDate', 'PasswordLastSet', 'PasswordExpired', 'servicePrincipalName', 'logonCount', 'ManagedBy', 'Description', 'WhenCreated', 'WhenChanged'
+
+    $Export = [ordered] @{
+        Version         = Get-GitHubVersion -Cmdlet 'Invoke-ADComputersCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupActiveDirectory'
+        CurrentRun      = $null
+        History         = $null
+        PendingDeletion = $null
+    }
+
+    Write-Color '[i] ', "[CleanupActiveDirectory] ", 'Version', ' [Informative] ', $Export['Version'] -Color Yellow, DarkGray, Yellow, DarkGray, Magenta
     Write-Color -Text "[i] Started process of cleaning up stale computers" -Color Green
     Write-Color -Text "[i] Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Green
     try {
@@ -84,9 +224,13 @@
         Write-Color -Text "[i] ", "Couldn't get forest. Terminating. Lack of domain contact? Error: $($_.Exception.Message)." -Color Yellow, Red
         return
     }
+
     try {
-        if ($FilePath -and (Test-Path -LiteralPath $FilePath)) {
-            $ProcessedComputers = Import-Clixml -LiteralPath $FilePath -ErrorAction Stop
+        if ($DataStorePath -and (Test-Path -LiteralPath $DataStorePath)) {
+            $FileImport = Import-Clixml -LiteralPath $DataStorePath -ErrorAction Stop
+            #$ProcessedComputers = Import-Clixml -LiteralPath $FilePath -ErrorAction Stop
+            $ProcessedComputers = $FileImport.ProcessedComputers
+            $Export['History'] = $FileImport.History
         }
         if (-not $ProcessedComputers) {
             $ProcessedComputers = [ordered] @{ }
@@ -110,7 +254,7 @@
         $DomainInformation = Get-ADDomain -Identity $Domain -Server $Server
         $Report["$Domain"]['Server'] = $Server
         Write-Color "[i] Getting all computers for domain ", $Domain -Color Yellow, Magenta, Yellow
-        [Array] $Computers = Get-ADComputer -Filter * -Server $Server -Properties $Properties
+        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties
         foreach ($Computer in $Computers) {
             $AllComputers[$($Computer.DistinguishedName)] = $Computer
         }
@@ -181,16 +325,16 @@
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
                         }
-                        $DisabledSuccess = $true
+                        $Success = $true
                     } catch {
-                        $DisabledSuccess = $false
+                        $Success = $false
                         Write-Color -Text "[-] Disabling computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         Write-Event -ID 10 -LogName 'Application' -EntryType Error -Category 1001 -Source 'CleanupComputers' -Message "Disabling computer $($Computer.SamAccountName) failed. Error: $($_.Exception.Message)" -AdditionalFields @('Disable', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
                         }
                     }
-                    if ($DisabledSuccess) {
+                    if ($Success) {
                         if ($DisableModifyDescription -eq $true) {
                             $DisableModifyDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
                             try {
@@ -199,13 +343,25 @@
                             } catch {
                                 Write-Color -Text "[-] ", "Setting description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                             }
-
+                        }
+                        if ($DisableModifyAdminDescription) {
+                            $DisableModifyAdminDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
+                            try {
+                                Set-ADObject -Identity $Computer.DistinguishedName -Replace @{ AdminDescription = $DisableModifyAdminDescriptionText } -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
+                                Write-Color -Text "[+] ", "Setting admin description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyAdminDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
+                            } catch {
+                                Write-Color -Text "[-] ", "Setting admin description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
+                            }
                         }
                     }
 
                     # this is to store actual disabling time - we can't trust WhenChanged date
-                    $Computer.DateDisabled = $Today
-                    $Computer.WhatIfDisable = $WhatIfDisable.IsPresent
+                    $Computer.ActionDate = $Today
+                    if ($WhatIfDisable.IsPresent) {
+                        $Computer.ActionStatus = 'WhatIf'
+                    } else {
+                        $Computer.ActionStatus = $Success
+                    }
                     $ProcessedComputers["$($Computer.DistinguishedName)"] = $Computer
                     # return computer to $ReportDisabled so we can see summary just in case
                     $Computer
@@ -231,20 +387,28 @@
                 } else {
                     Write-Color -Text "[i] Deleting computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
                     try {
+                        $Success = $true
                         Remove-ADObject -Identity $Computer.DistinguishedName -Recursive -WhatIf:$WhatIfDelete -Server $Server -ErrorAction Stop -Confirm:$false
                         Write-Color -Text "[+] Deleting computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) successful." -Color Yellow, Green, Yellow
                         Write-Event -ID 10 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) successful." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
                         }
+
                     } catch {
+                        $Success = $false
                         Write-Color -Text "[-] Deleting computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         Write-Event -ID 10 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) failed." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
                         }
                     }
-                    $Computer.WhatIfDelete = $WhatIfDelete.IsPresent
+                    $Computer.ActionDate = $Today
+                    if ($WhatIfDelete.IsPresent) {
+                        $Computer.ActionStatus = 'WhatIf'
+                    } else {
+                        $Computer.ActionStatus = $Success
+                    }
                     $ProcessedComputers.Remove("$($Computer.DistinguishedName)")
 
                     # return computer to $ReportDeleted so we can see summary just in case
@@ -267,18 +431,16 @@
             $ProcessedComputers.Remove("$($DN)")
         }
     }
-    if ($DeleteListProcessedMoreThan) {
-        Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
-        $ProcessedComputers | Export-Clixml -LiteralPath $ListProcessed -Encoding Unicode
-    }
 
     # Building up summary
-    $Report.ReportPendingDeletion = $ProcessedComputers.Values
-    $Report.ReportDisabled = $ReportDisabled
-    $Report.ReportDeleted = $ReportDeleted
-    if (-not $Suppress) {
-        $Report
-    }
+    $Export.PendingDeletion = $ProcessedComputers.Values
+    $Export.CurrentRun = $ReportDisabled + $ReportDeleted
+    $Export.History = $Export.History + $ReportDisabled + $ReportDeleted
+
+    #if ($DeleteListProcessedMoreThan) {
+    Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
+    # $ProcessedComputers | Export-Clixml -LiteralPath $DataStorePath -Encoding Unicode
+    $Export | Export-Clixml -LiteralPath $DataStorePath -Encoding Unicode
 
     Write-Color -Text "[i] ", "Summary of cleaning up stale computers" -Color Yellow, Cyan
     foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
@@ -292,16 +454,20 @@
 
     Write-Color -Text "[i] ", "Computers pending deletion`:", $Report['ReportPendingDeletion'].Count -Color Yellow, Cyan, Green
     if ($Disable) {
-        Write-Color -Text "[i] ", "Computers disabled in this run`: ", $Report['ReportDisabled'].Count -Color Yellow, Cyan, Green
+        Write-Color -Text "[i] ", "Computers disabled in this run`: ", $ReportDisabled.Count -Color Yellow, Cyan, Green
     }
     if ($Delete) {
-        Write-Color -Text "[i] ", "Computers deleted in this run`: ", $Report['ReportDeleted'].Count -Color Yellow, Cyan, Green
+        Write-Color -Text "[i] ", "Computers deleted in this run`: ", $ReportDeleted.Count -Color Yellow, Cyan, Green
     }
 
-    if ($Report -and $ReportPath) {
+    if ($Export -and $ReportPath) {
         Write-Color "[i] ", "Generating HTML report" -Color Yellow, Magenta
-        New-HTMLProcessedComputers -Report $Report -FilePath $ReportPath -Online:$Online.IsPresent -ShowHTML:$ShowHTML.IsPresent -LogFile $LogPath
+        New-HTMLProcessedComputers -Export $Export -FilePath $ReportPath -Online:$Online.IsPresent -ShowHTML:$ShowHTML.IsPresent -LogFile $LogPath
     }
 
     Write-Color -Text "[i] Finished process of cleaning up stale computers" -Color Green
+
+    if (-not $Suppress) {
+        $Export
+    }
 }
