@@ -6,6 +6,7 @@ Examples/Reports/*
 Examples/Logs/*
 Examples/Package/*
 Examples/*.xml
+Examples/*.html
 Releases/*
 Artefacts/*
 ReleasedUnpacked/*
