@@ -13,15 +13,16 @@ schema: 2.0.0
 ## SYNTAX
 
 ```
-Invoke-ADComputersCleanup [[-DisableIsEnabled] <Boolean>] [[-DisableNoServicePrincipalName] <Boolean>]
- [[-DisableLastLogonDateMoreThan] <Int32>] [[-DisablePasswordLastSetMoreThan] <Int32>]
- [[-DisableExcludeSystems] <Array>] [[-DisableIncludeSystems] <Array>] [[-DeleteIsEnabled] <Boolean>]
- [[-DeleteNoServicePrincipalName] <Boolean>] [[-DeleteLastLogonDateMoreThan] <Int32>]
- [[-DeletePasswordLastSetMoreThan] <Int32>] [[-DeleteListProcessedMoreThan] <Int32>]
- [[-DeleteExcludeSystems] <Array>] [[-DeleteIncludeSystems] <Array>] [[-DeleteLimit] <Int32>]
- [[-DisableLimit] <Int32>] [[-Exclusions] <Array>] [-DisableModifyDescription] [[-Filter] <String>]
- [[-ListProcessed] <String>] [-ReportOnly] [-WhatIfDelete] [-WhatIfDisable] [[-LogPath] <String>]
- [[-LogMaximum] <Int32>] [-Suppress] [-ShowHTML] [-Online] [[-ReportPath] <String>] [<CommonParameters>]
+Invoke-ADComputersCleanup [-Disable] [-Delete] [[-DisableIsEnabled] <Boolean>]
+ [[-DisableNoServicePrincipalName] <Boolean>] [[-DisableLastLogonDateMoreThan] <Int32>]
+ [[-DisablePasswordLastSetMoreThan] <Int32>] [[-DisableExcludeSystems] <Array>]
+ [[-DisableIncludeSystems] <Array>] [[-DeleteIsEnabled] <Boolean>] [[-DeleteNoServicePrincipalName] <Boolean>]
+ [[-DeleteLastLogonDateMoreThan] <Int32>] [[-DeletePasswordLastSetMoreThan] <Int32>]
+ [[-DeleteListProcessedMoreThan] <Int32>] [[-DeleteExcludeSystems] <Array>] [[-DeleteIncludeSystems] <Array>]
+ [[-DeleteLimit] <Int32>] [[-DisableLimit] <Int32>] [[-Exclusions] <Array>] [-DisableModifyDescription]
+ [-DisableModifyAdminDescription] [[-Filter] <String>] [[-DataStorePath] <String>] [-ReportOnly]
+ [-WhatIfDelete] [-WhatIfDisable] [[-LogPath] <String>] [[-LogMaximum] <Int32>] [-Suppress] [-ShowHTML]
+ [-Online] [[-ReportPath] <String>] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -38,152 +39,32 @@ PS C:\> {{ Add example code here }}
 
 ## PARAMETERS
 
-### -DeleteExcludeSystems
-{{ Fill DeleteExcludeSystems Description }}
+### -Disable
+Enable the disable process, meaning the computers that meet the criteria will be disabled.
 
 ```yaml
-Type: Array
+Type: SwitchParameter
 Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 11
-Default value: None
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -DeleteIncludeSystems
-{{ Fill DeleteIncludeSystems Description }}
+### -Delete
+Enable the delete process, meaning the computers that meet the criteria will be deleted.
 
 ```yaml
-Type: Array
+Type: SwitchParameter
 Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 12
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DeleteIsEnabled
-{{ Fill DeleteIsEnabled Description }}
-
-```yaml
-Type: Boolean
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 6
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DeleteLastLogonDateMoreThan
-{{ Fill DeleteLastLogonDateMoreThan Description }}
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 8
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DeleteLimit
-{{ Fill DeleteLimit Description }}
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 13
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DeleteListProcessedMoreThan
-{{ Fill DeleteListProcessedMoreThan Description }}
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 10
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DeleteNoServicePrincipalName
-{{ Fill DeleteNoServicePrincipalName Description }}
-
-```yaml
-Type: Boolean
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 7
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DeletePasswordLastSetMoreThan
-{{ Fill DeletePasswordLastSetMoreThan Description }}
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 9
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DisableExcludeSystems
-{{ Fill DisableExcludeSystems Description }}
-
-```yaml
-Type: Array
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 4
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DisableIncludeSystems
-{{ Fill DisableIncludeSystems Description }}
-
-```yaml
-Type: Array
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 5
-Default value: None
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -197,7 +78,22 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 0
+Position: 1
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableNoServicePrincipalName
+{{ Fill DisableNoServicePrincipalName Description }}
+
+```yaml
+Type: Boolean
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 2
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -212,7 +108,172 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 2
+Position: 3
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisablePasswordLastSetMoreThan
+{{ Fill DisablePasswordLastSetMoreThan Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 4
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableExcludeSystems
+{{ Fill DisableExcludeSystems Description }}
+
+```yaml
+Type: Array
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 5
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableIncludeSystems
+{{ Fill DisableIncludeSystems Description }}
+
+```yaml
+Type: Array
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 6
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteIsEnabled
+{{ Fill DeleteIsEnabled Description }}
+
+```yaml
+Type: Boolean
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 7
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteNoServicePrincipalName
+{{ Fill DeleteNoServicePrincipalName Description }}
+
+```yaml
+Type: Boolean
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 8
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteLastLogonDateMoreThan
+{{ Fill DeleteLastLogonDateMoreThan Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 9
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeletePasswordLastSetMoreThan
+{{ Fill DeletePasswordLastSetMoreThan Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 10
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteListProcessedMoreThan
+{{ Fill DeleteListProcessedMoreThan Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 11
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteExcludeSystems
+{{ Fill DeleteExcludeSystems Description }}
+
+```yaml
+Type: Array
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 12
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteIncludeSystems
+{{ Fill DeleteIncludeSystems Description }}
+
+```yaml
+Type: Array
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 13
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteLimit
+{{ Fill DeleteLimit Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 14
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -227,7 +288,22 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 14
+Position: 15
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Exclusions
+{{ Fill Exclusions Description }}
+
+```yaml
+Type: Array
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 16
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -248,47 +324,18 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -DisableNoServicePrincipalName
-{{ Fill DisableNoServicePrincipalName Description }}
+### -DisableModifyAdminDescription
+Modify the admin description of the computer object to include the date and time when it was disabled.
+By default it will not modify the admin description.
 
 ```yaml
-Type: Boolean
+Type: SwitchParameter
 Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 1
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -DisablePasswordLastSetMoreThan
-{{ Fill DisablePasswordLastSetMoreThan Description }}
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 3
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -Exclusions
-{{ Fill Exclusions Description }}
-
-```yaml
-Type: Array
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 15
-Default value: None
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -302,44 +349,15 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: 16
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -ListProcessed
-{{ Fill ListProcessed Description }}
-
-```yaml
-Type: String
-Parameter Sets: (All)
-Aliases:
-
-Required: False
 Position: 17
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -LogMaximum
-{{ Fill LogMaximum Description }}
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 19
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -LogPath
-{{ Fill LogPath Description }}
+### -DataStorePath
+Path to the XML file that will be used to store the list of processed computers, current run, and history data.
+Default is $PSScriptRoot\ProcessedComputers.xml
 
 ```yaml
 Type: String
@@ -353,68 +371,8 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Online
-{{ Fill Online Description }}
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -ReportOnly
 {{ Fill ReportOnly Description }}
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -ReportPath
-{{ Fill ReportPath Description }}
-
-```yaml
-Type: String
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: 20
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -ShowHTML
-{{ Fill ShowHTML Description }}
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -Suppress
-{{ Fill Suppress Description }}
 
 ```yaml
 Type: SwitchParameter
@@ -450,6 +408,126 @@ Accept wildcard characters: False
 Type: SwitchParameter
 Parameter Sets: (All)
 Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogPath
+{{ Fill LogPath Description }}
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 19
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogMaximum
+{{ Fill LogMaximum Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 20
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Suppress
+{{ Fill Suppress Description }}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ShowHTML
+{{ Fill ShowHTML Description }}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Online
+{{ Fill Online Description }}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ReportPath
+{{ Fill ReportPath Description }}
+
+```yaml
+Type: String
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: 21
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIf
+Shows what would happen if the cmdlet runs. The cmdlet is not run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: wi
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Confirm
+Prompts you for confirmation before running the cmdlet.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases: cf
 
 Required: False
 Position: Named
