@@ -2,23 +2,14 @@
     [cmdletBinding()]
     param(
         [Array] $Computers,
-        [System.Collections.IDictionary] $DeleteOnlyIf = @{
-            IsEnabled               = $null
-            NoServicePrincipalName  = $null
-            LastLogonDateMoreThan   = 60
-            PasswordLastSetMoreThan = 60
-            ListProcessedMoreThan   = 60
-            ExcludeSystems          = @()
-            IncludeSystems          = @()
-        },
+        [System.Collections.IDictionary] $DeleteOnlyIf,
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers
     )
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
-
-        if ($DeleteOnlyIf.ListProcessedMoreThan) {
+        if ($null -ne $DeleteOnlyIf.ListProcessedMoreThan) {
             # if more then 0 this means computer has to be on list of disabled computers for that number of days.
 
             if ($ProcessedComputers.Count -gt 0) {
@@ -82,9 +73,8 @@
             if ($Computer.Enabled -eq $true) {
                 continue SkipComputer
             }
-        } else {
-            # If null it should ignore confition
         }
+
         if ($DeleteOnlyIf.NoServicePrincipalName -eq $true) {
             # Delete computer only if it has no service principal names defined
             if ($Computer.servicePrincipalName.Count -gt 0) {
@@ -95,8 +85,6 @@
             if ($Computer.servicePrincipalName.Count -eq 0) {
                 continue SkipComputer
             }
-        } else {
-            # If null it should ignore confition
         }
 
         if ($DeleteOnlyIf.LastLogonDateMoreThan) {
@@ -125,6 +113,10 @@
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
             'Enabled'                 = $Computer.Enabled
+            'DateDisabled'            = $null
+            'DateDeleted'             = $null
+            'WhatIfDisable'           = $false
+            'WhatIfDelete'            = $false
             'OperatingSystem'         = $Computer.OperatingSystem
             'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
             'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
@@ -133,7 +125,7 @@
             'PasswordLastSet'         = $Computer.PasswordLastSet
             'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
             'PasswordExpired'         = $Computer.PasswordExpired
-            'logonCount'              = $Computer.logonCount
+            'LogonCount'              = $Computer.logonCount
             'ManagedBy'               = $Computer.ManagedBy
             'DistinguishedName'       = $Computer.DistinguishedName
             'OrganizationalUnit'      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
@@ -141,7 +133,6 @@
             'WhenCreated'             = $Computer.WhenCreated
             'WhenChanged'             = $Computer.WhenChanged
             'ServicePrincipalName'    = $Computer.servicePrincipalName -join [System.Environment]::NewLine
-            'DateDisabled'            = $null
         }
     }
 }
