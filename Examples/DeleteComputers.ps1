@@ -32,6 +32,8 @@ $Configuration = @{
     Exclusions                     = @(
         '*OU=Domain Controllers*'
         '*OU=Servers,OU=Production*'
+        'EVOMONSTER$'
+        'EVOMONSTER.AD.EVOTEC.XYZ'
     )
 
     Filter                         = '*'
