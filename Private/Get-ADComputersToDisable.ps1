@@ -24,9 +24,28 @@
             }
         }
         # we skip disabled computers from disabling, always
-        if ($Computer.Enabled -eq $false) {
-            continue
+        # if ($Computer.Enabled -eq $false) {
+        #     continue
+        # }
+
+        if ($DisableOnlyIf.IsEnabled -eq $true) {
+            # Disable computer only if it's Enabled
+            if ($Computer.Enabled -eq $false) {
+                continue SkipComputer
+            }
+        } elseif ($DisableOnlyIf.IsEnabled -eq $false) {
+            # Disable computer only if it's Disabled
+            # a bit useless as it's already disable right...
+            # so we skip computer both times as it's  already done
+            if ($Computer.Enabled -eq $true) {
+                continue SkipComputer
+            } else {
+                continue SkipComputer
+            }
+        } else {
+            # If null it should ignore condition
         }
+
         foreach ($PartialExclusion in $Exclusions) {
             if ($PartialExclusion -like '*DC=*') {
                 $Exclusion = $PartialExclusion
@@ -98,10 +117,9 @@
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
             'Enabled'                 = $Computer.Enabled
-            'DateDisabled'            = $null
-            'DateDeleted'             = $null
-            'WhatIfDisable'           = $false
-            'WhatIfDelete'            = $false
+            'Action'                  = 'Disable'
+            'ActionStatus'            = $null
+            'ActionDate'              = $null
             'OperatingSystem'         = $Computer.OperatingSystem
             'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
             'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
