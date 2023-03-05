@@ -37,7 +37,7 @@ $Configuration = @{
     )
 
     Filter                         = '*'
-    WhatIfDisable                  = $false
+    WhatIfDisable                  = $true
     WhatIfDelete                   = $true
     LogPath                        = "$PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log"
     DataStorePath                  = "$PSScriptRoot\DeleteComputers_ListProcessed.xml"
