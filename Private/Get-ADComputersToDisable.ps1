@@ -23,11 +23,6 @@
                 }
             }
         }
-        # we skip disabled computers from disabling, always
-        # if ($Computer.Enabled -eq $false) {
-        #     continue
-        # }
-
         if ($DisableOnlyIf.IsEnabled -eq $true) {
             # Disable computer only if it's Enabled
             if ($Computer.Enabled -eq $false) {
