@@ -42,6 +42,16 @@
         }
 
         foreach ($PartialExclusion in $Exclusions) {
+            if ($Computer.DistinguishedName -like "$PartialExclusion") {
+                continue SkipComputer
+            }
+            if ($Computer.SamAccountName -like "$PartialExclusion") {
+                continue SkipComputer
+            }
+            if ($Computer.DNSHostName -like "$PartialExclusion") {
+                continue SkipComputer
+            }
+            <#
             if ($PartialExclusion -like '*DC=*') {
                 $Exclusion = $PartialExclusion
             } else {
@@ -50,6 +60,7 @@
             if ($Computer.DistinguishedName -like "*$Exclusion") {
                 continue SkipComputer
             }
+            #>
         }
         if ($DisableOnlyIf.ExcludeSystems.Count -gt 0) {
             foreach ($Exclude in $DisableOnlyIf.ExcludeSystems) {
