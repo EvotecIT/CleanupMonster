@@ -30,8 +30,8 @@ $Configuration = @{
     DeleteLimit                    = 2 # 0 means unlimited, ignored for reports
 
     Exclusions                     = @(
-        'OU=Domain Controllers'
-        'OU=Servers,OU=Production'
+        '*OU=Domain Controllers*'
+        '*OU=Servers,OU=Production*'
     )
 
     Filter                         = '*'
