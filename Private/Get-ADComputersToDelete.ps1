@@ -15,8 +15,8 @@
             if ($ProcessedComputers.Count -gt 0) {
                 $FoundComputer = $ProcessedComputers["$($Computer.DistinguishedName)"]
                 if ($FoundComputer) {
-                    if ($FoundComputer.DateDisabled -is [DateTime]) {
-                        $TimeSpan = New-TimeSpan -Start $FoundComputer.DateDisabled -End $Today
+                    if ($FoundComputer.ActionDate -is [DateTime]) {
+                        $TimeSpan = New-TimeSpan -Start $FoundComputer.ActionDate -End $Today
                         if ($TimeSpan.Days -gt $DeleteOnlyIf.ListProcessedMoreThan) {
 
                         } else {
@@ -113,10 +113,9 @@
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
             'Enabled'                 = $Computer.Enabled
-            'DateDisabled'            = $null
-            'DateDeleted'             = $null
-            'WhatIfDisable'           = $false
-            'WhatIfDelete'            = $false
+            'Action'                  = 'Delete'
+            'ActionStatus'            = $null
+            'ActionDate'              = $null
             'OperatingSystem'         = $Computer.OperatingSystem
             'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
             'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
