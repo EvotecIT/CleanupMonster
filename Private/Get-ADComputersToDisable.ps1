@@ -2,14 +2,7 @@
     [cmdletBinding()]
     param(
         [Array] $Computers,
-        [System.Collections.IDictionary] $DisableOnlyIf = @{
-            IsEnabled               = $null
-            NoServicePrincipalName  = $null
-            LastLogonDateMoreThan   = 60
-            PasswordLastSetMoreThan = 60
-            ExcludeSystems          = @()
-            IncludeSystems          = @()
-        },
+        [System.Collections.IDictionary] $DisableOnlyIf,
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [string] $Filter = '*',
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
@@ -29,6 +22,10 @@
                     continue SkipComputer
                 }
             }
+        }
+        # we skip disabled computers from disabling, always
+        if ($Computer.Enabled -eq $false) {
+            continue
         }
         foreach ($PartialExclusion in $Exclusions) {
             if ($PartialExclusion -like '*DC=*') {
@@ -59,23 +56,6 @@
             if (-not $FoundInclude) {
                 continue SkipComputer
             }
-        }
-        if ($DisableOnlyIf.IsEnabled -eq $true) {
-            # Disable computer only if it's Enabled
-            if ($Computer.Enabled -eq $false) {
-                continue SkipComputer
-            }
-        } elseif ($DisableOnlyIf.IsEnabled -eq $false) {
-            # Disable computer only if it's Disabled
-            # a bit useless as it's already disable right...
-            # so we skip computer both times as it's  already done
-            if ($Computer.Enabled -eq $true) {
-                continue SkipComputer
-            } else {
-                continue SkipComputer
-            }
-        } else {
-            # If null it should ignore condition
         }
         if ($DisableOnlyIf.NoServicePrincipalName -eq $true) {
             # Disable computer only if it has no service principal names defined
@@ -118,6 +98,10 @@
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
             'Enabled'                 = $Computer.Enabled
+            'DateDisabled'            = $null
+            'DateDeleted'             = $null
+            'WhatIfDisable'           = $false
+            'WhatIfDelete'            = $false
             'OperatingSystem'         = $Computer.OperatingSystem
             'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
             'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
@@ -126,7 +110,7 @@
             'PasswordLastSet'         = $Computer.PasswordLastSet
             'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
             'PasswordExpired'         = $Computer.PasswordExpired
-            'logonCount'              = $Computer.logonCount
+            'LogonCount'              = $Computer.logonCount
             'ManagedBy'               = $Computer.ManagedBy
             'DistinguishedName'       = $Computer.DistinguishedName
             'OrganizationalUnit'      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
@@ -134,8 +118,6 @@
             'WhenCreated'             = $Computer.WhenCreated
             'WhenChanged'             = $Computer.WhenChanged
             'ServicePrincipalName'    = $Computer.servicePrincipalName -join [System.Environment]::NewLine
-            'DateDisabled'            = $null
         }
-
     }
 }
