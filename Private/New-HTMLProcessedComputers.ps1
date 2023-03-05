@@ -27,7 +27,6 @@
 
         New-HTMLTab -Name 'Devices Current Run' {
             New-HTMLTable -DataTable $Export.CurrentRun -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'WhatIf' -ComparisonType string -Value 'True' -BackgroundColor LightYellow -FailBackgroundColor LightBlue
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
@@ -37,7 +36,6 @@
         }
         New-HTMLTab -Name 'Devices History' {
             New-HTMLTable -DataTable $Export.History -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'WhatIf' -ComparisonType string -Value 'True' -BackgroundColor LightYellow -FailBackgroundColor LightBlue
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
@@ -47,7 +45,6 @@
         }
         New-HTMLTab -Name 'Devices Pending' {
             New-HTMLTable -DataTable $Export.PendingDeletion -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'WhatIf' -ComparisonType string -Value 'True' -BackgroundColor LightYellow -FailBackgroundColor LightBlue
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
