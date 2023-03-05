@@ -82,7 +82,9 @@
     Adjust the limit to your needs.
 
     .PARAMETER Exclusions
-
+    List of computers to exclude from the process. You can specify multiple computers by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+    You can use SamAccoutName (remember about ending $), DistinguishedName, or DNSHostName property of the computer object for comparison.
 
     .PARAMETER DisableModifyDescription
     Modify the description of the computer object to include the date and time when it was disabled.
