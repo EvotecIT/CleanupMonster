@@ -5,6 +5,7 @@
         [System.Collections.IDictionary] $Export
     )
 
+    $ProcessedComputers = [ordered] @{ }
 
     try {
         if ($DataStorePath -and (Test-Path -LiteralPath $DataStorePath)) {
