@@ -1,4 +1,8 @@
-﻿### 1.1.1 - 2023.03.21
+﻿### 1.1.2 - 2023.03.31
+- Improved reporting when using `ReportOnly` switch
+- Added some more logging and error handling
+
+### 1.1.1 - 2023.03.21
 - Improved reporting
 - Fixes [#1](https://github.com/EvotecIT/CleanupActiveDirectory/issues/1) where it would not add computers to IsProcessedList
 
