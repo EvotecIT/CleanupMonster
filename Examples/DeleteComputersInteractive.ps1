@@ -6,7 +6,7 @@ $Output
 
 # this is a fresh run and it will try to disable computers according to it's defaults
 # read documentation to understand what it does
-$Output = Invoke-ADComputersCleanup -Disable -ShowHTML -WhatIfDisable -WhatIfDelete -Delete -pen
+$Output = Invoke-ADComputersCleanup -Disable -ShowHTML -WhatIfDisable -WhatIfDelete -Delete
 $Output
 
 # this is a fresh run and it will try to delete computers according to it's defaults
