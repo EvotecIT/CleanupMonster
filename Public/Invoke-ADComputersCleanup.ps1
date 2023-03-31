@@ -243,7 +243,9 @@
         return
     }
 
-    $ProcessedComputers = Import-ComputersData -Export $Export -DataStorePath $DataStorePath
+    if (-not $ReportOnly) {
+        $ProcessedComputers = Import-ComputersData -Export $Export -DataStorePath $DataStorePath
+    }
 
     if (-not $Disable -and -not $Delete) {
         Write-Color -Text "[i] ", "No action was taken. You need to enable Disable or/and Delete feature to have any action." -Color Yellow, Red
@@ -271,7 +273,9 @@
             if ($DisableNoServicePrincipalName) {
                 Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
             }
-            $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToDisable -Computers $Computers -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers
+            $Report["$Domain"]['ComputersToBeDisabled'] = @(
+                Get-ADComputersToDisable -Computers $Computers -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers
+            )
         }
         if ($Delete) {
             Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
@@ -287,7 +291,9 @@
                     Write-Color "[i] ", "Looking for computers that are disabled" -Color Yellow, Cyan, Green
                 }
             }
-            $Report["$Domain"]['ComputersToBeDeleted'] = Get-ADComputersToDelete -Computers $Computers -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers
+            $Report["$Domain"]['ComputersToBeDeleted'] = @(
+                Get-ADComputersToDelete -Computers $Computers -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers
+            )
         }
     }
 
@@ -298,8 +304,8 @@
             } else {
                 $DisableLimitText = $DisableLimit
             }
-            $ComputersToBeDisabled = if ($null -ne $Report["$Domain"]['ComputersToBeDisabled'].Count) { $Report["$Domain"]['ComputersToBeDisabled'].Count } else { 0 }
-            Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $ComputersToBeDisabled, ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+            # $ComputersToBeDisabled = if ($null -ne $Report["$Domain"]['ComputersToBeDisabled']) { $Report["$Domain"]['ComputersToBeDisabled'].Count } else { 0 }
+            Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'].Count, ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
         if ($Delete) {
             if ($DeleteLimit -eq 0) {
@@ -307,8 +313,8 @@
             } else {
                 $DeleteLimitText = $DeleteLimit
             }
-            $ComputersToBeDeleted = if ($null -ne $Report["$Domain"]['ComputersToBeDeleted'].Count) { $Report["$Domain"]['ComputersToBeDeleted'].Count } else { 0 }
-            Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $ComputersToBeDeleted, ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+            #$ComputersToBeDeleted = if ($null -ne $Report["$Domain"]['ComputersToBeDeleted']) { $Report["$Domain"]['ComputersToBeDeleted'].Count } else { 0 }
+            Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'].Count, ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
     }
 
@@ -444,9 +450,13 @@
 
     #if ($DeleteListProcessedMoreThan) {
     Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
-    # $ProcessedComputers | Export-Clixml -LiteralPath $DataStorePath -Encoding Unicode
-    $Export | Export-Clixml -LiteralPath $DataStorePath -Encoding Unicode -WhatIf:$false
-
+    if (-not $ReportOnly) {
+        try {
+            $Export | Export-Clixml -LiteralPath $DataStorePath -Encoding Unicode -WhatIf:$false -ErrorAction Stop
+        } catch {
+            Write-Color -Text "[-] Exporting Processed List failed. Error: $($_.Exception.Message)" -Color Yellow, Red
+        }
+    }
     Write-Color -Text "[i] ", "Summary of cleaning up stale computers" -Color Yellow, Cyan
     foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
         if ($Disable) {
@@ -456,12 +466,13 @@
             Write-Color -Text "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'].Count -Color Yellow, Cyan, Green
         }
     }
-
-    Write-Color -Text "[i] ", "Computers pending deletion`:", $Report['ReportPendingDeletion'].Count -Color Yellow, Cyan, Green
-    if ($Disable) {
+    if (-not $ReportOnly) {
+        Write-Color -Text "[i] ", "Computers pending deletion`:", $Report['ReportPendingDeletion'].Count -Color Yellow, Cyan, Green
+    }
+    if ($Disable -and -not $ReportOnly) {
         Write-Color -Text "[i] ", "Computers disabled in this run`: ", $ReportDisabled.Count -Color Yellow, Cyan, Green
     }
-    if ($Delete) {
+    if ($Delete -and -not $ReportOnly) {
         Write-Color -Text "[i] ", "Computers deleted in this run`: ", $ReportDeleted.Count -Color Yellow, Cyan, Green
     }
 
@@ -482,6 +493,7 @@
             DeleteOnlyIf       = $DeleteOnlyIf
             Delete             = $Delete
             Disable            = $Disable
+            ReportOnly         = $ReportOnly
         }
         New-HTMLProcessedComputers @newHTMLProcessedComputersSplat
     }
