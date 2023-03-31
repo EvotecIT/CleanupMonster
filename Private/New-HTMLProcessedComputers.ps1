@@ -10,7 +10,8 @@
         [switch] $ShowHTML,
         [string] $LogFile,
         [switch] $Disable,
-        [switch] $Delete
+        [switch] $Delete,
+        [switch] $ReportOnly
     )
 
     New-HTML {
@@ -29,61 +30,62 @@
                 } -JustifyContent flex-end -Invisible
             }
         }
-
-        New-HTMLTab -Name 'Devices Current Run' {
-            New-HTMLSection {
-                [Array] $ListAll = $($Export.CurrentRun)
-                New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Total in this run' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
+        if (-not $ReportOnly) {
+            New-HTMLTab -Name 'Devices Current Run' {
+                New-HTMLSection {
+                    [Array] $ListAll = $($Export.CurrentRun)
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Total in this run' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
+                    } -Invisible
+                    [Array] $ListDisabled = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Disable' }))
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Disable' -Text "Computers disabled: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                    } -Invisible
+                    [Array] $ListDeleted = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Delete' }))
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Delete' -Text "Computers deleted: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
+                    } -Invisible
                 } -Invisible
-                [Array] $ListDisabled = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Disable' }))
-                New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Disable' -Text "Computers disabled: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                New-HTMLTable -DataTable $Export.CurrentRun -Filtering -ScrollX {
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
+                } -WarningAction SilentlyContinue
+            }
+            New-HTMLTab -Name 'Devices History' {
+                New-HTMLSection {
+                    [Array] $ListAll = $($Export.History)
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Total History' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
+                    } -Invisible
+                    [Array] $ListDisabled = $($($Export.History | Where-Object { $_.Action -eq 'Disable' }))
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Disabled History' -Text "Computers disabled so far: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                    } -Invisible
+                    [Array] $ListDeleted = $($($Export.History | Where-Object { $_.Action -eq 'Delete' }))
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Deleted History' -Text "Computers deleted so far: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
+                    } -Invisible
                 } -Invisible
-                [Array] $ListDeleted = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Delete' }))
-                New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Delete' -Text "Computers deleted: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
-                } -Invisible
-            } -Invisible
-            New-HTMLTable -DataTable $Export.CurrentRun -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-            } -WarningAction SilentlyContinue
-        }
-        New-HTMLTab -Name 'Devices History' {
-            New-HTMLSection {
-                [Array] $ListAll = $($Export.History)
-                New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Total History' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
-                } -Invisible
-                [Array] $ListDisabled = $($($Export.History | Where-Object { $_.Action -eq 'Disable' }))
-                New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Disabled History' -Text "Computers disabled so far: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
-                } -Invisible
-                [Array] $ListDeleted = $($($Export.History | Where-Object { $_.Action -eq 'Delete' }))
-                New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Deleted History' -Text "Computers deleted so far: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
-                } -Invisible
-            } -Invisible
-            New-HTMLTable -DataTable $Export.History -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-            } -WarningAction SilentlyContinue
-        }
-        New-HTMLTab -Name 'Devices Pending' {
-            New-HTMLTable -DataTable $Export.PendingDeletion.Values -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-            } -WarningAction SilentlyContinue
+                New-HTMLTable -DataTable $Export.History -Filtering -ScrollX {
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
+                } -WarningAction SilentlyContinue
+            }
+            New-HTMLTab -Name 'Devices Pending' {
+                New-HTMLTable -DataTable $Export.PendingDeletion.Values -Filtering -ScrollX {
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
+                } -WarningAction SilentlyContinue
+            }
         }
         New-HTMLTab -Name 'Devices' {
             #New-HTMLText -Text @(
