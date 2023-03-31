@@ -43,16 +43,6 @@
             if ($Computer.DNSHostName -like "$PartialExclusion") {
                 continue SkipComputer
             }
-            <#
-            if ($PartialExclusion -like '*DC=*') {
-                $Exclusion = $PartialExclusion
-            } else {
-                $Exclusion = -join ($PartialExclusion, ',', $DomainInformation.DistinguishedName)
-            }
-            if ($Computer.DistinguishedName -like "*$Exclusion") {
-                continue SkipComputer
-            }
-            #>
         }
         if ($DeleteOnlyIf.ExcludeSystems.Count -gt 0) {
             foreach ($Exclude in $DeleteOnlyIf.ExcludeSystems) {
