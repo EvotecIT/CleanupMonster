@@ -1,4 +1,10 @@
-﻿### 1.1.2 - 2023.03.31
+﻿### 1.1.3 - 2023.04.01
+- Improved reporting when using `ReportOnly` switch
+- Improved logging and error handling
+- Added some statistics to the report
+- Added ability to delete older reports
+
+### 1.1.2 - 2023.03.31
 - Improved reporting when using `ReportOnly` switch
 - Added some more logging and error handling
 
