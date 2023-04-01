@@ -114,6 +114,9 @@
     .PARAMETER ReportOnly
     Only generate the report, don't disable or delete computers.
 
+    .PARAMETER ReportMaximum
+    Maximum number of reports to keep. Default is Unlimited (0).
+
     .PARAMETER WhatIfDelete
     WhatIf parameter for the Delete process.
     It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
@@ -143,7 +146,79 @@
     Path to the HTML report file. Default is $PSScriptRoot\ProcessedComputers.html
 
     .EXAMPLE
-    An example
+    $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
+    $Output
+
+    .EXAMPLE
+    $Output = Invoke-ADComputersCleanup -DeleteListProcessedMoreThan 100 -Disable -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
+    $Output
+
+    .EXAMPLE
+    # this is a fresh run and it will provide report only according to it's defaults
+    $Output = Invoke-ADComputersCleanup -WhatIf -ReportOnly -Disable -Delete -ShowHTML
+    $Output
+
+    .EXAMPLE
+    # this is a fresh run and it will try to disable computers according to it's defaults
+    # read documentation to understand what it does
+    $Output = Invoke-ADComputersCleanup -Disable -ShowHTML -WhatIfDisable -WhatIfDelete -Delete
+    $Output
+
+    .EXAMPLE
+    # this is a fresh run and it will try to delete computers according to it's defaults
+    # read documentation to understand what it does
+    $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
+    $Output
+
+    .EXAMPLE
+    # Run the script
+    $Configuration = @{
+        Disable                        = $true
+        DisableNoServicePrincipalName  = $null
+        DisableIsEnabled               = $true
+        DisableLastLogonDateMoreThan   = 90
+        DisablePasswordLastSetMoreThan = 90
+        DisableExcludeSystems          = @(
+            # 'Windows Server*'
+        )
+        DisableIncludeSystems          = @()
+        DisableLimit                   = 2 # 0 means unlimited, ignored for reports
+        DisableModifyDescription       = $false
+        DisableAdminModifyDescription  = $true
+
+        Delete                         = $true
+        DeleteIsEnabled                = $false
+        DeleteNoServicePrincipalName   = $null
+        DeleteLastLogonDateMoreThan    = 180
+        DeletePasswordLastSetMoreThan  = 180
+        DeleteListProcessedMoreThan    = 90 # 90 days since computer was added to list
+        DeleteExcludeSystems           = @(
+            # 'Windows Server*'
+        )
+        DeleteIncludeSystems           = @(
+
+        )
+        DeleteLimit                    = 2 # 0 means unlimited, ignored for reports
+
+        Exclusions                     = @(
+            '*OU=Domain Controllers*'
+            '*OU=Servers,OU=Production*'
+            'EVOMONSTER$'
+            'EVOMONSTER.AD.EVOTEC.XYZ'
+        )
+
+        Filter                         = '*'
+        WhatIfDisable                  = $true
+        WhatIfDelete                   = $true
+        LogPath                        = "$PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log"
+        DataStorePath                  = "$PSScriptRoot\DeleteComputers_ListProcessed.xml"
+        ReportPath                     = "$PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+        ShowHTML                       = $true
+    }
+
+    # Run one time as admin: Write-Event -ID 10 -LogName 'Application' -EntryType Information -Category 0 -Message 'Initialize' -Source 'CleanupComputers'
+    $Output = Invoke-ADComputersCleanup @Configuration
+    $Output
 
     .NOTES
     General notes
@@ -176,6 +251,7 @@
         [string] $Filter = '*',
         [string] $DataStorePath,
         [switch] $ReportOnly,
+        [int] $ReportMaximum,
         [switch] $WhatIfDelete,
         [switch] $WhatIfDisable,
         [string] $LogPath,
@@ -192,10 +268,7 @@
     }
 
     # lets enable global logging
-    Set-LoggingCapabilities -Configuration @{
-        LogPath    = $LogPath
-        LogMaximum = $LogMaximum
-    }
+    Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum
 
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
@@ -222,6 +295,9 @@
     if (-not $ReportPath) {
         $ReportPath = $($MyInvocation.PSScriptRoot) + '\ProcessedComputers.html'
     }
+
+    # lets create report path, reporting is enabled by default
+    Set-ReportingCapabilities -ReportPath $ReportPath -ReportMaximum $ReportMaximum
 
     $Today = Get-Date
     $Properties = 'DistinguishedName', 'DNSHostName', 'SamAccountName', 'Enabled', 'OperatingSystem', 'OperatingSystemVersion', 'LastLogonDate', 'PasswordLastSet', 'PasswordExpired', 'servicePrincipalName', 'logonCount', 'ManagedBy', 'Description', 'WhenCreated', 'WhenChanged'
@@ -338,6 +414,7 @@
                         }
                         $Success = $true
                     } catch {
+                        $Computer.ActionComment = $_.Exception.Message
                         $Success = $false
                         Write-Color -Text "[-] Disabling computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         Write-Event -ID 10 -LogName 'Application' -EntryType Error -Category 1001 -Source 'CleanupComputers' -Message "Disabling computer $($Computer.SamAccountName) failed. Error: $($_.Exception.Message)" -AdditionalFields @('Disable', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
@@ -352,6 +429,7 @@
                                 Set-ADComputer -Identity $Computer.DistinguishedName -Description $DisableModifyDescriptionText -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
                                 Write-Color -Text "[+] ", "Setting description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
                             } catch {
+                                $Computer.ActionComment = $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
                                 Write-Color -Text "[-] ", "Setting description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                             }
                         }
@@ -361,6 +439,7 @@
                                 Set-ADObject -Identity $Computer.DistinguishedName -Replace @{ AdminDescription = $DisableModifyAdminDescriptionText } -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
                                 Write-Color -Text "[+] ", "Setting admin description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyAdminDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
                             } catch {
+                                $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
                                 Write-Color -Text "[-] ", "Setting admin description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                             }
                         }
@@ -413,6 +492,7 @@
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
                         }
+                        $Computer.ActionComment = $_.Exception.Message
                     }
                     $Computer.ActionDate = $Today
                     if ($WhatIfDelete.IsPresent) {
@@ -477,11 +557,18 @@
     }
 
     if ($Export -and $ReportPath) {
-        Write-Color "[i] ", "Generating HTML report" -Color Yellow, Magenta
+        Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
         $ComputersToProcess = foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
-            $Report["$Domain"]['ComputersToBeDisabled']
-            $Report["$Domain"]['ComputersToBeDeleted']
+            if ($Report["$Domain"]['ComputersToBeDisabled'].Count -gt 0) {
+                $Report["$Domain"]['ComputersToBeDisabled']
+            }
+            if ($Report["$Domain"]['ComputersToBeDeleted'].Count -gt 0) {
+                $Report["$Domain"]['ComputersToBeDeleted']
+            }
         }
+
+        $Export.Statistics = New-ADComputersStatistics -ComputersToProcess $ComputersToProcess
+
         $newHTMLProcessedComputersSplat = @{
             Export             = $Export
             FilePath           = $ReportPath
