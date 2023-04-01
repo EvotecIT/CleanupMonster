@@ -22,6 +22,15 @@
 `CleanupActiveDirectory` is a PowerShell module to that helps you clean up **Active Directory**.
 It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**.
 
+### Support Evotec
+
+Support the efforts of the development of the Evotec projects.
+It takes a lot of time and effort to create and maintain them.
+If you find them useful, please consider supporting the development.
+
+ - [Become a sponsor via GitHub Sponsors :heart:](https://github.com/sponsors/PrzemyslawKlys)
+ - [Become a sponsor via PayPal :heart:](https://paypal.me/PrzemyslawKlys)
+
 ### Installation
 
 ```powershell
