@@ -38,6 +38,9 @@ $Configuration = @{
             )
             ExternalModuleDependencies = @(
                 "ActiveDirectory"
+                "Microsoft.PowerShell.Utility"
+                "Microsoft.PowerShell.Management"
+                "Microsoft.PowerShell.Diagnostics"
             )
         }
     }
