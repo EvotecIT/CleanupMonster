@@ -88,9 +88,6 @@
             }
         }
         New-HTMLTab -Name 'Devices' {
-            #New-HTMLText -Text @(
-            #    "This is the list of computers that will be processed if there are no limits to processing. "
-            #)
             New-HTMLSection {
                 New-HTMLPanel {
                     New-HTMLToast -TextHeader 'Total' -Text "Actions (disable & delete): $($ComputersToProcess.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
@@ -102,6 +99,32 @@
                     New-HTMLToast -TextHeader 'To delete' -Text "Computers to be deleted: $($($ComputersToProcess | Where-Object { $_.Action -eq 'Delete' }).Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
                 } -Invisible
             } -Invisible
+            New-HTMLSection -HeaderText 'General statistics' -CanCollapse {
+                New-HTMLPanel {
+                    New-HTMLChart {
+                        New-ChartPie -Name 'To be disabled' -Value $Export.Statistics.ToDisable
+                        New-ChartPie -Name 'To be deleted' -Value $Export.Statistics.ToDelete
+                    } -Title "Computers to be disabled or deleted"
+                }
+                if ($Export.Statistics.ToDisableComputerWorkstation -or $Export.Statistics.ToDisableComputerServer -or $Export.Statistics.ToDisableComputerUnknown) {
+                    New-HTMLPanel {
+                        New-HTMLChart {
+                            New-ChartPie -Name "Disable workstations" -Value $Export.Statistics.ToDisableComputerWorkstation
+                            New-ChartPie -Name "Disable servers" -Value $Export.Statistics.ToDisableComputerServer
+                            New-ChartPie -Name "Disable unknown" -Value $Export.Statistics.ToDisableComputerUnknown
+                        } -Title "Computers to be disabled by type"
+                    }
+                }
+                if ($Export.Statistics.ToDeleteComputerWorkstation -or $Export.Statistics.ToDeleteComputerServer -or $Export.Statistics.ToDeleteComputerUnknown) {
+                    New-HTMLPanel {
+                        New-HTMLChart {
+                            New-ChartPie -Name "Delete workstations" -Value $Export.Statistics.ToDeleteComputerWorkstation
+                            New-ChartPie -Name "Delete servers" -Value $Export.Statistics.ToDeleteComputerServer
+                            New-ChartPie -Name "Delete unknown" -Value $Export.Statistics.ToDeleteComputerUnknown
+                        } -Title "Computers to be deleted by type"
+                    }
+                }
+            }
             New-HTMLText -LineBreak
             New-HTMLHeading -Heading h3 -HeadingText "Full list of computers that will be processed if there are no limits to processing. "
             New-HTMLText -LineBreak
