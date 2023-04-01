@@ -117,6 +117,7 @@
             'Action'                  = 'Delete'
             'ActionStatus'            = $null
             'ActionDate'              = $null
+            'ActionComment'           = $null
             'OperatingSystem'         = $Computer.OperatingSystem
             'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
             'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
