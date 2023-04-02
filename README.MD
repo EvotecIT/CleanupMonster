@@ -54,8 +54,6 @@ You can change those values by using parameters.
 
 ![ReportOnlyMode](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/ComputersReport.png)
 
-
-
 #### Interactively
 
 This is a sample script that you can use to run the module interactively.
@@ -66,6 +64,27 @@ It's good idea to run it interactively first to clean your AD and then run it in
 $Output = Invoke-ADComputersCleanup -Disable -WhatIfDisable -ShowHTML
 $Output
 ```
+
+When you run cleanup the module will deliver HTML report on every run.
+It will show you:
+
+- Devices in Current Run (Actioned)
+
+![CurrentRun](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesCurrentRun.png)
+
+- Devices in Previous Runs (History)
+
+![PreviousRuns](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesHistory.png)
+
+- Devices on Pending List (Pending deletion)
+
+![PendingList](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesPending.png)
+
+- All Devices (All) remaining
+
+![AllRemaining](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesAllRemaining.png)
+
+Another example with log settings and custom report path
 
 ```powershell
 # this is a fresh run and it will try to delete computers according to it's defaults
