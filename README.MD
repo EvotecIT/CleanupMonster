@@ -39,6 +39,23 @@ Install-Module -Name CleanupActiveDirectory -Force -Verbose
 
 ### Using the module
 
+#### Report Only
+
+The first thing you should do is to run the module in a report only mode.
+It will show you how many computers are there to disable and delete.
+
+```powershell
+$Output = Invoke-ADComputersCleanup -WhatIf -ReportOnly -Disable -Delete -ShowHTML
+$Output
+```
+
+Keep in mind it works with default values such as 180 days for LastLogonDate and LastPasswordSet.
+You can change those values by using parameters.
+
+![Report](https://github.com/EvotecIT/CleanupActiveDirectory/blob/master/Examples/Output/ComputersReport.png)
+
+
+
 #### Interactively
 
 This is a sample script that you can use to run the module interactively.
