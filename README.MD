@@ -52,7 +52,7 @@ $Output
 Keep in mind it works with default values such as 180 days for LastLogonDate and LastPasswordSet.
 You can change those values by using parameters.
 
-![Report](https://github.com/EvotecIT/CleanupActiveDirectory/blob/master/Examples/Output/ComputersReport.png)
+![Report](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/blob/master/Examples/Images/ComputersReport.png)
 
 
 
