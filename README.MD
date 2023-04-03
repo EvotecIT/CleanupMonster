@@ -20,7 +20,10 @@
 </p>
 
 `CleanupActiveDirectory` is a PowerShell module to that helps you clean up **Active Directory**.
-It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**.
+It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**. It's a very advanced module with many options and you can easily customize it to your needs.
+Please make sure to run this module with proper permissions or you may get wrong results.
+By default Active Directory domain allows a standard user to read LastLogonDate and LastPasswordSet attributes.
+If you have changed those settings you may need to run the module with elevated permissions even for reporting needs.
 
 ### Support Evotec
 
