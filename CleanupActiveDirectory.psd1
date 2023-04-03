@@ -8,7 +8,7 @@
     Description          = 'This module provides an easy way to cleanup Active Directory from dead/old objects.'
     FunctionsToExport    = 'Invoke-ADComputersCleanup'
     GUID                 = '71f471e1-7398-487e-bd1b-35787b154a1f'
-    ModuleVersion        = '1.1.3'
+    ModuleVersion        = '1.1.4'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
