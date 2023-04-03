@@ -1,4 +1,7 @@
-﻿### 1.1.3 - 2023.04.01
+﻿### 1.1.4 - 2023.04.03
+- Clarify HTML information when it comes to PasswordLastSet and LastLogonDays
+
+### 1.1.3 - 2023.04.01
 - Improved reporting when using `ReportOnly` switch
 - Improved logging and error handling
 - Added some statistics to the report
