@@ -138,9 +138,15 @@
                                     if ($null -eq $DisableOnlyIf[$Key] -or $DisableOnlyIf[$Key].Count -eq 0) {
                                         $($Key), " is ", 'Not Set'
                                     } else {
-                                        $($Key), " is ", $($DisableOnlyIf[$Key])
+                                        if ($Key -eq 'LastLogonDateMoreThan') {
+                                            $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never logged on"
+                                        } elseif ($Key -eq 'PasswordLastSetMoreThan') {
+                                            $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never changed"
+                                        } else {
+                                            $($Key), " is ", $($DisableOnlyIf[$Key])
+                                        }
                                     }
-                                ) -FontWeight bold, normal, bold -Color None, None, CornflowerBlue
+                                ) -FontWeight bold, normal, bold, normal, bold -Color None, None, CornflowerBlue, None, CornflowerBlue
                             }
                         }
                     } else {
@@ -156,9 +162,15 @@
                                     if ($null -eq $DeleteOnlyIf[$Key] -or $DeleteOnlyIf[$Key].Count -eq 0) {
                                         $($Key), " is ", 'Not Set'
                                     } else {
-                                        $($Key), " is ", $($DeleteOnlyIf[$Key])
+                                        if ($Key -eq 'LastLogonDateMoreThan') {
+                                            $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never logged on"
+                                        } elseif ($Key -eq 'PasswordLastSetMoreThan') {
+                                            $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never changed"
+                                        } else {
+                                            $($Key), " is ", $($DeleteOnlyIf[$Key])
+                                        }
                                     }
-                                ) -FontWeight bold, normal, bold -Color None, None, CornflowerBlue
+                                ) -FontWeight bold, normal, bold, normal, bold -Color None, None, CornflowerBlue, None, CornflowerBlue
                             }
                         }
                     } else {
