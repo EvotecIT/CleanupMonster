@@ -25,9 +25,11 @@ Please make sure to run this module with proper permissions or you may get wrong
 By default Active Directory domain allows a standard user to read LastLogonDate and LastPasswordSet attributes.
 If you have changed those settings you may need to run the module with elevated permissions even for reporting needs.
 
-### Support Evotec
+### Support/Sponsor
 
-Support the efforts of the development of the Evotec projects.
+Does your company use our .NET libraries or PowerShell Modules?
+Ask your manager or marketing team if your company would be interested in supporting our project.
+Support will allow the maintainers to dedicate more time for maintenance and new features for everyone.
 It takes a lot of time and effort to create and maintain them.
 If you find them useful, please consider supporting the development.
 
