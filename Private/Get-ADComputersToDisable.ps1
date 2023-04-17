@@ -109,6 +109,27 @@
             }
         }
 
+        if ($DisableOnlyIf.PasswordLastSetOlderThan) {
+            # This runs only if not null
+            if ($Computer.PasswordLastSet) {
+                # We ignore empty
+
+                if ($DisableOnlyIf.PasswordLastSetOlderThan -le $Computer.PasswordLastSet) {
+                    continue SkipComputer
+                }
+            }
+        }
+        if ($DisableOnlyIf.LastLogonDateOlderThan) {
+            # This runs only if not null
+            if ($Computer.LastLogonDate) {
+                # We ignore empty
+
+                if ($DisableOnlyIf.LastLogonDateOlderThan -le $Computer.LastLogonDate) {
+                    continue SkipComputer
+                }
+            }
+        }
+
         [PSCustomObject] @{
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName

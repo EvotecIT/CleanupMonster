@@ -110,6 +110,28 @@
                 }
             }
         }
+
+        if ($DeleteOnlyIf.PasswordLastSetOlderThan) {
+            # This runs only if not null
+            if ($Computer.PasswordLastSet) {
+                # We ignore empty
+
+                if ($DeleteOnlyIf.PasswordLastSetOlderThan -le $Computer.PasswordLastSet) {
+                    continue SkipComputer
+                }
+            }
+        }
+        if ($DeleteOnlyIf.LastLogonDateOlderThan) {
+            # This runs only if not null
+            if ($Computer.LastLogonDate) {
+                # We ignore empty
+
+                if ($DeleteOnlyIf.LastLogonDateOlderThan -le $Computer.LastLogonDate) {
+                    continue SkipComputer
+                }
+            }
+        }
+
         [PSCustomObject] @{
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
