@@ -1,4 +1,4 @@
-﻿Import-Module .\CleanupActiveDirectory.psd1 -Force
+﻿Import-Module .\CleanupMonster.psd1 -Force
 
 # this is a fresh run and it will provide report only according to it's defaults
 $Output = Invoke-ADComputersCleanup -WhatIf -ReportOnly -Disable -Delete -ShowHTML

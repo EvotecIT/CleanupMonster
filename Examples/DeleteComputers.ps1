@@ -1,4 +1,4 @@
-﻿Import-Module .\CleanupActiveDirectory.psd1 -Force
+﻿Import-Module .\CleanupMonster.psd1 -Force
 
 # Run the script
 $Configuration = @{

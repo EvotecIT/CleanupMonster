@@ -1,6 +1,6 @@
 ---
-external help file: CleanupActiveDirectory-help.xml
-Module Name: CleanupActiveDirectory
+external help file: CleanupMonster-help.xml
+Module Name: CleanupMonster
 online version:
 schema: 2.0.0
 ---

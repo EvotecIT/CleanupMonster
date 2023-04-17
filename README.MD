@@ -1,16 +1,16 @@
-﻿# CleanupActiveDirectory - PowerShell Module
+﻿# CleanupMonster - PowerShell Module
 
 <p align="center">
-  <a href="https://www.powershellgallery.com/packages/CleanupActiveDirectory"><img src="https://img.shields.io/powershellgallery/v/CleanupActiveDirectory.svg?style=flat-square"></a>
-  <a href="https://www.powershellgallery.com/packages/CleanupActiveDirectory"><img src="https://img.shields.io/powershellgallery/vpre/CleanupActiveDirectory.svg?label=powershell%20gallery%20preview&colorB=yellow&style=flat-square"></a>
-  <a href="https://github.com/EvotecIT/CleanupActiveDirectory"><img src="https://img.shields.io/github/license/EvotecIT/CleanupActiveDirectory.svg?style=flat-square"></a>
+  <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/v/CleanupMonster.svg?style=flat-square"></a>
+  <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/vpre/CleanupMonster.svg?label=powershell%20gallery%20preview&colorB=yellow&style=flat-square"></a>
+  <a href="https://github.com/EvotecIT/CleanupMonster"><img src="https://img.shields.io/github/license/EvotecIT/CleanupMonster.svg?style=flat-square"></a>
 </p>
 
 <p align="center">
-  <a href="https://www.powershellgallery.com/packages/CleanupActiveDirectory"><img src="https://img.shields.io/powershellgallery/p/CleanupActiveDirectory.svg?style=flat-square"></a>
-  <a href="https://github.com/EvotecIT/CleanupActiveDirectory"><img src="https://img.shields.io/github/languages/top/evotecit/CleanupActiveDirectory.svg?style=flat-square"></a>
-  <a href="https://github.com/EvotecIT/CleanupActiveDirectory"><img src="https://img.shields.io/github/languages/code-size/evotecit/CleanupActiveDirectory.svg?style=flat-square"></a>
-  <a href="https://www.powershellgallery.com/packages/CleanupActiveDirectory"><img src="https://img.shields.io/powershellgallery/dt/CleanupActiveDirectory.svg?style=flat-square"></a>
+  <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/p/CleanupMonster.svg?style=flat-square"></a>
+  <a href="https://github.com/EvotecIT/CleanupMonster"><img src="https://img.shields.io/github/languages/top/evotecit/CleanupMonster.svg?style=flat-square"></a>
+  <a href="https://github.com/EvotecIT/CleanupMonster"><img src="https://img.shields.io/github/languages/code-size/evotecit/CleanupMonster.svg?style=flat-square"></a>
+  <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/dt/CleanupMonster.svg?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
   <a href="https://www.linkedin.com/in/pklys"><img src="https://img.shields.io/badge/LinkedIn-pklys-0077B5.svg?logo=LinkedIn&style=flat-square"></a>
 </p>
 
-`CleanupActiveDirectory` is a PowerShell module to that helps you clean up **Active Directory**.
+`CleanupMonster` is a PowerShell module to that helps you clean up **Active Directory**.
 It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**. It's a very advanced module with many options and you can easily customize it to your needs.
 Please make sure to run this module with proper permissions or you may get wrong results.
 By default Active Directory domain allows a standard user to read LastLogonDate and LastPasswordSet attributes.
@@ -39,12 +39,14 @@ If you find them useful, please consider supporting the development.
 ### Installation
 
 ```powershell
-Install-Module -Name CleanupActiveDirectory -Force -Verbose
+Install-Module -Name CleanupMonster -Force -Verbose
 ```
 
 ### Using the module
 
-#### Report Only
+#### Cleaning Active Directory
+
+##### Report Only
 
 The first thing you should do is to run the module in a report only mode.
 It will show you how many computers are there to disable and delete.
@@ -57,9 +59,9 @@ $Output
 Keep in mind it works with default values such as 180 days for LastLogonDate and LastPasswordSet.
 You can change those values by using parameters.
 
-![ReportOnlyMode](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/ComputersReport.png)
+![ReportOnlyMode](https://raw.githubusercontent.com/EvotecIT/CleanupMonster/master/Examples/Images/ComputersReport.png)
 
-#### Interactively
+##### Interactively
 
 This is a sample script that you can use to run the module interactively.
 It's good idea to run it interactively first to clean your AD and then run it in a scheduled task.
@@ -75,19 +77,19 @@ It will show you:
 
 - Devices in Current Run (Actioned)
 
-![CurrentRun](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesCurrentRun.png)
+![CurrentRun](https://raw.githubusercontent.com/EvotecIT/CleanupMonster/master/Examples/Images/CleanupDevicesCurrentRun.png)
 
 - Devices in Previous Runs (History)
 
-![PreviousRuns](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesHistory.png)
+![PreviousRuns](https://raw.githubusercontent.com/EvotecIT/CleanupMonster/master/Examples/Images/CleanupDevicesHistory.png)
 
 - Devices on Pending List (Pending deletion)
 
-![PendingList](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesPending.png)
+![PendingList](https://raw.githubusercontent.com/EvotecIT/CleanupMonster/master/Examples/Images/CleanupDevicesPending.png)
 
 - All Devices (All) remaining
 
-![AllRemaining](https://raw.githubusercontent.com/EvotecIT/CleanupActiveDirectory/master/Examples/Images/CleanupDevicesAllRemaining.png)
+![AllRemaining](https://raw.githubusercontent.com/EvotecIT/CleanupMonster/master/Examples/Images/CleanupDevicesAllRemaining.png)
 
 Another example with log settings and custom report path
 
@@ -97,7 +99,7 @@ $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PS
 $Output
 ```
 
-#### Non-interactively (scheduled task)
+##### Non-interactively (scheduled task)
 
 This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
 
