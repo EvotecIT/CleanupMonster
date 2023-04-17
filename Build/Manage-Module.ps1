@@ -3,7 +3,7 @@ Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psm1" -Force
 
 $Configuration = @{
     Information = @{
-        ModuleName = 'CleanupActiveDirectory'
+        ModuleName = 'CleanupMonster'
 
         Manifest   = @{
             # Version number of this module.
@@ -13,7 +13,7 @@ $Configuration = @{
 
             PowerShellVersion          = '5.1'
             # ID used to uniquely identify this module
-            GUID                       = '71f471e1-7398-487e-bd1b-35787b154a1f'
+            GUID                       = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
             # Author of this module
             Author                     = 'Przemyslaw Klys'
             # Company or vendor of this module
@@ -25,9 +25,9 @@ $Configuration = @{
             # Minimum version of the Windows PowerShell engine required by this module
             Tags                       = 'windows', 'activedirectory'
             # A URL to the main website for this project.
-            ProjectUri                 = 'https://github.com/EvotecIT/CleanupActiveDirectory'
+            ProjectUri                 = 'https://github.com/EvotecIT/CleanupMonster'
             # A URL to an icon representing this module.
-            IconUri                    = 'https://evotec.xyz/wp-content/uploads/2023/03/CleanupActiveDirectory.png'
+            IconUri                    = 'https://evotec.xyz/wp-content/uploads/2023/04/CleanupMonster.png'
 
             RequiredModules            = @(
                 @{ ModuleName = 'PSSharedGoods'; ModuleVersion = "Latest"; Guid = 'ee272aa8-baaa-4edf-9f45-b6d6f7d844fe' }
@@ -138,6 +138,9 @@ $Configuration = @{
         Documentation     = @{
             Path       = 'Docs'
             PathReadme = 'Docs\Readme.md'
+        }
+        Signing           = @{
+            CertificateThumbprint = '36A8A2D0E227D81A2D3B60DCE0CFCF23BEFC343B'
         }
     }
     Steps       = @{
