@@ -1,4 +1,18 @@
-﻿### 1.1.4 - 2023.04.03
+﻿### 1.2.0
+- Renamed PowerShell module to CleanupMonster
+- Invoke-ADComputersCleanup
+  - Added `DisablePasswordLastSetOlderThan`
+  - Added `DisableLastLogonDateOlderThan`
+  - Added `DeletePasswordLastSetOlderThan`
+  - Added `DeleteLastLogonDateOlderThan`
+
+```powershell
+$DateTime = Get-Date -Year 2021 -Month 8 -Day 19 -Hour 0 -Minute 0 -Second 0
+$Output = Invoke-ADComputersCleanup -WhatIf -ReportOnly -Disable -ShowHTML -DisablePasswordLastSetOlderThan $DateTime -DisableLastLogonDateOlderThan $DateTime -DeletePasswordLastSetOlderThan $DateTime -DeleteLastLogonDateOlderThan $DateTime
+$Output
+```
+
+### 1.1.4 - 2023.04.03
 - Clarify HTML information when it comes to PasswordLastSet and LastLogonDays
 
 ### 1.1.3 - 2023.04.01
