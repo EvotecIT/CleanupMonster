@@ -26,7 +26,7 @@
                     New-HTMLText -Text "Report generated on $(Get-Date)" -Color Blue
                 } -JustifyContent flex-start -Invisible
                 New-HTMLSection {
-                    New-HTMLText -Text "Active Directory Cleanup - $($Export['Version'])" -Color Blue
+                    New-HTMLText -Text "Cleanup Monster - $($Export['Version'])" -Color Blue
                 } -JustifyContent flex-end -Invisible
             }
         }
@@ -137,16 +137,18 @@
                                 New-HTMLListItem -Text @(
                                     if ($null -eq $DisableOnlyIf[$Key] -or $DisableOnlyIf[$Key].Count -eq 0) {
                                         $($Key), " is ", 'Not Set'
+                                        $ColorInUse = 'Cinnabar'
                                     } else {
-                                        if ($Key -eq 'LastLogonDateMoreThan') {
+                                        if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
                                             $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never logged on"
-                                        } elseif ($Key -eq 'PasswordLastSetMoreThan') {
+                                        } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
                                             $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never changed"
                                         } else {
                                             $($Key), " is ", $($DisableOnlyIf[$Key])
                                         }
+                                        $ColorInUse = 'Apple'
                                     }
-                                ) -FontWeight bold, normal, bold, normal, bold -Color None, None, CornflowerBlue, None, CornflowerBlue
+                                ) -FontWeight bold, normal, bold, normal, bold -Color $ColorInUse, None, CornflowerBlue, None, CornflowerBlue
                             }
                         }
                     } else {
@@ -161,16 +163,18 @@
                                 New-HTMLListItem -Text @(
                                     if ($null -eq $DeleteOnlyIf[$Key] -or $DeleteOnlyIf[$Key].Count -eq 0) {
                                         $($Key), " is ", 'Not Set'
+                                        $ColorInUse = 'Cinnabar'
                                     } else {
-                                        if ($Key -eq 'LastLogonDateMoreThan') {
+                                        if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
                                             $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never logged on"
-                                        } elseif ($Key -eq 'PasswordLastSetMoreThan') {
+                                        } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
                                             $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never changed"
                                         } else {
                                             $($Key), " is ", $($DeleteOnlyIf[$Key])
                                         }
+                                        $ColorInUse = 'Apple'
                                     }
-                                ) -FontWeight bold, normal, bold, normal, bold -Color None, None, CornflowerBlue, None, CornflowerBlue
+                                ) -FontWeight bold, normal, bold, normal, bold -Color $ColorInUse, None, CornflowerBlue, None, CornflowerBlue
                             }
                         }
                     } else {
