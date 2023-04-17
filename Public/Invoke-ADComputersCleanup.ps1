@@ -31,6 +31,12 @@
     .PARAMETER DisablePasswordLastSetMoreThan
     Disable computer only if it has a PasswordLastSet that is more than the specified number of days.
 
+    .PARAMETER DisablePasswordLastSetOlderThan
+    Disable computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER DisableLastLogonDateOlderThan
+    Disable computer only if it has a LastLogonDate that is older than the specified date.
+
     .PARAMETER DisableExcludeSystems
     Disable computer only if it's not on the list of excluded operating systems.
     If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
@@ -57,6 +63,12 @@
 
     .PARAMETER DeletePasswordLastSetMoreThan
     Delete computer only if it has a PasswordLastSet that is more than the specified number of days.
+
+    .PARAMETER DisablePasswordLastSetOlderThan
+    Delete computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER DisableLastLogonDateOlderThan
+    Delete computer only if it has a LastLogonDate that is older than the specified date.
 
     .PARAMETER DeleteListProcessedMoreThan
     Delete computer only if it has been processed by this script more than the specified number of days ago.
@@ -231,6 +243,8 @@
         [nullable[bool]] $DisableNoServicePrincipalName = $null,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
         [nullable[int]] $DisablePasswordLastSetMoreThan = 180,
+        [nullable[DateTime]] $DisablePasswordLastSetOlderThan,
+        [nullable[DateTime]] $DisableLastLogonDateOlderThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
         [nullable[bool]] $DeleteIsEnabled,
@@ -238,6 +252,8 @@
         [nullable[int]] $DeleteLastLogonDateMoreThan = 180,
         [nullable[int]] $DeletePasswordLastSetMoreThan = 180,
         [nullable[int]] $DeleteListProcessedMoreThan,
+        [nullable[DateTime]] $DeletePasswordLastSetOlderThan,
+        [nullable[DateTime]] $DeleteLastLogonDateOlderThan,
         [Array] $DeleteExcludeSystems = @(),
         [Array] $DeleteIncludeSystems = @(),
         [int] $DeleteLimit = 1, # 0 = unlimited
@@ -272,21 +288,25 @@
 
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
-        IsEnabled               = $DisableIsEnabled
-        NoServicePrincipalName  = $DisableNoServicePrincipalName
-        LastLogonDateMoreThan   = $DisableLastLogonDateMoreThan
-        PasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan
-        ExcludeSystems          = $DisableExcludeSystems
-        IncludeSystems          = $DisableIncludeSystems
+        IsEnabled                = $DisableIsEnabled
+        NoServicePrincipalName   = $DisableNoServicePrincipalName
+        LastLogonDateMoreThan    = $DisableLastLogonDateMoreThan
+        PasswordLastSetMoreThan  = $DisablePasswordLastSetMoreThan
+        ExcludeSystems           = $DisableExcludeSystems
+        IncludeSystems           = $DisableIncludeSystems
+        PasswordLastSetOlderThan = $DisablePasswordLastSetOlderThan
+        LastLogonDateOlderThan   = $DisableLastLogonDateOlderThan
     }
     $DeleteOnlyIf = [ordered] @{
-        IsEnabled               = $DeleteIsEnabled
-        NoServicePrincipalName  = $DeleteNoServicePrincipalName
-        LastLogonDateMoreThan   = $DeleteLastLogonDateMoreThan
-        PasswordLastSetMoreThan = $DeletePasswordLastSetMoreThan
-        ListProcessedMoreThan   = $DeleteListProcessedMoreThan
-        ExcludeSystems          = $DeleteExcludeSystems
-        IncludeSystems          = $DeleteIncludeSystems
+        IsEnabled                = $DeleteIsEnabled
+        NoServicePrincipalName   = $DeleteNoServicePrincipalName
+        LastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
+        PasswordLastSetMoreThan  = $DeletePasswordLastSetMoreThan
+        ListProcessedMoreThan    = $DeleteListProcessedMoreThan
+        ExcludeSystems           = $DeleteExcludeSystems
+        IncludeSystems           = $DeleteIncludeSystems
+        PasswordLastSetOlderThan = $DeletePasswordLastSetOlderThan
+        LastLogonDateOlderThan   = $DeleteLastLogonDateOlderThan
     }
 
     if (-not $DataStorePath) {
