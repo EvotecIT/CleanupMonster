@@ -5,7 +5,8 @@
         [System.Collections.IDictionary] $DeleteOnlyIf,
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
-        [System.Collections.IDictionary] $ProcessedComputers
+        [System.Collections.IDictionary] $ProcessedComputers,
+        [System.Collections.IDictionary] $AzureInformationCache
     )
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
@@ -132,7 +133,51 @@
             }
         }
 
-        [PSCustomObject] @{
+        if ($Script:CleanupOptions.AzureAD) {
+            $AzureADComputer = $AzureInformationCache['AzureAD']["$($Computer.Name)"]
+            if ($null -ne $DeleteOnlyIf.LastSeenAzureMoreThan) {
+                if ($AzureADComputer.LastSeenDays -le $DeleteOnlyIf.LastSeenAzureMoreThan) {
+                    continue SkipComputer
+                }
+            }
+            if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan) {
+                if ($AzureADComputer.LastSynchronizedDays -le $DeleteOnlyIf.LastSyncAzureMoreThan) {
+                    continue SkipComputer
+                }
+            }
+            $DataAzureAD = [ordered] @{
+                'AzureLastSeen'     = $AzureADComputer.LastSeen
+                'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
+                'AzureLastSync'     = $AzureADComputer.LastSynchronized
+                'AzureLastSyncDays' = $AzureADComputer.LastSynchronizedDays
+                'AzureOwner'        = $AzureADComputer.OwnerDisplayName
+                'AzureOwnerStatus'  = $AzureADComputer.OwnerEnabled
+                'AzureOwnerUPN'     = $AzureADComputer.OwnerUserPrincipalName
+            }
+        }
+        if ($Script:CleanupOptions.Intune) {
+            # data was requested from Intune
+            $IntuneComputer = $AzureInformationCache['Intune']["$($Computer.Name)"]
+            if ($IntuneComputer) {
+                if ($null -ne $DeleteOnlyIf.LastSeenIntuneMoreThan) {
+                    if ($null -ne $IntuneComputer.LastSeenDays) {
+                        if ($DeleteOnlyIf.LastSeenIntuneMoreThan -le $IntuneComputer.LastSeenDays) {
+                            continue SkipComputer
+                        }
+                    }
+                }
+            } else {
+                $IntuneComputer = $null
+            }
+            $DataIntune = [ordered] @{
+                'IntuneLastSeen'     = $IntuneComputer.LastSeen
+                'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
+                'IntuneUser'         = $IntuneComputer.UserDisplayName
+                'IntuneUserUPN'      = $IntuneComputer.UserPrincipalName
+                'IntuneUserEmail'    = $IntuneComputer.EmailAddress
+            }
+        }
+        $DataStart = [ordered] @{
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
             'Enabled'                 = $Computer.Enabled
@@ -147,15 +192,27 @@
             'LastLogonDays'           = ([int] $(if ($null -ne $Computer.LastLogonDate) { "$(-$($Computer.LastLogonDate - $Today).Days)" } else { }))
             'PasswordLastSet'         = $Computer.PasswordLastSet
             'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
-            'PasswordExpired'         = $Computer.PasswordExpired
-            'LogonCount'              = $Computer.logonCount
-            'ManagedBy'               = $Computer.ManagedBy
-            'DistinguishedName'       = $Computer.DistinguishedName
-            'OrganizationalUnit'      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
-            'Description'             = $Computer.Description
-            'WhenCreated'             = $Computer.WhenCreated
-            'WhenChanged'             = $Computer.WhenChanged
-            'ServicePrincipalName'    = $Computer.servicePrincipalName -join [System.Environment]::NewLine
         }
+        $DataEnd = [ordered] @{
+            'PasswordExpired'      = $Computer.PasswordExpired
+            'LogonCount'           = $Computer.logonCount
+            'ManagedBy'            = $Computer.ManagedBy
+            'DistinguishedName'    = $Computer.DistinguishedName
+            'OrganizationalUnit'   = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
+            'Description'          = $Computer.Description
+            'WhenCreated'          = $Computer.WhenCreated
+            'WhenChanged'          = $Computer.WhenChanged
+            'ServicePrincipalName' = $Computer.servicePrincipalName -join [System.Environment]::NewLine
+        }
+        if ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune) {
+            $Data = $DataStart + $DataAzureAD + $DataIntune + $DataEnd
+        } elseif ($Script:CleanupOptions.AzureAD) {
+            $Data = $DataStart + $DataAzureAD + $DataEnd
+        } elseif ($Script:CleanupOptions.Intune) {
+            $Data = $DataStart + $DataIntune + $DataEnd
+        } else {
+            $Data = $DataStart + $DataEnd
+        }
+        [PSCustomObject] $Data
     }
 }
