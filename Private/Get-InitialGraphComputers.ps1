@@ -1,4 +1,4 @@
-﻿function Get-InitialGraphComputersCleanup {
+﻿function Get-InitialGraphComputers {
     [CmdletBinding()]
     param(
         [nullable[int]] $SafetyAzureADLimit,
