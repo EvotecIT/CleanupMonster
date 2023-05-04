@@ -1,4 +1,4 @@
-﻿function Get-InitialADComputersCleanup {
+﻿function Get-InitialADComputers {
     [CmdletBinding()]
     param(
         [System.Collections.IDictionary] $Report,
@@ -21,8 +21,8 @@
         [Array] $Exclusions,
         [System.Collections.IDictionary] $ProcessedComputers,
         [nullable[int]] $SafetyADLimit,
-        [System.Collections.IDictionary] $AzureInformationCache
-
+        [System.Collections.IDictionary] $AzureInformationCache,
+        [System.Collections.IDictionary] $JamfInformationCache
     )
     $AllComputers = [ordered] @{}
     foreach ($Domain in $Forest.Domains) {
@@ -45,7 +45,7 @@
                 Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
             }
             $Report["$Domain"]['ComputersToBeDisabled'] = @(
-                Get-ADComputersToDisable -Computers $Computers -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache
+                Get-ADComputersToDisable -Computers $Computers -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
             )
         }
         if ($Delete) {
@@ -63,7 +63,7 @@
                 }
             }
             $Report["$Domain"]['ComputersToBeDeleted'] = @(
-                Get-ADComputersToDelete -Computers $Computers -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache
+                Get-ADComputersToDelete -Computers $Computers -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
             )
         }
     }
