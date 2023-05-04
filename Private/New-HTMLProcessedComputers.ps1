@@ -143,7 +143,7 @@
                                             $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never logged on"
                                         } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
                                             $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never changed"
-                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan') {
+                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
                                             $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never synced/seen"
                                         } else {
                                             $($Key), " is ", $($DisableOnlyIf[$Key])
@@ -171,7 +171,7 @@
                                             $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never logged on"
                                         } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
                                             $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never changed"
-                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan') {
+                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
                                             $($Key), " is ", $($DeleteOnlyIf[$Key]), " or ", "Never synced/seen"
                                         } else {
                                             $($Key), " is ", $($DeleteOnlyIf[$Key])
