@@ -248,6 +248,7 @@
         [nullable[int]] $DisableLastSeenAzureMoreThan,
         [nullable[int]] $DisableLastSeenIntuneMoreThan,
         [nullable[int]] $DisableLastSyncAzureMoreThan,
+        [nullable[int]] $DisableLastContactJamfMoreThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
         [nullable[bool]] $DeleteIsEnabled,
@@ -260,6 +261,7 @@
         [nullable[int]] $DeleteLastSeenAzureMoreThan,
         [nullable[int]] $DeleteLastSeenIntuneMoreThan,
         [nullable[int]] $DeleteLastSyncAzureMoreThan,
+        [nullable[int]] $DeleteLastContactJamfMoreThan,
         [Array] $DeleteExcludeSystems = @(),
         [Array] $DeleteIncludeSystems = @(),
         [int] $DeleteLimit = 1, # 0 = unlimited
@@ -300,6 +302,7 @@
 
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
+        # Active directory
         IsEnabled                = $DisableIsEnabled
         NoServicePrincipalName   = $DisableNoServicePrincipalName
         LastLogonDateMoreThan    = $DisableLastLogonDateMoreThan
@@ -308,12 +311,16 @@
         IncludeSystems           = $DisableIncludeSystems
         PasswordLastSetOlderThan = $DisablePasswordLastSetOlderThan
         LastLogonDateOlderThan   = $DisableLastLogonDateOlderThan
-
-        LastSeenAzureMoreThan    = $DisableLastSeenAzureMoreThan
+        # Intune
         LastSeenIntuneMoreThan   = $DisableLastSeenIntuneMoreThan
+        # Azure
         LastSyncAzureMoreThan    = $DisableLastSyncAzureMoreThan
+        LastSeenAzureMoreThan    = $DisableLastSeenAzureMoreThan
+        # Jamf
+        LastContactJamfMoreThan  = $DisableLastContactJamfMoreThan
     }
     $DeleteOnlyIf = [ordered] @{
+        # Active directory
         IsEnabled                = $DeleteIsEnabled
         NoServicePrincipalName   = $DeleteNoServicePrincipalName
         LastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
@@ -323,10 +330,13 @@
         IncludeSystems           = $DeleteIncludeSystems
         PasswordLastSetOlderThan = $DeletePasswordLastSetOlderThan
         LastLogonDateOlderThan   = $DeleteLastLogonDateOlderThan
-
-        LastSeenAzureMoreThan    = $DeleteLastSeenAzureMoreThan
+        # Intune
         LastSeenIntuneMoreThan   = $DeleteLastSeenIntuneMoreThan
+        # Azure
+        LastSeenAzureMoreThan    = $DeleteLastSeenAzureMoreThan
         LastSyncAzureMoreThan    = $DeleteLastSyncAzureMoreThan
+        # Jamf
+        LastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
     }
 
     if (-not $DataStorePath) {
@@ -386,6 +396,16 @@
         return
     }
 
+    $getInitialJamf = @{
+        DisableLastContactJamfMoreThan = $DisableLastContactJamfMoreThan
+        DeleteLastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+    }
+    Remove-EmptyValue -Hashtable $getInitialJamf
+    $JamfInformationCache = Get-InitialJamfComputers @getInitialJamf
+    if ($JamfInformationCache -eq $false) {
+        return
+    }
+
     $SplatADComputers = [ordered] @{
         Report                         = $Report
         AllComputers                   = $AllComputers
@@ -408,6 +428,7 @@
         ProcessedComputers             = $ProcessedComputers
         SafetyADLimit                  = $SafetyADLimit
         AzureInformationCache          = $AzureInformationCache
+        JamfInformationCache           = $JamfInformationCache
     }
 
     $AllComputers = Get-InitialADComputers @SplatADComputers
