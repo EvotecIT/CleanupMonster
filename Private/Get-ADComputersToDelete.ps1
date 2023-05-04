@@ -6,7 +6,8 @@
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers,
-        [System.Collections.IDictionary] $AzureInformationCache
+        [System.Collections.IDictionary] $AzureInformationCache,
+        [System.Collections.IDictionary] $JamfInformationCache
     )
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
@@ -177,6 +178,24 @@
                 'IntuneUserEmail'    = $IntuneComputer.EmailAddress
             }
         }
+
+        if ($Script:CleanupOptions.Jamf) {
+            $JamfComputer = $JamfInformationCache["$($Computer.Name)"]
+            if ($JamfComputer) {
+                if ($null -ne $DeleteOnlyIf.LastContactJamfMoreThan -and $null -ne $JamfComputer.lastContactTimeDays) {
+                    if ($DeleteOnlyIf.LastContactJamfMoreThan -le $JamfComputer.lastContactTimeDays) {
+                        continue SkipComputer
+                    }
+                }
+            }
+            $DataJamf = [ordered] @{
+                JamfLastContactTime     = $JamfComputer.lastContactTime
+                JamfLastContactTImeDays = $JamfComputer.lastContactTimeDays
+                JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
+            }
+        }
+
+
         $DataStart = [ordered] @{
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
@@ -204,12 +223,20 @@
             'WhenChanged'          = $Computer.WhenChanged
             'ServicePrincipalName' = $Computer.servicePrincipalName -join [System.Environment]::NewLine
         }
-        if ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune) {
+        if ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune + $Script:CleanupOptions.Jamf) {
+            $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd
+        } elseif ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune) {
             $Data = $DataStart + $DataAzureAD + $DataIntune + $DataEnd
+        } elseif ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Jamf) {
+            $Data = $DataStart + $DataAzureAD + $DataJamf + $DataEnd
+        } elseif ($Script:CleanupOptions.Intune -and $Script:CleanupOptions.Jamf) {
+            $Data = $DataStart + $DataIntune + $DataJamf + $DataEnd
         } elseif ($Script:CleanupOptions.AzureAD) {
             $Data = $DataStart + $DataAzureAD + $DataEnd
         } elseif ($Script:CleanupOptions.Intune) {
             $Data = $DataStart + $DataIntune + $DataEnd
+        } elseif ($Script:CleanupOptions.Jamf) {
+            $Data = $DataStart + $DataJamf + $DataEnd
         } else {
             $Data = $DataStart + $DataEnd
         }
