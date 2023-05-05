@@ -134,112 +134,176 @@
             }
         }
 
-        if ($Script:CleanupOptions.AzureAD) {
-            $AzureADComputer = $AzureInformationCache['AzureAD']["$($Computer.Name)"]
-            if ($null -ne $DeleteOnlyIf.LastSeenAzureMoreThan) {
-                if ($AzureADComputer.LastSeenDays -le $DeleteOnlyIf.LastSeenAzureMoreThan) {
+        if ($IncludeAzureAD) {
+            # $AzureADComputer = $AzureInformationCache['AzureAD']["$($Computer.Name)"]
+            # if ($AzureADComputer) {
+            if ($null -ne $DeleteOnlyIf.LastSeenAzureMoreThan -and $null -ne $Computer.AzureLastSeenDays) {
+                if ($DeleteOnlyIf.LastSeenAzureMoreThan -le $Computer.AzureLastSeenDays) {
+                    continue SkipComputer
+                }
+
+            }
+            if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan -and $null -ne $Computer.AzureLastSyncDays) {
+                if ($DeleteOnlyIf.LastSyncAzureMoreThan -le $Computer.AzureLastSyncDays) {
                     continue SkipComputer
                 }
             }
-            if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan) {
-                if ($AzureADComputer.LastSynchronizedDays -le $DeleteOnlyIf.LastSyncAzureMoreThan) {
-                    continue SkipComputer
-                }
-            }
-            $DataAzureAD = [ordered] @{
-                'AzureLastSeen'     = $AzureADComputer.LastSeen
-                'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
-                'AzureLastSync'     = $AzureADComputer.LastSynchronized
-                'AzureLastSyncDays' = $AzureADComputer.LastSynchronizedDays
-                'AzureOwner'        = $AzureADComputer.OwnerDisplayName
-                'AzureOwnerStatus'  = $AzureADComputer.OwnerEnabled
-                'AzureOwnerUPN'     = $AzureADComputer.OwnerUserPrincipalName
-            }
+            # }
+            # $DataAzureAD = [ordered] @{
+            #     'AzureLastSeen'     = $AzureADComputer.LastSeen
+            #     'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
+            #     'AzureLastSync'     = $AzureADComputer.LastSynchronized
+            #     'AzureLastSyncDays' = $AzureADComputer.LastSynchronizedDays
+            #     'AzureOwner'        = $AzureADComputer.OwnerDisplayName
+            #     'AzureOwnerStatus'  = $AzureADComputer.OwnerEnabled
+            #     'AzureOwnerUPN'     = $AzureADComputer.OwnerUserPrincipalName
+            # }
         }
-        if ($Script:CleanupOptions.Intune) {
+        if ($IncludeIntune) {
             # data was requested from Intune
-            $IntuneComputer = $AzureInformationCache['Intune']["$($Computer.Name)"]
-            if ($IntuneComputer) {
-                if ($null -ne $DeleteOnlyIf.LastSeenIntuneMoreThan) {
-                    if ($null -ne $IntuneComputer.LastSeenDays) {
-                        if ($DeleteOnlyIf.LastSeenIntuneMoreThan -le $IntuneComputer.LastSeenDays) {
-                            continue SkipComputer
-                        }
-                    }
-                }
-            } else {
-                $IntuneComputer = $null
-            }
-            $DataIntune = [ordered] @{
-                'IntuneLastSeen'     = $IntuneComputer.LastSeen
-                'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
-                'IntuneUser'         = $IntuneComputer.UserDisplayName
-                'IntuneUserUPN'      = $IntuneComputer.UserPrincipalName
-                'IntuneUserEmail'    = $IntuneComputer.EmailAddress
-            }
-        }
-
-        if ($Script:CleanupOptions.Jamf) {
-            $JamfComputer = $JamfInformationCache["$($Computer.Name)"]
-            if ($JamfComputer) {
-                if ($null -ne $DeleteOnlyIf.LastContactJamfMoreThan -and $null -ne $JamfComputer.lastContactTimeDays) {
-                    if ($DeleteOnlyIf.LastContactJamfMoreThan -le $JamfComputer.lastContactTimeDays) {
-                        continue SkipComputer
-                    }
+            # $IntuneComputer = $AzureInformationCache['Intune']["$($Computer.Name)"]
+            # if ($IntuneComputer) {
+            if ($null -ne $DeleteOnlyIf.LastSeenIntuneMoreThan -and $null -ne $Computer.IntuneLastSeenDays) {
+                if ($DeleteOnlyIf.LastSeenIntuneMoreThan -le $Computer.IntuneLastSeenDays) {
+                    continue SkipComputer
                 }
             }
-            $DataJamf = [ordered] @{
-                JamfLastContactTime     = $JamfComputer.lastContactTime
-                JamfLastContactTImeDays = $JamfComputer.lastContactTimeDays
-                JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
+            # } else {
+            #     $IntuneComputer = $null
+            # }
+            # $DataIntune = [ordered] @{
+            #     'IntuneLastSeen'     = $IntuneComputer.LastSeen
+            #     'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
+            #     'IntuneUser'         = $IntuneComputer.UserDisplayName
+            #     'IntuneUserUPN'      = $IntuneComputer.UserPrincipalName
+            #     'IntuneUserEmail'    = $IntuneComputer.EmailAddress
+            # }
+        }
+        if ($IncludeJamf) {
+            #$JamfComputer = $JamfInformationCache["$($Computer.Name)"]
+            #if ($JamfComputer) {
+            if ($null -ne $DeleteOnlyIf.LastContactJamfMoreThan -and $null -ne $Computer.JamfLastContactTimeDays) {
+                if ($DeleteOnlyIf.LastContactJamfMoreThan -le $Computer.JamfLastContactTimeDays) {
+                    continue SkipComputer
+                }
             }
+            #}
+            # $DataJamf = [ordered] @{
+            #     JamfLastContactTime     = $JamfComputer.lastContactTime
+            #     JamfLastContactTImeDays = $JamfComputer.lastContactTimeDays
+            #     JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
+            # }
         }
 
+        $Computer.'Action' = 'Delete'
+        $Computer
 
-        $DataStart = [ordered] @{
-            'DNSHostName'             = $Computer.DNSHostName
-            'SamAccountName'          = $Computer.SamAccountName
-            'Enabled'                 = $Computer.Enabled
-            'Action'                  = 'Delete'
-            'ActionStatus'            = $null
-            'ActionDate'              = $null
-            'ActionComment'           = $null
-            'OperatingSystem'         = $Computer.OperatingSystem
-            'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
-            'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
-            'LastLogonDate'           = $Computer.LastLogonDate
-            'LastLogonDays'           = ([int] $(if ($null -ne $Computer.LastLogonDate) { "$(-$($Computer.LastLogonDate - $Today).Days)" } else { }))
-            'PasswordLastSet'         = $Computer.PasswordLastSet
-            'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
-        }
-        $DataEnd = [ordered] @{
-            'PasswordExpired'      = $Computer.PasswordExpired
-            'LogonCount'           = $Computer.logonCount
-            'ManagedBy'            = $Computer.ManagedBy
-            'DistinguishedName'    = $Computer.DistinguishedName
-            'OrganizationalUnit'   = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
-            'Description'          = $Computer.Description
-            'WhenCreated'          = $Computer.WhenCreated
-            'WhenChanged'          = $Computer.WhenChanged
-            'ServicePrincipalName' = $Computer.servicePrincipalName -join [System.Environment]::NewLine
-        }
-        if ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune + $Script:CleanupOptions.Jamf) {
-            $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd
-        } elseif ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune) {
-            $Data = $DataStart + $DataAzureAD + $DataIntune + $DataEnd
-        } elseif ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Jamf) {
-            $Data = $DataStart + $DataAzureAD + $DataJamf + $DataEnd
-        } elseif ($Script:CleanupOptions.Intune -and $Script:CleanupOptions.Jamf) {
-            $Data = $DataStart + $DataIntune + $DataJamf + $DataEnd
-        } elseif ($Script:CleanupOptions.AzureAD) {
-            $Data = $DataStart + $DataAzureAD + $DataEnd
-        } elseif ($Script:CleanupOptions.Intune) {
-            $Data = $DataStart + $DataIntune + $DataEnd
-        } elseif ($Script:CleanupOptions.Jamf) {
-            $Data = $DataStart + $DataJamf + $DataEnd
-        } else {
-            $Data = $DataStart + $DataEnd
-        }
-        [PSCustomObject] $Data
+        # if ($Script:CleanupOptions.AzureAD) {
+        #     $AzureADComputer = $AzureInformationCache['AzureAD']["$($Computer.Name)"]
+        #     if ($null -ne $DeleteOnlyIf.LastSeenAzureMoreThan) {
+        #         if ($AzureADComputer.LastSeenDays -le $DeleteOnlyIf.LastSeenAzureMoreThan) {
+        #             continue SkipComputer
+        #         }
+        #     }
+        #     if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan) {
+        #         if ($AzureADComputer.LastSynchronizedDays -le $DeleteOnlyIf.LastSyncAzureMoreThan) {
+        #             continue SkipComputer
+        #         }
+        #     }
+        #     $DataAzureAD = [ordered] @{
+        #         'AzureLastSeen'     = $AzureADComputer.LastSeen
+        #         'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
+        #         'AzureLastSync'     = $AzureADComputer.LastSynchronized
+        #         'AzureLastSyncDays' = $AzureADComputer.LastSynchronizedDays
+        #         'AzureOwner'        = $AzureADComputer.OwnerDisplayName
+        #         'AzureOwnerStatus'  = $AzureADComputer.OwnerEnabled
+        #         'AzureOwnerUPN'     = $AzureADComputer.OwnerUserPrincipalName
+        #     }
+        # }
+        # if ($Script:CleanupOptions.Intune) {
+        #     # data was requested from Intune
+        #     $IntuneComputer = $AzureInformationCache['Intune']["$($Computer.Name)"]
+        #     if ($IntuneComputer) {
+        #         if ($null -ne $DeleteOnlyIf.LastSeenIntuneMoreThan) {
+        #             if ($null -ne $IntuneComputer.LastSeenDays) {
+        #                 if ($DeleteOnlyIf.LastSeenIntuneMoreThan -le $IntuneComputer.LastSeenDays) {
+        #                     continue SkipComputer
+        #                 }
+        #             }
+        #         }
+        #     } else {
+        #         $IntuneComputer = $null
+        #     }
+        #     $DataIntune = [ordered] @{
+        #         'IntuneLastSeen'     = $IntuneComputer.LastSeen
+        #         'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
+        #         'IntuneUser'         = $IntuneComputer.UserDisplayName
+        #         'IntuneUserUPN'      = $IntuneComputer.UserPrincipalName
+        #         'IntuneUserEmail'    = $IntuneComputer.EmailAddress
+        #     }
+        # }
+
+        # if ($Script:CleanupOptions.Jamf) {
+        #     $JamfComputer = $JamfInformationCache["$($Computer.Name)"]
+        #     if ($JamfComputer) {
+        #         if ($null -ne $DeleteOnlyIf.LastContactJamfMoreThan -and $null -ne $JamfComputer.lastContactTimeDays) {
+        #             if ($DeleteOnlyIf.LastContactJamfMoreThan -le $JamfComputer.lastContactTimeDays) {
+        #                 continue SkipComputer
+        #             }
+        #         }
+        #     }
+        #     $DataJamf = [ordered] @{
+        #         JamfLastContactTime     = $JamfComputer.lastContactTime
+        #         JamfLastContactTImeDays = $JamfComputer.lastContactTimeDays
+        #         JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
+        #     }
+        # }
+
+
+        # $DataStart = [ordered] @{
+        #     'DNSHostName'             = $Computer.DNSHostName
+        #     'SamAccountName'          = $Computer.SamAccountName
+        #     'Enabled'                 = $Computer.Enabled
+        #     'Action'                  = 'Delete'
+        #     'ActionStatus'            = $null
+        #     'ActionDate'              = $null
+        #     'ActionComment'           = $null
+        #     'OperatingSystem'         = $Computer.OperatingSystem
+        #     'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
+        #     'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
+        #     'LastLogonDate'           = $Computer.LastLogonDate
+        #     'LastLogonDays'           = ([int] $(if ($null -ne $Computer.LastLogonDate) { "$(-$($Computer.LastLogonDate - $Today).Days)" } else { }))
+        #     'PasswordLastSet'         = $Computer.PasswordLastSet
+        #     'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
+        # }
+        # $DataEnd = [ordered] @{
+        #     'PasswordExpired'      = $Computer.PasswordExpired
+        #     'LogonCount'           = $Computer.logonCount
+        #     'ManagedBy'            = $Computer.ManagedBy
+        #     'DistinguishedName'    = $Computer.DistinguishedName
+        #     'OrganizationalUnit'   = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
+        #     'Description'          = $Computer.Description
+        #     'WhenCreated'          = $Computer.WhenCreated
+        #     'WhenChanged'          = $Computer.WhenChanged
+        #     'ServicePrincipalName' = $Computer.servicePrincipalName -join [System.Environment]::NewLine
+        # }
+        # if ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune + $Script:CleanupOptions.Jamf) {
+        #     $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd
+        # } elseif ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Intune) {
+        #     $Data = $DataStart + $DataAzureAD + $DataIntune + $DataEnd
+        # } elseif ($Script:CleanupOptions.AzureAD -and $Script:CleanupOptions.Jamf) {
+        #     $Data = $DataStart + $DataAzureAD + $DataJamf + $DataEnd
+        # } elseif ($Script:CleanupOptions.Intune -and $Script:CleanupOptions.Jamf) {
+        #     $Data = $DataStart + $DataIntune + $DataJamf + $DataEnd
+        # } elseif ($Script:CleanupOptions.AzureAD) {
+        #     $Data = $DataStart + $DataAzureAD + $DataEnd
+        # } elseif ($Script:CleanupOptions.Intune) {
+        #     $Data = $DataStart + $DataIntune + $DataEnd
+        # } elseif ($Script:CleanupOptions.Jamf) {
+        #     $Data = $DataStart + $DataJamf + $DataEnd
+        # } else {
+        #     $Data = $DataStart + $DataEnd
+        # }
+        # [PSCustomObject] $Data
     }
 }
