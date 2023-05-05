@@ -13,7 +13,7 @@
     # :top means name of the loop, so we can break it
     :topLoop foreach ($Domain in $Report.Keys) {
         Write-Color "[i] ", "Starting process of disabling computers for domain $Domain" -Color Yellow, Green
-        foreach ($Computer in $Report["$Domain"]['ComputersToBeDisabled']) {
+        foreach ($Computer in $Report["$Domain"]['Computers']) {
             $Server = $Report["$Domain"]['Server']
             if ($Computer.Action -ne 'Disable') {
                 continue
