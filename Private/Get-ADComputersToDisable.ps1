@@ -13,6 +13,7 @@
         [switch] $IncludeIntune,
         [switch] $IncludeJamf
     )
+    $Count = 0
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
         if ($ProcessedComputers.Count -gt 0) {
@@ -196,8 +197,7 @@
         }
 
         $Computer.'Action' = 'Disable'
-        $Computer
-
+        $Count++
         # $DataStart = [ordered] @{
         #     'DNSHostName'             = $Computer.DNSHostName
         #     'SamAccountName'          = $Computer.SamAccountName
@@ -244,4 +244,5 @@
         # }
         # [PSCustomObject] $Data
     }
+    $Count
 }

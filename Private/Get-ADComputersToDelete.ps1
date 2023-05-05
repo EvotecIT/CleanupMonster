@@ -7,8 +7,12 @@
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers,
         [System.Collections.IDictionary] $AzureInformationCache,
-        [System.Collections.IDictionary] $JamfInformationCache
+        [System.Collections.IDictionary] $JamfInformationCache,
+        [switch] $IncludeAzureAD,
+        [switch] $IncludeIntune,
+        [switch] $IncludeJamf
     )
+    $Count = 0
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
         if ($null -ne $DeleteOnlyIf.ListProcessedMoreThan) {
@@ -196,7 +200,8 @@
         }
 
         $Computer.'Action' = 'Delete'
-        $Computer
+        $Count++
+        #$Computer
 
         # if ($Script:CleanupOptions.AzureAD) {
         #     $AzureADComputer = $AzureInformationCache['AzureAD']["$($Computer.Name)"]
@@ -306,4 +311,5 @@
         # }
         # [PSCustomObject] $Data
     }
+    $Count
 }
