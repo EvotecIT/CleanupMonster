@@ -507,7 +507,6 @@
             } else {
                 $DisableLimitText = $DisableLimit
             }
-            # $ComputersToBeDisabled = if ($null -ne $Report["$Domain"]['ComputersToBeDisabled']) { $Report["$Domain"]['ComputersToBeDisabled'].Count } else { 0 }
             Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'], ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
         if ($Delete) {
@@ -516,7 +515,6 @@
             } else {
                 $DeleteLimitText = $DeleteLimit
             }
-            #$ComputersToBeDeleted = if ($null -ne $Report["$Domain"]['ComputersToBeDeleted']) { $Report["$Domain"]['ComputersToBeDeleted'].Count } else { 0 }
             Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'], ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
     }
@@ -561,7 +559,6 @@
     $Export.CurrentRun = @($ReportDisabled + $ReportDeleted)
     $Export.History = @($Export.History + $ReportDisabled + $ReportDeleted)
 
-    #if ($DeleteListProcessedMoreThan) {
     Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
     if (-not $ReportOnly) {
         try {
@@ -595,12 +592,6 @@
             if ($Report["$Domain"]['Computers'].Count -gt 0) {
                 $Report["$Domain"]['Computers']
             }
-            # if ($Report["$Domain"]['ComputersToBeDisabled'].Count -gt 0) {
-            #     $Report["$Domain"]['ComputersToBeDisabled']
-            # }
-            # if ($Report["$Domain"]['ComputersToBeDeleted'].Count -gt 0) {
-            #     $Report["$Domain"]['ComputersToBeDeleted']
-            # }
         }
 
         $Export.Statistics = New-ADComputersStatistics -ComputersToProcess $ComputersToProcess

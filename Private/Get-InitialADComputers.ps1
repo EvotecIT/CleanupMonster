@@ -29,7 +29,6 @@
     $IntuneRequired = $false
     $JamfRequired = $false
 
-
     if ($DisableOnlyIf) {
         if ($null -eq $DisableOnlyIf.LastSyncAzureMoreThan -or $null -eq $DisableOnlyIf.LastSeenAzureMoreThan) {
             $AzureRequired = $true
@@ -84,7 +83,6 @@
             if ($DisableNoServicePrincipalName) {
                 Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
             }
-            #$Report["$Domain"]['ComputersToBeDisabled'] = @(
             $getADComputersToDisableSplat = @{
                 Computers             = $Report["$Domain"]['Computers']
                 DisableOnlyIf         = $DisableOnlyIf
@@ -98,7 +96,6 @@
                 IncludeIntune         = $IntuneRequired
             }
             $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToDisable @getADComputersToDisableSplat
-            #)
         }
         if ($Delete) {
             Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
@@ -114,7 +111,6 @@
                     Write-Color "[i] ", "Looking for computers that are disabled" -Color Yellow, Cyan, Green
                 }
             }
-            #$Report["$Domain"]['ComputersToBeDeleted'] = @(
             $getADComputersToDeleteSplat = @{
                 Computers             = $Report["$Domain"]['Computers']
                 DeleteOnlyIf          = $DeleteOnlyIf
@@ -127,9 +123,7 @@
                 IncludeJamf           = $JamfRequired
                 IncludeIntune         = $IntuneRequired
             }
-
             $Report["$Domain"]['ComputersToBeDeleted'] = Get-ADComputersToDelete @getADComputersToDeleteSplat
-            #)
         }
     }
     if ($null -ne $SafetyADLimit -and $AllComputers.Count -lt $SafetyADLimit) {

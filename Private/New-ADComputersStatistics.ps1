@@ -65,9 +65,6 @@
                 $Statistics.ToDeleteComputerUnknown++
             }
         }
-        #else {
-        #Write-Color -Text '[-] ', "Unknown action: $($Computer.Action)" -Color Yellow, Red
-        #}
         if ($Computer.OperatingSystem) {
             $Statistics[$Computer.Action]['Systems'][$Computer.OperatingSystem]++
         } else {
