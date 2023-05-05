@@ -14,6 +14,9 @@
     :topLoop foreach ($Domain in $Report.Keys) {
         foreach ($Computer in $Report["$Domain"]['ComputersToBeDeleted']) {
             $Server = $Report["$Domain"]['Server']
+            if ($Computer.Action -ne 'Delete') {
+                continue
+            }
             if ($ReportOnly) {
                 $Computer
             } else {

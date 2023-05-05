@@ -22,6 +22,11 @@
             PasswordLastChangedDays = [ordered] @{}
             Systems                 = [ordered] @{}
         }
+        'Not required'               = [ordered] @{
+            LastLogonDays           = [ordered] @{}
+            PasswordLastChangedDays = [ordered] @{}
+            Systems                 = [ordered] @{}
+        }
     }
     foreach ($Computer in $ComputersToProcess) {
         if ($Computer.Action -eq 'Disable') {

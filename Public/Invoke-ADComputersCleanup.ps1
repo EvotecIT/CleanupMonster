@@ -408,7 +408,6 @@
 
     $SplatADComputers = [ordered] @{
         Report                         = $Report
-        AllComputers                   = $AllComputers
         Forest                         = $Forest
         Filter                         = $Filter
         Properties                     = $Properties

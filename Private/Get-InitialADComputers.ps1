@@ -2,7 +2,6 @@
     [CmdletBinding()]
     param(
         [System.Collections.IDictionary] $Report,
-        [System.Collections.IDictionary] $AllComputers,
         [Microsoft.ActiveDirectory.Management.ADForest] $Forest,
         [string] $Filter,
         [string[]] $Properties,
@@ -36,6 +35,8 @@
         foreach ($Computer in $Computers) {
             $AllComputers[$($Computer.DistinguishedName)] = $Computer
         }
+        $Report["$Domain"]['Computers'] = ConvertTo-PreparedComputer -Computers $Computers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
+
         Write-Color "[i] ", "Computers found for domain $Domain`: ", $($Computers.Count) -Color Yellow, Cyan, Green
         if ($Disable) {
             Write-Color "[i] ", "Processing computers to disable for domain $Domain" -Color Yellow, Cyan, Green
@@ -45,7 +46,7 @@
                 Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
             }
             $Report["$Domain"]['ComputersToBeDisabled'] = @(
-                Get-ADComputersToDisable -Computers $Computers -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
+                Get-ADComputersToDisable -Computers $Report["$Domain"]['Computers'] -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
             )
         }
         if ($Delete) {
@@ -63,7 +64,7 @@
                 }
             }
             $Report["$Domain"]['ComputersToBeDeleted'] = @(
-                Get-ADComputersToDelete -Computers $Computers -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
+                Get-ADComputersToDelete -Computers $Report["$Domain"]['Computers'] -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
             )
         }
     }

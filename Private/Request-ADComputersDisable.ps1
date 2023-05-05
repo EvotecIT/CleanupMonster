@@ -15,6 +15,9 @@
         Write-Color "[i] ", "Starting process of disabling computers for domain $Domain" -Color Yellow, Green
         foreach ($Computer in $Report["$Domain"]['ComputersToBeDisabled']) {
             $Server = $Report["$Domain"]['Server']
+            if ($Computer.Action -ne 'Disable') {
+                continue
+            }
             if ($ReportOnly) {
                 $Computer
             } else {
