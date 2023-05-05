@@ -90,13 +90,13 @@
         New-HTMLTab -Name 'Devices' {
             New-HTMLSection {
                 New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Total' -Text "Actions (disable & delete): $($ComputersToProcess.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
+                    New-HTMLToast -TextHeader 'Total' -Text "Computers Total: $($ComputersToProcess.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
                 } -Invisible
                 New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'To disable' -Text "Computers to be disabled: $($($ComputersToProcess | Where-Object { $_.Action -eq 'Disable' }).Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                    New-HTMLToast -TextHeader 'To disable' -Text "Computers to be disabled: $($Export.Statistics.ToDisable)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
                 } -Invisible
                 New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'To delete' -Text "Computers to be deleted: $($($ComputersToProcess | Where-Object { $_.Action -eq 'Delete' }).Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
+                    New-HTMLToast -TextHeader 'To delete' -Text "Computers to be deleted: $($Export.Statistics.ToDelete)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
                 } -Invisible
             } -Invisible
             New-HTMLSection -HeaderText 'General statistics' -CanCollapse {

@@ -617,7 +617,6 @@
             Delete             = $Delete
             Disable            = $Disable
             ReportOnly         = $ReportOnly
-            Statistics         = $Export.Statistics
         }
         New-HTMLProcessedComputers @newHTMLProcessedComputersSplat
     }
