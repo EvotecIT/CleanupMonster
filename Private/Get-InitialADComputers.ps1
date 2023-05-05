@@ -24,6 +24,34 @@
         [System.Collections.IDictionary] $JamfInformationCache
     )
     $AllComputers = [ordered] @{}
+
+    $AzureRequired = $false
+    $IntuneRequired = $false
+    $JamfRequired = $false
+
+
+    if ($DisableOnlyIf) {
+        if ($null -eq $DisableOnlyIf.LastSyncAzureMoreThan -or $null -eq $DisableOnlyIf.LastSeenAzureMoreThan) {
+            $AzureRequired = $true
+        }
+        if ($null -eq $DisableOnlyIf.LastContactJamfMoreThan) {
+            $JamfRequired = $true
+        }
+        if ($null -eq $DisableOnlyIf.LastSeenIntuneMoreThan) {
+            $IntuneRequired = $true
+        }
+    }
+    if ($DeleteOnlyIf) {
+        if ($null -eq $DeleteOnlyIf.LastSyncAzureMoreThan -or $null -eq $DeleteOnlyIf.LastSeenAzureMoreThan) {
+            $AzureRequired = $true
+        }
+        if ($null -eq $DeleteOnlyIf.LastContactJamfMoreThan) {
+            $JamfRequired = $true
+        }
+        if ($null -eq $DeleteOnlyIf.LastSeenIntuneMoreThan) {
+            $IntuneRequired = $true
+        }
+    }
     foreach ($Domain in $Forest.Domains) {
         $Report["$Domain"] = [ordered] @{ }
         $DC = Get-ADDomainController -Discover -DomainName $Domain
@@ -31,12 +59,23 @@
         $DomainInformation = Get-ADDomain -Identity $Domain -Server $Server
         $Report["$Domain"]['Server'] = $Server
         Write-Color "[i] Getting all computers for domain ", $Domain -Color Yellow, Magenta, Yellow
-        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties
+        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties #| Where-Object { $_.SamAccountName -like 'Windows2012*' }
         foreach ($Computer in $Computers) {
+            # we will be using it later to just check if computer exists in AD
             $AllComputers[$($Computer.DistinguishedName)] = $Computer
         }
-        $Report["$Domain"]['Computers'] = ConvertTo-PreparedComputer -Computers $Computers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
+        $Report["$Domain"]['Computers'] = @(
+            $convertToPreparedComputerSplat = @{
+                Computers             = $Computers
+                AzureInformationCache = $AzureInformationCache
+                JamfInformationCache  = $JamfInformationCache
+                IncludeAzureAD        = $AzureRequired
+                IncludeJamf           = $JamfRequired
+                IncludeIntune         = $IntuneRequired
+            }
 
+            ConvertTo-PreparedComputer @convertToPreparedComputerSplat
+        )
         Write-Color "[i] ", "Computers found for domain $Domain`: ", $($Computers.Count) -Color Yellow, Cyan, Green
         if ($Disable) {
             Write-Color "[i] ", "Processing computers to disable for domain $Domain" -Color Yellow, Cyan, Green
@@ -45,9 +84,21 @@
             if ($DisableNoServicePrincipalName) {
                 Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
             }
-            $Report["$Domain"]['ComputersToBeDisabled'] = @(
-                Get-ADComputersToDisable -Computers $Report["$Domain"]['Computers'] -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
-            )
+            #$Report["$Domain"]['ComputersToBeDisabled'] = @(
+            $getADComputersToDisableSplat = @{
+                Computers             = $Report["$Domain"]['Computers']
+                DisableOnlyIf         = $DisableOnlyIf
+                Exclusions            = $Exclusions
+                DomainInformation     = $DomainInformation
+                ProcessedComputers    = $ProcessedComputers
+                AzureInformationCache = $AzureInformationCache
+                JamfInformationCache  = $JamfInformationCache
+                IncludeAzureAD        = $AzureRequired
+                IncludeJamf           = $JamfRequired
+                IncludeIntune         = $IntuneRequired
+            }
+            $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToDisable @getADComputersToDisableSplat
+            #)
         }
         if ($Delete) {
             Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
@@ -63,9 +114,22 @@
                     Write-Color "[i] ", "Looking for computers that are disabled" -Color Yellow, Cyan, Green
                 }
             }
-            $Report["$Domain"]['ComputersToBeDeleted'] = @(
-                Get-ADComputersToDelete -Computers $Report["$Domain"]['Computers'] -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers -AzureInformationCache $AzureInformationCache -JamfInformationCache $JamfInformationCache
-            )
+            #$Report["$Domain"]['ComputersToBeDeleted'] = @(
+            $getADComputersToDeleteSplat = @{
+                Computers             = $Report["$Domain"]['Computers']
+                DeleteOnlyIf          = $DeleteOnlyIf
+                Exclusions            = $Exclusions
+                DomainInformation     = $DomainInformation
+                ProcessedComputers    = $ProcessedComputers
+                AzureInformationCache = $AzureInformationCache
+                JamfInformationCache  = $JamfInformationCache
+                IncludeAzureAD        = $AzureRequired
+                IncludeJamf           = $JamfRequired
+                IncludeIntune         = $IntuneRequired
+            }
+
+            $Report["$Domain"]['ComputersToBeDeleted'] = Get-ADComputersToDelete @getADComputersToDeleteSplat
+            #)
         }
     }
     if ($null -ne $SafetyADLimit -and $AllComputers.Count -lt $SafetyADLimit) {
