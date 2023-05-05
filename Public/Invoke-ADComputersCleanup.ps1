@@ -37,6 +37,26 @@
     .PARAMETER DisableLastLogonDateOlderThan
     Disable computer only if it has a LastLogonDate that is older than the specified date.
 
+    .PARAMETER DisableLastSeenAzureMoreThan
+    Disable computer only if it Last Seen in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DisableLastSeenIntuneMoreThan
+    Disable computer only if it Last Seen in Intune is more than the specified number of days.
+    Please note that you need to make connection to Intune using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DisableLastSyncAzureMoreThan
+    Disable computer only if it Last Synced in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure AD using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DisableLastContactJamfMoreThan
+    Disable computer only if it Last Contacted in Jamf is more than the specified number of days.
+    Please note that you need to make connection to Jamf using PowerJamf PowerShell Module first.
+    Additionally you will need PowerJamf PowerShell Module installed.
+
     .PARAMETER DisableExcludeSystems
     Disable computer only if it's not on the list of excluded operating systems.
     If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
@@ -64,16 +84,36 @@
     .PARAMETER DeletePasswordLastSetMoreThan
     Delete computer only if it has a PasswordLastSet that is more than the specified number of days.
 
-    .PARAMETER DisablePasswordLastSetOlderThan
-    Delete computer only if it has a PasswordLastSet that is older than the specified date.
-
-    .PARAMETER DisableLastLogonDateOlderThan
-    Delete computer only if it has a LastLogonDate that is older than the specified date.
-
     .PARAMETER DeleteListProcessedMoreThan
     Delete computer only if it has been processed by this script more than the specified number of days ago.
     This is useful if you want to delete computers that have been disabled for a certain amount of time.
     It uses XML file to store the list of processed computers, so please make sure to not remove it or it will start over.
+
+    .PARAMETER DeletePasswordLastSetOlderThan
+    Delete computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER DeleteLastLogonDateOlderThan
+    Delete computer only if it has a LastLogonDate that is older than the specified date.
+
+    .PARAMETER DeleteLastSeenAzureMoreThan
+    Delete computer only if it Last Seen in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure using Connect-MgGraph with proper permissions first.
+    Additionally yopu will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DeleteLastSeenIntuneMoreThan
+    Delete computer only if it Last Seen in Intune is more than the specified number of days.
+    Please note that you need to make connection to Intune using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DeleteLastSyncAzureMoreThan
+    Delete computer only if it Last Synced in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure AD using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DeleteLastContactJamfMoreThan
+    Delete computer only if it Last Contacted in Jamf is more than the specified number of days.
+    Please note that you need to make connection to Jamf using PowerJamf PowerShell Module first.
+    Additionally you will need PowerJamf PowerShell Module installed.
 
     .PARAMETER DeleteExcludeSystems
     Delete computer only if it's not on the list of excluded operating systems.
@@ -156,6 +196,29 @@
 
     .PARAMETER ReportPath
     Path to the HTML report file. Default is $PSScriptRoot\ProcessedComputers.html
+
+    .PARAMETER SafetyADLimit
+    Minimum number of computers that must be returned by AD cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with AD.
+
+    .PARAMETER SafetyAzureADLimit
+    Minimum number of computers that must be returned by AzureAD cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with AzureAD.
+    It only applies if Azure AD parameters are used.
+
+    .PARAMETER SafetyIntuneLimit
+    Minimum number of computers that must be returned by Intune cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with Intune.
+    It only applies if Intune parameters are used.
+
+    .PARAMETER SafetyJamfLimit
+    Minimum number of computers that must be returned by Jamf cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with Jamf.
+    It only applies if Jamf parameters are used.
 
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
@@ -286,7 +349,8 @@
         [string] $ReportPath,
         [nullable[int]] $SafetyADLimit,
         [nullable[int]] $SafetyAzureADLimit,
-        [nullable[int]] $SafetyIntuneLimit
+        [nullable[int]] $SafetyIntuneLimit,
+        [nullable[int]] $SafetyJamfLimit
     )
 
     # we will use it to check for intune/azuread/jamf functionality
@@ -399,6 +463,7 @@
     $getInitialJamf = @{
         DisableLastContactJamfMoreThan = $DisableLastContactJamfMoreThan
         DeleteLastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+        SafetyJamfLimit                = $SafetyJamfLimit
     }
     Remove-EmptyValue -Hashtable $getInitialJamf
     $JamfInformationCache = Get-InitialJamfComputers @getInitialJamf
@@ -443,7 +508,7 @@
                 $DisableLimitText = $DisableLimit
             }
             # $ComputersToBeDisabled = if ($null -ne $Report["$Domain"]['ComputersToBeDisabled']) { $Report["$Domain"]['ComputersToBeDisabled'].Count } else { 0 }
-            Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'].Count, ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+            Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'], ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
         if ($Delete) {
             if ($DeleteLimit -eq 0) {
@@ -452,7 +517,7 @@
                 $DeleteLimitText = $DeleteLimit
             }
             #$ComputersToBeDeleted = if ($null -ne $Report["$Domain"]['ComputersToBeDeleted']) { $Report["$Domain"]['ComputersToBeDeleted'].Count } else { 0 }
-            Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'].Count, ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+            Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'], ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
     }
 
@@ -508,10 +573,10 @@
     Write-Color -Text "[i] ", "Summary of cleaning up stale computers" -Color Yellow, Cyan
     foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
         if ($Disable) {
-            Write-Color -Text "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'].Count -Color Yellow, Cyan, Green
+            Write-Color -Text "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'] -Color Yellow, Cyan, Green
         }
         if ($Delete) {
-            Write-Color -Text "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'].Count -Color Yellow, Cyan, Green
+            Write-Color -Text "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'] -Color Yellow, Cyan, Green
         }
     }
     if (-not $ReportOnly) {
@@ -527,12 +592,15 @@
     if ($Export -and $ReportPath) {
         Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
         $ComputersToProcess = foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
-            if ($Report["$Domain"]['ComputersToBeDisabled'].Count -gt 0) {
-                $Report["$Domain"]['ComputersToBeDisabled']
+            if ($Report["$Domain"]['Computers'].Count -gt 0) {
+                $Report["$Domain"]['Computers']
             }
-            if ($Report["$Domain"]['ComputersToBeDeleted'].Count -gt 0) {
-                $Report["$Domain"]['ComputersToBeDeleted']
-            }
+            # if ($Report["$Domain"]['ComputersToBeDisabled'].Count -gt 0) {
+            #     $Report["$Domain"]['ComputersToBeDisabled']
+            # }
+            # if ($Report["$Domain"]['ComputersToBeDeleted'].Count -gt 0) {
+            #     $Report["$Domain"]['ComputersToBeDeleted']
+            # }
         }
 
         $Export.Statistics = New-ADComputersStatistics -ComputersToProcess $ComputersToProcess
@@ -549,6 +617,7 @@
             Delete             = $Delete
             Disable            = $Disable
             ReportOnly         = $ReportOnly
+            Statistics         = $Export.Statistics
         }
         New-HTMLProcessedComputers @newHTMLProcessedComputersSplat
     }
