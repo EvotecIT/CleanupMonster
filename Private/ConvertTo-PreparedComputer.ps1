@@ -41,6 +41,17 @@
                 JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
             }
         }
+        $LastLogonDays = if ($null -ne $Computer.LastLogonDate) {
+            - $($Computer.LastLogonDate - $Today).Days
+        } else {
+            $null
+        }
+        $PasswordLastChangedDays = if ($null -ne $Computer.PasswordLastSet) {
+            - $($Computer.PasswordLastSet - $Today).Days
+        } else {
+            $null
+        }
+
 
         $DataStart = [ordered] @{
             'DNSHostName'             = $Computer.DNSHostName
@@ -54,9 +65,9 @@
             'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
             'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
             'LastLogonDate'           = $Computer.LastLogonDate
-            'LastLogonDays'           = ([int] $(if ($null -ne $Computer.LastLogonDate) { "$(-$($Computer.LastLogonDate - $Today).Days)" } else { }))
+            'LastLogonDays'           = $LastLogonDays
             'PasswordLastSet'         = $Computer.PasswordLastSet
-            'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
+            'PasswordLastChangedDays' = $PasswordLastChangedDays
         }
         $DataEnd = [ordered] @{
             'PasswordExpired'      = $Computer.PasswordExpired
