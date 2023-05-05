@@ -40,11 +40,10 @@
             return $false
         }
         Write-Color "[i] ", "Synchronized Computers found in AzureAD`: ", $($Devices.Count) -Color Yellow, Cyan, Green
-        # lets add information that we have AzureAD data
-        $Script:CleanupOptions.AzureAD = $true
     }
     if ($PSBoundParameters.ContainsKey('DisableLastSeenIntuneMoreThan') -or
         $PSBoundParameters.ContainsKey('DeleteLastSeenIntuneMoreThan')) {
+        Write-Color "[i] ", "Getting all computers from Intune" -Color Yellow, Cyan, Green
 
         [Array] $DevicesIntune = Get-MyDeviceIntune -WarningAction SilentlyContinue -WarningVariable WarningVar
         if ($WarningVar) {
@@ -65,9 +64,7 @@
             return $false
         }
 
-        Write-Color "[i] ", "Synchronized Computers found in AzureAD`: ", $($Devices.Count) -Color Yellow, Cyan, Green
-        # lets add information that we have Intune data
-        $Script:CleanupOptions.Intune = $true
+        Write-Color "[i] ", "Synchronized Computers found in Intune`: ", $($DevicesIntune.Count) -Color Yellow, Cyan, Green
     }
 
     $AzureInformationCache
