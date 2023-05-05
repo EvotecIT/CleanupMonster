@@ -1,5 +1,5 @@
 ﻿function Request-ADComputersDelete {
-    [cmdletBinding()]
+    [cmdletBinding(SupportsShouldProcess)]
     param(
         [System.Collections.IDictionary] $Report,
         [switch] $ReportOnly,
@@ -12,7 +12,7 @@
     $CountDeleteLimit = 0
     # :top means name of the loop, so we can break it
     :topLoop foreach ($Domain in $Report.Keys) {
-        foreach ($Computer in $Report["$Domain"]['ComputersToBeDeleted']) {
+        foreach ($Computer in $Report["$Domain"]['Computers']) {
             $Server = $Report["$Domain"]['Server']
             if ($Computer.Action -ne 'Delete') {
                 continue
