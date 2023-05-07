@@ -1,7 +1,7 @@
 ﻿Clear-Host
 Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
 
-New-PrepareModule -ModuleName 'CleanupMonster' {
+Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
         ModuleVersion        = '1.2.0'
