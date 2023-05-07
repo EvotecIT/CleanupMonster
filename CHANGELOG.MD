@@ -21,10 +21,24 @@
     - Added `SafetyAzureADLimit` - minimum X number of computers to be returned from the Azure AD
     - Added `SafetyIntuneLimit` - minimum X number of computers to be returned from the Intune
     - Added `SafetyJamfLimit` - minimum X number of computers to be returned from the Jamf Pro
+  - Reworked HTML reports to be more readable and some logic changes
+
+Showing new options
 
 ```powershell
 $DateTime = Get-Date -Year 2021 -Month 8 -Day 19 -Hour 0 -Minute 0 -Second 0
 $Output = Invoke-ADComputersCleanup -WhatIf -ReportOnly -Disable -ShowHTML -DisablePasswordLastSetOlderThan $DateTime -DisableLastLogonDateOlderThan $DateTime -DeletePasswordLastSetOlderThan $DateTime -DeleteLastLogonDateOlderThan $DateTime
+$Output
+```
+
+With support for Jamf and Azure AD
+
+```powershell
+Connect-MgGraph -Scopes Device.Read.All, DeviceManagementManagedDevices.Read.All, Directory.ReadWrite.All, DeviceManagementConfiguration.Read.All
+Connect-Jamf -Organization 'aaa' -UserName 'aaaa' -Suppress -Force -Password '01000000d08c9ddf0115d1118c7a0'
+
+# this is a fresh run and it will provide report only according to it's defaults
+$Output = Invoke-ADComputersCleanup -ReportOnly -SafetyJamfLimit 99 -WhatIf -Disable -ShowHTML -DisableLastSeenAzureMoreThan 80 -DisableLastSyncAzureMoreThan 80 -DisableLastSeenIntuneMoreThan 80 -DisableLastContactJamfMoreThan 80 #-Delete -DeleteListProcessedMoreThan 80
 $Output
 ```
 
