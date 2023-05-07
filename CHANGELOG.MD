@@ -1,10 +1,26 @@
 ﻿### 1.2.0
 - Renamed PowerShell module to CleanupMonster
 - Invoke-ADComputersCleanup
-  - Added `DisablePasswordLastSetOlderThan`
-  - Added `DisableLastLogonDateOlderThan`
-  - Added `DeletePasswordLastSetOlderThan`
-  - Added `DeleteLastLogonDateOlderThan`
+  - Support for more AD controlled parameters
+    - Added `DisablePasswordLastSetOlderThan`
+    - Added `DisableLastLogonDateOlderThan`
+    - Added `DeletePasswordLastSetOlderThan`
+    - Added `DeleteLastLogonDateOlderThan`
+  - Support for Azure AD and Intune (via Graph API, requires GraphEssentials module, not installed by default)
+    - Added `DisableLastSeenAzureMoreThan`
+    - Added `DisableLastSyncAzureMoreThan`
+    - Added `DisableLastSeenIntuneMoreThan`
+    - Added `DeleteLastSeenAzureMoreThan`
+    - Added `DeleteLastSyncAzureMoreThan`
+    - Added `DeleteLastSeenIntuneMoreThan`
+  - Support for Jamf Pro (via Jamf Pro API, requires PowerJamf module, not installed by default)
+    - Added `DisableLastContactJamfMoreThan`
+    - Added `DeleteLastContactJamfMoreThan`
+  - Support for Safety Limits (cleanup will cancel if conditions are not matched, by default disabled)
+    - Added `SafetyADLimit` - minimum X number of computers to be returned from the AD
+    - Added `SafetyAzureADLimit` - minimum X number of computers to be returned from the Azure AD
+    - Added `SafetyIntuneLimit` - minimum X number of computers to be returned from the Intune
+    - Added `SafetyJamfLimit` - minimum X number of computers to be returned from the Jamf Pro
 
 ```powershell
 $DateTime = Get-Date -Year 2021 -Month 8 -Day 19 -Hour 0 -Minute 0 -Second 0
