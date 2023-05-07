@@ -12,10 +12,10 @@
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
-            ProjectUri                 = 'https://github.com/EvotecIT/CleanupMonster'
-            IconUri                    = 'https://evotec.xyz/wp-content/uploads/2023/04/CleanupMonster.png'
             Tags                       = @('windows', 'activedirectory')
-            ExternalModuleDependencies = @('ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Diagnostics')
+            IconUri                    = 'https://evotec.xyz/wp-content/uploads/2023/04/CleanupMonster.png'
+            ProjectUri                 = 'https://github.com/EvotecIT/CleanupMonster'
+            ExternalModuleDependencies = @('ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management')
         }
     }
     RequiredModules      = @(@{
@@ -34,6 +34,6 @@
             ModuleName    = 'PSEventViewer'
             ModuleVersion = '1.0.22'
             Guid          = '5df72a79-cdf6-4add-b38d-bcacf26fb7bc'
-        }, 'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Diagnostics')
+        }, 'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management')
     RootModule           = 'CleanupMonster.psm1'
 }
