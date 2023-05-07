@@ -37,6 +37,26 @@
     .PARAMETER DisableLastLogonDateOlderThan
     Disable computer only if it has a LastLogonDate that is older than the specified date.
 
+    .PARAMETER DisableLastSeenAzureMoreThan
+    Disable computer only if it Last Seen in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DisableLastSeenIntuneMoreThan
+    Disable computer only if it Last Seen in Intune is more than the specified number of days.
+    Please note that you need to make connection to Intune using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DisableLastSyncAzureMoreThan
+    Disable computer only if it Last Synced in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure AD using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DisableLastContactJamfMoreThan
+    Disable computer only if it Last Contacted in Jamf is more than the specified number of days.
+    Please note that you need to make connection to Jamf using PowerJamf PowerShell Module first.
+    Additionally you will need PowerJamf PowerShell Module installed.
+
     .PARAMETER DisableExcludeSystems
     Disable computer only if it's not on the list of excluded operating systems.
     If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*' or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
@@ -64,16 +84,36 @@
     .PARAMETER DeletePasswordLastSetMoreThan
     Delete computer only if it has a PasswordLastSet that is more than the specified number of days.
 
-    .PARAMETER DisablePasswordLastSetOlderThan
-    Delete computer only if it has a PasswordLastSet that is older than the specified date.
-
-    .PARAMETER DisableLastLogonDateOlderThan
-    Delete computer only if it has a LastLogonDate that is older than the specified date.
-
     .PARAMETER DeleteListProcessedMoreThan
     Delete computer only if it has been processed by this script more than the specified number of days ago.
     This is useful if you want to delete computers that have been disabled for a certain amount of time.
     It uses XML file to store the list of processed computers, so please make sure to not remove it or it will start over.
+
+    .PARAMETER DeletePasswordLastSetOlderThan
+    Delete computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER DeleteLastLogonDateOlderThan
+    Delete computer only if it has a LastLogonDate that is older than the specified date.
+
+    .PARAMETER DeleteLastSeenAzureMoreThan
+    Delete computer only if it Last Seen in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure using Connect-MgGraph with proper permissions first.
+    Additionally yopu will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DeleteLastSeenIntuneMoreThan
+    Delete computer only if it Last Seen in Intune is more than the specified number of days.
+    Please note that you need to make connection to Intune using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DeleteLastSyncAzureMoreThan
+    Delete computer only if it Last Synced in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure AD using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER DeleteLastContactJamfMoreThan
+    Delete computer only if it Last Contacted in Jamf is more than the specified number of days.
+    Please note that you need to make connection to Jamf using PowerJamf PowerShell Module first.
+    Additionally you will need PowerJamf PowerShell Module installed.
 
     .PARAMETER DeleteExcludeSystems
     Delete computer only if it's not on the list of excluded operating systems.
@@ -156,6 +196,29 @@
 
     .PARAMETER ReportPath
     Path to the HTML report file. Default is $PSScriptRoot\ProcessedComputers.html
+
+    .PARAMETER SafetyADLimit
+    Minimum number of computers that must be returned by AD cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with AD.
+
+    .PARAMETER SafetyAzureADLimit
+    Minimum number of computers that must be returned by AzureAD cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with AzureAD.
+    It only applies if Azure AD parameters are used.
+
+    .PARAMETER SafetyIntuneLimit
+    Minimum number of computers that must be returned by Intune cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with Intune.
+    It only applies if Intune parameters are used.
+
+    .PARAMETER SafetyJamfLimit
+    Minimum number of computers that must be returned by Jamf cmdlets to proceed with the process.
+    Default is not to check.
+    This is there to prevent accidental deletion of all computers if there is a problem with Jamf.
+    It only applies if Jamf parameters are used.
 
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
@@ -240,20 +303,28 @@
         [switch] $Disable,
         [switch] $Delete,
         [nullable[bool]] $DisableIsEnabled,
-        [nullable[bool]] $DisableNoServicePrincipalName = $null,
+        [nullable[bool]] $DisableNoServicePrincipalName,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
         [nullable[int]] $DisablePasswordLastSetMoreThan = 180,
         [nullable[DateTime]] $DisablePasswordLastSetOlderThan,
         [nullable[DateTime]] $DisableLastLogonDateOlderThan,
+        [nullable[int]] $DisableLastSeenAzureMoreThan,
+        [nullable[int]] $DisableLastSeenIntuneMoreThan,
+        [nullable[int]] $DisableLastSyncAzureMoreThan,
+        [nullable[int]] $DisableLastContactJamfMoreThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
         [nullable[bool]] $DeleteIsEnabled,
-        [nullable[bool]] $DeleteNoServicePrincipalName = $null,
+        [nullable[bool]] $DeleteNoServicePrincipalName,
         [nullable[int]] $DeleteLastLogonDateMoreThan = 180,
         [nullable[int]] $DeletePasswordLastSetMoreThan = 180,
         [nullable[int]] $DeleteListProcessedMoreThan,
         [nullable[DateTime]] $DeletePasswordLastSetOlderThan,
         [nullable[DateTime]] $DeleteLastLogonDateOlderThan,
+        [nullable[int]] $DeleteLastSeenAzureMoreThan,
+        [nullable[int]] $DeleteLastSeenIntuneMoreThan,
+        [nullable[int]] $DeleteLastSyncAzureMoreThan,
+        [nullable[int]] $DeleteLastContactJamfMoreThan,
         [Array] $DeleteExcludeSystems = @(),
         [Array] $DeleteIncludeSystems = @(),
         [int] $DeleteLimit = 1, # 0 = unlimited
@@ -275,8 +346,15 @@
         [switch] $Suppress,
         [switch] $ShowHTML,
         [switch] $Online,
-        [string] $ReportPath
+        [string] $ReportPath,
+        [nullable[int]] $SafetyADLimit,
+        [nullable[int]] $SafetyAzureADLimit,
+        [nullable[int]] $SafetyIntuneLimit,
+        [nullable[int]] $SafetyJamfLimit
     )
+
+    # we will use it to check for intune/azuread/jamf functionality
+    $Script:CleanupOptions = [ordered] @{}
 
     # just in case user wants to use -WhatIf instead of -WhatIfDelete and -WhatIfDisable
     if (-not $WhatIfDelete -and -not $WhatIfDisable) {
@@ -288,6 +366,7 @@
 
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
+        # Active directory
         IsEnabled                = $DisableIsEnabled
         NoServicePrincipalName   = $DisableNoServicePrincipalName
         LastLogonDateMoreThan    = $DisableLastLogonDateMoreThan
@@ -296,8 +375,16 @@
         IncludeSystems           = $DisableIncludeSystems
         PasswordLastSetOlderThan = $DisablePasswordLastSetOlderThan
         LastLogonDateOlderThan   = $DisableLastLogonDateOlderThan
+        # Intune
+        LastSeenIntuneMoreThan   = $DisableLastSeenIntuneMoreThan
+        # Azure
+        LastSyncAzureMoreThan    = $DisableLastSyncAzureMoreThan
+        LastSeenAzureMoreThan    = $DisableLastSeenAzureMoreThan
+        # Jamf
+        LastContactJamfMoreThan  = $DisableLastContactJamfMoreThan
     }
     $DeleteOnlyIf = [ordered] @{
+        # Active directory
         IsEnabled                = $DeleteIsEnabled
         NoServicePrincipalName   = $DeleteNoServicePrincipalName
         LastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
@@ -307,6 +394,13 @@
         IncludeSystems           = $DeleteIncludeSystems
         PasswordLastSetOlderThan = $DeletePasswordLastSetOlderThan
         LastLogonDateOlderThan   = $DeleteLastLogonDateOlderThan
+        # Intune
+        LastSeenIntuneMoreThan   = $DeleteLastSeenIntuneMoreThan
+        # Azure
+        LastSeenAzureMoreThan    = $DeleteLastSeenAzureMoreThan
+        LastSyncAzureMoreThan    = $DeleteLastSyncAzureMoreThan
+        # Jamf
+        LastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
     }
 
     if (-not $DataStorePath) {
@@ -344,53 +438,66 @@
     }
 
     if (-not $Disable -and -not $Delete) {
-        Write-Color -Text "[i] ", "No action was taken. You need to enable Disable or/and Delete feature to have any action." -Color Yellow, Red
+        Write-Color -Text "[i] ", "No action can be taken. You need to enable Disable or/and Delete feature to have any action." -Color Yellow, Red
         return
     }
 
-    $AllComputers = [ordered] @{}
-    $Report = [ordered] @{ }
-    foreach ($Domain in $Forest.Domains) {
-        $Report["$Domain"] = @{ }
-        $DC = Get-ADDomainController -Discover -DomainName $Domain
-        $Server = $DC.HostName[0]
-        $DomainInformation = Get-ADDomain -Identity $Domain -Server $Server
-        $Report["$Domain"]['Server'] = $Server
-        Write-Color "[i] Getting all computers for domain ", $Domain -Color Yellow, Magenta, Yellow
-        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties
-        foreach ($Computer in $Computers) {
-            $AllComputers[$($Computer.DistinguishedName)] = $Computer
-        }
-        Write-Color "[i] ", "Computers found for domain $Domain`: ", $($Computers.Count) -Color Yellow, Cyan, Green
-        if ($Disable) {
-            Write-Color "[i] ", "Processing computers to disable for domain $Domain" -Color Yellow, Cyan, Green
-            Write-Color "[i] ", "Looking for computers with LastLogonDate more than ", $DisableLastLogonDateMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            Write-Color "[i] ", "Looking for computers with PasswordLastSet more than ", $DisablePasswordLastSetMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            if ($DisableNoServicePrincipalName) {
-                Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
-            }
-            $Report["$Domain"]['ComputersToBeDisabled'] = @(
-                Get-ADComputersToDisable -Computers $Computers -DisableOnlyIf $DisableOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers
-            )
-        }
-        if ($Delete) {
-            Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
-            Write-Color "[i] ", "Looking for computers with LastLogonDate more than ", $DeleteLastLogonDateMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            Write-Color "[i] ", "Looking for computers with PasswordLastSet more than ", $DeletePasswordLastSetMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            if ($DeleteNoServicePrincipalName) {
-                Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
-            }
-            if ($null -ne $DeleteIsEnabled) {
-                if ($DeleteIsEnabled) {
-                    Write-Color "[i] ", "Looking for computers that are enabled" -Color Yellow, Cyan, Green
-                } else {
-                    Write-Color "[i] ", "Looking for computers that are disabled" -Color Yellow, Cyan, Green
-                }
-            }
-            $Report["$Domain"]['ComputersToBeDeleted'] = @(
-                Get-ADComputersToDelete -Computers $Computers -DeleteOnlyIf $DeleteOnlyIf -Exclusions $Exclusions -DomainInformation $DomainInformation -ProcessedComputers $ProcessedComputers
-            )
-        }
+    $Report = [ordered] @{}
+
+    $getInitialGraphComputersSplat = [ordered] @{
+        SafetyAzureADLimit            = $SafetyAzureADLimit
+        SafetyIntuneLimit             = $SafetyIntuneLimit
+        DeleteLastSeenAzureMoreThan   = $DeleteLastSeenAzureMoreThan
+        DeleteLastSeenIntuneMoreThan  = $DeleteLastSeenIntuneMoreThan
+        DeleteLastSyncAzureMoreThan   = $DeleteLastSyncAzureMoreThan
+        DisableLastSeenAzureMoreThan  = $DisableLastSeenAzureMoreThan
+        DisableLastSeenIntuneMoreThan = $DisableLastSeenIntuneMoreThan
+        DisableLastSyncAzureMoreThan  = $DisableLastSyncAzureMoreThan
+    }
+    Remove-EmptyValue -Hashtable $getInitialGraphComputersSplat
+    $AzureInformationCache = Get-InitialGraphComputers @getInitialGraphComputersSplat
+    if ($AzureInformationCache -eq $false) {
+        return
+    }
+
+    $getInitialJamf = @{
+        DisableLastContactJamfMoreThan = $DisableLastContactJamfMoreThan
+        DeleteLastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+        SafetyJamfLimit                = $SafetyJamfLimit
+    }
+    Remove-EmptyValue -Hashtable $getInitialJamf
+    $JamfInformationCache = Get-InitialJamfComputers @getInitialJamf
+    if ($JamfInformationCache -eq $false) {
+        return
+    }
+
+    $SplatADComputers = [ordered] @{
+        Report                         = $Report
+        Forest                         = $Forest
+        Filter                         = $Filter
+        Properties                     = $Properties
+        Disable                        = $Disable
+        Delete                         = $Delete
+        DisableLastLogonDateMoreThan   = $DisableLastLogonDateMoreThan
+        DeleteLastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
+        DeleteNoServicePrincipalName   = $DeleteNoServicePrincipalName
+        DisableNoServicePrincipalName  = $DisableNoServicePrincipalName
+        DeleteIsEnabled                = $DeleteIsEnabled
+        DisableIsEnabled               = $DisableIsEnabled
+        DisablePasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan
+        DeletePasswordLastSetMoreThan  = $DeletePasswordLastSetMoreThan
+        DisableOnlyIf                  = $DisableOnlyIf
+        DeleteOnlyIf                   = $DeleteOnlyIf
+        Exclusions                     = $Exclusions
+        ProcessedComputers             = $ProcessedComputers
+        SafetyADLimit                  = $SafetyADLimit
+        AzureInformationCache          = $AzureInformationCache
+        JamfInformationCache           = $JamfInformationCache
+    }
+
+    $AllComputers = Get-InitialADComputers @SplatADComputers
+    if ($AllComputers -eq $false) {
+        return
     }
 
     foreach ($Domain in $Report.Keys) {
@@ -400,8 +507,7 @@
             } else {
                 $DisableLimitText = $DisableLimit
             }
-            # $ComputersToBeDisabled = if ($null -ne $Report["$Domain"]['ComputersToBeDisabled']) { $Report["$Domain"]['ComputersToBeDisabled'].Count } else { 0 }
-            Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'].Count, ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+            Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'], ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
         if ($Delete) {
             if ($DeleteLimit -eq 0) {
@@ -409,130 +515,35 @@
             } else {
                 $DeleteLimitText = $DeleteLimit
             }
-            #$ComputersToBeDeleted = if ($null -ne $Report["$Domain"]['ComputersToBeDeleted']) { $Report["$Domain"]['ComputersToBeDeleted'].Count } else { 0 }
-            Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'].Count, ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+            Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'], ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
     }
 
     if ($Disable) {
-        $CountDisable = 0
-        # :top means name of the loop, so we can break it
-        [Array] $ReportDisabled = :topLoop foreach ($Domain in $Report.Keys) {
-            Write-Color "[i] ", "Starting process of disabling computers for domain $Domain" -Color Yellow, Green
-            foreach ($Computer in $Report["$Domain"]['ComputersToBeDisabled']) {
-                $Server = $Report["$Domain"]['Server']
-                if ($ReportOnly) {
-                    $Computer
-                } else {
-                    Write-Color -Text "[i] Disabling computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
-                    try {
-                        Disable-ADAccount -Identity $Computer.DistinguishedName -Server $Server -WhatIf:$WhatIfDisable -ErrorAction Stop
-                        Write-Color -Text "[+] Disabling computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful." -Color Yellow, Green, Yellow
-                        Write-Event -ID 10 -LogName 'Application' -EntryType Information -Category 1000 -Source 'CleanupComputers' -Message "Disabling computer $($Computer.SamAccountName) successful." -AdditionalFields @('Disable', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable) -WarningAction SilentlyContinue -WarningVariable warnings
-                        foreach ($W in $Warnings) {
-                            Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                        }
-                        $Success = $true
-                    } catch {
-                        $Computer.ActionComment = $_.Exception.Message
-                        $Success = $false
-                        Write-Color -Text "[-] Disabling computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                        Write-Event -ID 10 -LogName 'Application' -EntryType Error -Category 1001 -Source 'CleanupComputers' -Message "Disabling computer $($Computer.SamAccountName) failed. Error: $($_.Exception.Message)" -AdditionalFields @('Disable', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
-                        foreach ($W in $Warnings) {
-                            Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                        }
-                    }
-                    if ($Success) {
-                        if ($DisableModifyDescription -eq $true) {
-                            $DisableModifyDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
-                            try {
-                                Set-ADComputer -Identity $Computer.DistinguishedName -Description $DisableModifyDescriptionText -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
-                                Write-Color -Text "[+] ", "Setting description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
-                            } catch {
-                                $Computer.ActionComment = $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
-                                Write-Color -Text "[-] ", "Setting description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                            }
-                        }
-                        if ($DisableModifyAdminDescription) {
-                            $DisableModifyAdminDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
-                            try {
-                                Set-ADObject -Identity $Computer.DistinguishedName -Replace @{ AdminDescription = $DisableModifyAdminDescriptionText } -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
-                                Write-Color -Text "[+] ", "Setting admin description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyAdminDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
-                            } catch {
-                                $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
-                                Write-Color -Text "[-] ", "Setting admin description on disabled computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                            }
-                        }
-                    }
-
-                    # this is to store actual disabling time - we can't trust WhenChanged date
-                    $Computer.ActionDate = $Today
-                    if ($WhatIfDisable.IsPresent) {
-                        $Computer.ActionStatus = 'WhatIf'
-                    } else {
-                        $Computer.ActionStatus = $Success
-                    }
-                    $ProcessedComputers["$($Computer.DistinguishedName)"] = $Computer
-                    # return computer to $ReportDisabled so we can see summary just in case
-                    $Computer
-                    $CountDisable++
-                    if ($DisableLimit) {
-                        if ($DisableLimit -eq $CountDisable) {
-                            break topLoop # this breaks top loop
-                        }
-                    }
-                }
-            }
+        $requestADComputersDisableSplat = @{
+            Report                        = $Report
+            WhatIfDisable                 = $WhatIfDisable
+            WhatIf                        = $WhatIfPreference
+            DisableModifyDescription      = $DisableModifyDescription.IsPresent
+            DisableModifyAdminDescription = $DisableModifyAdminDescription.IsPresent
+            DisableLimit                  = $DisableLimit
+            ReportOnly                    = $ReportOnly
+            Today                         = $Today
         }
+
+        [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
     }
 
     if ($Delete) {
-        $CountDeleteLimit = 0
-        # :top means name of the loop, so we can break it
-        [Array] $ReportDeleted = :topLoop foreach ($Domain in $Report.Keys) {
-            foreach ($Computer in $Report["$Domain"]['ComputersToBeDeleted']) {
-                $Server = $Report["$Domain"]['Server']
-                if ($ReportOnly) {
-                    $Computer
-                } else {
-                    Write-Color -Text "[i] Deleting computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
-                    try {
-                        $Success = $true
-                        Remove-ADObject -Identity $Computer.DistinguishedName -Recursive -WhatIf:$WhatIfDelete -Server $Server -ErrorAction Stop -Confirm:$false
-                        Write-Color -Text "[+] Deleting computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) successful." -Color Yellow, Green, Yellow
-                        Write-Event -ID 10 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) successful." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
-                        foreach ($W in $Warnings) {
-                            Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                        }
-
-                    } catch {
-                        $Success = $false
-                        Write-Color -Text "[-] Deleting computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                        Write-Event -ID 10 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) failed." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
-                        foreach ($W in $Warnings) {
-                            Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                        }
-                        $Computer.ActionComment = $_.Exception.Message
-                    }
-                    $Computer.ActionDate = $Today
-                    if ($WhatIfDelete.IsPresent) {
-                        $Computer.ActionStatus = 'WhatIf'
-                    } else {
-                        $Computer.ActionStatus = $Success
-                    }
-                    $ProcessedComputers.Remove("$($Computer.DistinguishedName)")
-
-                    # return computer to $ReportDeleted so we can see summary just in case
-                    $Computer
-                    $CountDeleteLimit++
-                    if ($DeleteLimit) {
-                        if ($DeleteLimit -eq $CountDeleteLimit) {
-                            break topLoop # this breaks top loop
-                        }
-                    }
-                }
-            }
+        $requestADComputersDeleteSplat = @{
+            Report       = $Report
+            WhatIfDelete = $WhatIfDelete
+            WhatIf       = $WhatIfPreference
+            DeleteLimit  = $DeleteLimit
+            ReportOnly   = $ReportOnly
+            Today        = $Today
         }
+        [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
     }
 
     Write-Color "[i] ", "Cleanup process for processed computers that no longer exists in AD" -Color Yellow, Green
@@ -548,7 +559,6 @@
     $Export.CurrentRun = @($ReportDisabled + $ReportDeleted)
     $Export.History = @($Export.History + $ReportDisabled + $ReportDeleted)
 
-    #if ($DeleteListProcessedMoreThan) {
     Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
     if (-not $ReportOnly) {
         try {
@@ -560,10 +570,10 @@
     Write-Color -Text "[i] ", "Summary of cleaning up stale computers" -Color Yellow, Cyan
     foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
         if ($Disable) {
-            Write-Color -Text "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'].Count -Color Yellow, Cyan, Green
+            Write-Color -Text "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'] -Color Yellow, Cyan, Green
         }
         if ($Delete) {
-            Write-Color -Text "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'].Count -Color Yellow, Cyan, Green
+            Write-Color -Text "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'] -Color Yellow, Cyan, Green
         }
     }
     if (-not $ReportOnly) {
@@ -579,11 +589,8 @@
     if ($Export -and $ReportPath) {
         Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
         $ComputersToProcess = foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'ReportPendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
-            if ($Report["$Domain"]['ComputersToBeDisabled'].Count -gt 0) {
-                $Report["$Domain"]['ComputersToBeDisabled']
-            }
-            if ($Report["$Domain"]['ComputersToBeDeleted'].Count -gt 0) {
-                $Report["$Domain"]['ComputersToBeDeleted']
+            if ($Report["$Domain"]['Computers'].Count -gt 0) {
+                $Report["$Domain"]['Computers']
             }
         }
 

@@ -6,8 +6,14 @@
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [string] $Filter = '*',
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
-        [System.Collections.IDictionary] $ProcessedComputers
+        [System.Collections.IDictionary] $ProcessedComputers,
+        [System.Collections.IDictionary] $AzureInformationCache,
+        [System.Collections.IDictionary] $JamfInformationCache,
+        [switch] $IncludeAzureAD,
+        [switch] $IncludeIntune,
+        [switch] $IncludeJamf
     )
+    $Count = 0
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
         if ($ProcessedComputers.Count -gt 0) {
@@ -129,31 +135,35 @@
                 }
             }
         }
-
-        [PSCustomObject] @{
-            'DNSHostName'             = $Computer.DNSHostName
-            'SamAccountName'          = $Computer.SamAccountName
-            'Enabled'                 = $Computer.Enabled
-            'Action'                  = 'Disable'
-            'ActionStatus'            = $null
-            'ActionDate'              = $null
-            'ActionComment'           = $null
-            'OperatingSystem'         = $Computer.OperatingSystem
-            'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
-            'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
-            'LastLogonDate'           = $Computer.LastLogonDate
-            'LastLogonDays'           = ([int] $(if ($null -ne $Computer.LastLogonDate) { "$(-$($Computer.LastLogonDate - $Today).Days)" } else { }))
-            'PasswordLastSet'         = $Computer.PasswordLastSet
-            'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
-            'PasswordExpired'         = $Computer.PasswordExpired
-            'LogonCount'              = $Computer.logonCount
-            'ManagedBy'               = $Computer.ManagedBy
-            'DistinguishedName'       = $Computer.DistinguishedName
-            'OrganizationalUnit'      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
-            'Description'             = $Computer.Description
-            'WhenCreated'             = $Computer.WhenCreated
-            'WhenChanged'             = $Computer.WhenChanged
-            'ServicePrincipalName'    = $Computer.servicePrincipalName -join [System.Environment]::NewLine
+        if ($IncludeAzureAD) {
+            if ($null -ne $DisableOnlyIf.LastSeenAzureMoreThan -and $null -ne $Computer.AzureLastSeenDays) {
+                if ($DisableOnlyIf.LastSeenAzureMoreThan -le $Computer.AzureLastSeenDays) {
+                    continue SkipComputer
+                }
+            }
+            if ($null -ne $DisableOnlyIf.LastSyncAzureMoreThan -and $null -ne $Computer.AzureLastSyncDays) {
+                if ($DisableOnlyIf.LastSyncAzureMoreThan -le $Computer.AzureLastSyncDays) {
+                    continue SkipComputer
+                }
+            }
         }
+        if ($IncludeIntune) {
+            if ($null -ne $DisableOnlyIf.LastSeenIntuneMoreThan -and $null -ne $Computer.IntuneLastSeenDays) {
+                if ($DisableOnlyIf.LastSeenIntuneMoreThan -le $Computer.IntuneLastSeenDays) {
+                    continue SkipComputer
+                }
+            }
+        }
+        if ($IncludeJamf) {
+            if ($null -ne $DisableOnlyIf.LastContactJamfMoreThan -and $null -ne $Computer.JamfLastContactTimeDays) {
+                if ($DisableOnlyIf.LastContactJamfMoreThan -le $Computer.JamfLastContactTimeDays) {
+                    continue SkipComputer
+                }
+            }
+        }
+
+        $Computer.'Action' = 'Disable'
+        $Count++
     }
+    $Count
 }

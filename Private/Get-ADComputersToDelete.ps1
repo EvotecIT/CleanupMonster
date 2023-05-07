@@ -5,13 +5,18 @@
         [System.Collections.IDictionary] $DeleteOnlyIf,
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
-        [System.Collections.IDictionary] $ProcessedComputers
+        [System.Collections.IDictionary] $ProcessedComputers,
+        [System.Collections.IDictionary] $AzureInformationCache,
+        [System.Collections.IDictionary] $JamfInformationCache,
+        [switch] $IncludeAzureAD,
+        [switch] $IncludeIntune,
+        [switch] $IncludeJamf
     )
+    $Count = 0
     $Today = Get-Date
     :SkipComputer foreach ($Computer in $Computers) {
         if ($null -ne $DeleteOnlyIf.ListProcessedMoreThan) {
             # if more then 0 this means computer has to be on list of disabled computers for that number of days.
-
             if ($ProcessedComputers.Count -gt 0) {
                 $FoundComputer = $ProcessedComputers["$($Computer.DistinguishedName)"]
                 if ($FoundComputer) {
@@ -132,30 +137,35 @@
             }
         }
 
-        [PSCustomObject] @{
-            'DNSHostName'             = $Computer.DNSHostName
-            'SamAccountName'          = $Computer.SamAccountName
-            'Enabled'                 = $Computer.Enabled
-            'Action'                  = 'Delete'
-            'ActionStatus'            = $null
-            'ActionDate'              = $null
-            'ActionComment'           = $null
-            'OperatingSystem'         = $Computer.OperatingSystem
-            'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
-            'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
-            'LastLogonDate'           = $Computer.LastLogonDate
-            'LastLogonDays'           = ([int] $(if ($null -ne $Computer.LastLogonDate) { "$(-$($Computer.LastLogonDate - $Today).Days)" } else { }))
-            'PasswordLastSet'         = $Computer.PasswordLastSet
-            'PasswordLastChangedDays' = ([int] $(if ($null -ne $Computer.PasswordLastSet) { "$(-$($Computer.PasswordLastSet - $Today).Days)" } else { }))
-            'PasswordExpired'         = $Computer.PasswordExpired
-            'LogonCount'              = $Computer.logonCount
-            'ManagedBy'               = $Computer.ManagedBy
-            'DistinguishedName'       = $Computer.DistinguishedName
-            'OrganizationalUnit'      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
-            'Description'             = $Computer.Description
-            'WhenCreated'             = $Computer.WhenCreated
-            'WhenChanged'             = $Computer.WhenChanged
-            'ServicePrincipalName'    = $Computer.servicePrincipalName -join [System.Environment]::NewLine
+        if ($IncludeAzureAD) {
+            if ($null -ne $DeleteOnlyIf.LastSeenAzureMoreThan -and $null -ne $Computer.AzureLastSeenDays) {
+                if ($DeleteOnlyIf.LastSeenAzureMoreThan -le $Computer.AzureLastSeenDays) {
+                    continue SkipComputer
+                }
+
+            }
+            if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan -and $null -ne $Computer.AzureLastSyncDays) {
+                if ($DeleteOnlyIf.LastSyncAzureMoreThan -le $Computer.AzureLastSyncDays) {
+                    continue SkipComputer
+                }
+            }
         }
+        if ($IncludeIntune) {
+            if ($null -ne $DeleteOnlyIf.LastSeenIntuneMoreThan -and $null -ne $Computer.IntuneLastSeenDays) {
+                if ($DeleteOnlyIf.LastSeenIntuneMoreThan -le $Computer.IntuneLastSeenDays) {
+                    continue SkipComputer
+                }
+            }
+        }
+        if ($IncludeJamf) {
+            if ($null -ne $DeleteOnlyIf.LastContactJamfMoreThan -and $null -ne $Computer.JamfLastContactTimeDays) {
+                if ($DeleteOnlyIf.LastContactJamfMoreThan -le $Computer.JamfLastContactTimeDays) {
+                    continue SkipComputer
+                }
+            }
+        }
+        $Computer.'Action' = 'Delete'
+        $Count++
     }
+    $Count
 }

@@ -4,6 +4,7 @@
         [Array] $ComputersToProcess
     )
     $Statistics = [ordered] @{
+        All                          = $ComputersToProcess.Count
         ToDisable                    = 0
         ToDelete                     = 0
         ToDisableComputerWorkstation = 0
@@ -12,6 +13,11 @@
         ToDeleteComputerServer       = 0
         ToDisableComputerUnknown     = 0
         ToDeleteComputerUnknown      = 0
+        TotalWindowsServers          = 0
+        TotalWindowsWorkstations     = 0
+        TotalMacOS                   = 0
+        TotalLinux                   = 0
+        TotalUnknown                 = 0
         Delete                       = [ordered] @{
             LastLogonDays           = [ordered ]@{}
             PasswordLastChangedDays = [ordered] @{}
@@ -22,11 +28,26 @@
             PasswordLastChangedDays = [ordered] @{}
             Systems                 = [ordered] @{}
         }
+        'Not required'               = [ordered] @{
+            LastLogonDays           = [ordered] @{}
+            PasswordLastChangedDays = [ordered] @{}
+            Systems                 = [ordered] @{}
+        }
     }
     foreach ($Computer in $ComputersToProcess) {
+        if ($Computer.OperatingSystem -like "Windows Server*") {
+            $Statistics.TotalWindowsServers++
+        } elseif ($Computer.OperatingSystem -notlike "Windows Server*" -and $Computer.OperatingSystem -like "Windows*") {
+            $Statistics.TotalWindowsWorkstations++
+        } elseif ($Computer.OperatingSystem -like "Mac*") {
+            $Statistics.TotalMacOS++
+        } elseif ($Computer.OperatingSystem -like "Linux*") {
+            $Statistics.TotalLinux++
+        } else {
+            $Statistics.TotalUnknown++
+        }
         if ($Computer.Action -eq 'Disable') {
             $Statistics.ToDisable++
-
             if ($Computer.OperatingSystem -like "Windows Server*") {
                 $Statistics.ToDisableComputerServer++
             } elseif ($Computer.OperatingSystem -notlike "Windows Server*" -and $Computer.OperatingSystem -like "Windows*") {
@@ -36,7 +57,6 @@
             }
         } elseif ($Computer.Action -eq 'Delete') {
             $Statistics.ToDelete++
-
             if ($Computer.OperatingSystem -like "Windows Server*") {
                 $Statistics.ToDeleteComputerServer++
             } elseif ($Computer.OperatingSystem -notlike "Windows Server*" -and $Computer.OperatingSystem -like "Windows*") {
@@ -44,8 +64,6 @@
             } else {
                 $Statistics.ToDeleteComputerUnknown++
             }
-        } else {
-            Write-Color -Text '[-] ', "Unknown action: $($Computer.Action)" -Color Yellow, Red
         }
         if ($Computer.OperatingSystem) {
             $Statistics[$Computer.Action]['Systems'][$Computer.OperatingSystem]++

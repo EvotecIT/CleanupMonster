@@ -20,33 +20,46 @@
 </p>
 
 `CleanupMonster` is a PowerShell module to that helps you clean up **Active Directory**.
-It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**. It's a very advanced module with many options and you can easily customize it to your needs.
+It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**.
+It's a very advanced module with many options and you can easily customize it to your needs.
 Please make sure to run this module with proper permissions or you may get wrong results.
 By default Active Directory domain allows a standard user to read LastLogonDate and LastPasswordSet attributes.
 If you have changed those settings you may need to run the module with elevated permissions even for reporting needs.
 
-### Support/Sponsor
+## Support This Project
 
-Does your company use our .NET libraries or PowerShell Modules?
-Ask your manager or marketing team if your company would be interested in supporting our project.
-Support will allow the maintainers to dedicate more time for maintenance and new features for everyone.
-It takes a lot of time and effort to create and maintain them.
-If you find them useful, please consider supporting the development.
+If you find this project helpful, please consider supporting its development.
+Your sponsorship will help the maintainers dedicate more time to maintenance and new feature development for everyone.
+
+It takes a lot of time and effort to create and maintain this project.
+By becoming a sponsor, you can help ensure that it stays free and accessible to everyone who needs it.
+
+To become a sponsor, you can choose from the following options:
 
  - [Become a sponsor via GitHub Sponsors :heart:](https://github.com/sponsors/PrzemyslawKlys)
  - [Become a sponsor via PayPal :heart:](https://paypal.me/PrzemyslawKlys)
 
-### Installation
+Your sponsorship is completely optional and not required for using this project.
+We want this project to remain open-source and available for anyone to use for free,
+regardless of whether they choose to sponsor it or not.
+
+If you work for a company that uses our .NET libraries or PowerShell Modules,
+please consider asking your manager or marketing team if your company would be interested in supporting this project.
+Your company's support can help us continue to maintain and improve this project for the benefit of everyone.
+
+Thank you for considering supporting this project!
+
+## Installation
 
 ```powershell
 Install-Module -Name CleanupMonster -Force -Verbose
 ```
 
-### Using the module
+## Using the module
 
-#### Cleaning Active Directory
+### Cleaning Active Directory
 
-##### Report Only
+#### Report Only
 
 The first thing you should do is to run the module in a report only mode.
 It will show you how many computers are there to disable and delete.
@@ -61,7 +74,7 @@ You can change those values by using parameters.
 
 ![ReportOnlyMode](https://raw.githubusercontent.com/EvotecIT/CleanupMonster/master/Examples/Images/ComputersReport.png)
 
-##### Interactively
+#### Interactively
 
 This is a sample script that you can use to run the module interactively.
 It's good idea to run it interactively first to clean your AD and then run it in a scheduled task.
@@ -99,7 +112,7 @@ $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PS
 $Output
 ```
 
-##### Non-interactively (scheduled task)
+#### Non-interactively (scheduled task)
 
 This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
 

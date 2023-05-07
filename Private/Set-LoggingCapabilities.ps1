@@ -2,15 +2,22 @@
     [CmdletBinding()]
     param(
         [string] $LogPath,
-        [int] $LogMaximum
+        [int] $LogMaximum,
+        [switch] $ShowTime,
+        [string] $TimeFormat
     )
+
+    $Script:PSDefaultParameterValues = @{
+        "Write-Color:LogFile"    = $LogPath
+        "Write-Color:ShowTime"   = if ($PSBoundParameters.ContainsKey('ShowTime')) { $ShowTime.IsPresent } else { $null }
+        "Write-Color:TimeFormat" = $TimeFormat
+    }
+    Remove-EmptyValue -Hashtable $Script:PSDefaultParameterValues
+
     if ($LogPath) {
         $FolderPath = [io.path]::GetDirectoryName($LogPath)
         if (-not (Test-Path -LiteralPath $FolderPath)) {
             $null = New-Item -Path $FolderPath -ItemType Directory -Force -WhatIf:$false
-        }
-        $Script:PSDefaultParameterValues = @{
-            "Write-Color:LogFile" = $LogPath
         }
         if ($LogMaximum -gt 0) {
             $CurrentLogs = Get-ChildItem -LiteralPath $FolderPath | Sort-Object -Property CreationTime -Descending | Select-Object -Skip $LogMaximum
