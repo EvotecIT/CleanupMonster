@@ -1,4 +1,7 @@
-﻿### 1.3.0 - 2023.05.08
+﻿### 1.4.0 - 2023.05.08
+- Add an alias to Invoke-ADComputersCleanup
+
+### 1.3.0 - 2023.05.08
 - Remove verbose from Jamf queries
 
 ### 1.2.0
