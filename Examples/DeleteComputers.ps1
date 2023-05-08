@@ -13,7 +13,7 @@ $Configuration = @{
     DisableIncludeSystems          = @()
     DisableLimit                   = 2 # 0 means unlimited, ignored for reports
     DisableModifyDescription       = $false
-    DisableAdminModifyDescription  = $true
+    DisableModifyAdminDescription  = $true
 
     Delete                         = $true
     DeleteIsEnabled                = $false
