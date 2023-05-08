@@ -8,7 +8,7 @@
     $JamfCache = [ordered] @{}
     if ($PSBoundParameters.ContainsKey('DisableLastContactJamfMoreThan') -or $PSBoundParameters.ContainsKey('DeleteLastContactJamfMoreThan')) {
         Write-Color "[i] ", "Getting all computers from Jamf" -Color Yellow, Cyan, Green
-        [Array] $Jamf = Get-JamfDevice -Verbose -WarningAction SilentlyContinue -WarningVariable WarningVar
+        [Array] $Jamf = Get-JamfDevice -WarningAction SilentlyContinue -WarningVariable WarningVar
         if ($WarningVar) {
             Write-Color "[e] ", "Error getting computers from Jamf: ", $WarningVar, " Terminating!" -Color Yellow, Red, Yellow, Red
             return $false
