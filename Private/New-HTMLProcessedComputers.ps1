@@ -75,7 +75,7 @@
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-                } -WarningAction SilentlyContinue
+                } -WarningAction SilentlyContinue -AllProperties
             }
             New-HTMLTab -Name 'Devices Pending' {
                 New-HTMLTable -DataTable $Export.PendingDeletion.Values -Filtering -ScrollX {
@@ -84,7 +84,7 @@
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-                } -WarningAction SilentlyContinue
+                } -WarningAction SilentlyContinue -AllProperties
             }
         }
         New-HTMLTab -Name 'Devices' {
