@@ -30,24 +30,24 @@
     $JamfRequired = $false
 
     if ($DisableOnlyIf) {
-        if ($null -eq $DisableOnlyIf.LastSyncAzureMoreThan -or $null -eq $DisableOnlyIf.LastSeenAzureMoreThan) {
+        if ($null -ne $DisableOnlyIf.LastSyncAzureMoreThan -or $null -ne $DisableOnlyIf.LastSeenAzureMoreThan) {
             $AzureRequired = $true
         }
-        if ($null -eq $DisableOnlyIf.LastContactJamfMoreThan) {
+        if ($null -ne $DisableOnlyIf.LastContactJamfMoreThan) {
             $JamfRequired = $true
         }
-        if ($null -eq $DisableOnlyIf.LastSeenIntuneMoreThan) {
+        if ($null -ne $DisableOnlyIf.LastSeenIntuneMoreThan) {
             $IntuneRequired = $true
         }
     }
     if ($DeleteOnlyIf) {
-        if ($null -eq $DeleteOnlyIf.LastSyncAzureMoreThan -or $null -eq $DeleteOnlyIf.LastSeenAzureMoreThan) {
+        if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan -or $null -ne $DeleteOnlyIf.LastSeenAzureMoreThan) {
             $AzureRequired = $true
         }
-        if ($null -eq $DeleteOnlyIf.LastContactJamfMoreThan) {
+        if ($null -ne $DeleteOnlyIf.LastContactJamfMoreThan) {
             $JamfRequired = $true
         }
-        if ($null -eq $DeleteOnlyIf.LastSeenIntuneMoreThan) {
+        if ($null -ne $DeleteOnlyIf.LastSeenIntuneMoreThan) {
             $IntuneRequired = $true
         }
     }
