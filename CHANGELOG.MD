@@ -1,4 +1,7 @@
-﻿### 1.2.0
+﻿### 1.3.0 - 2023.05.08
+- Remove verbose from Jamf queries
+
+### 1.2.0
 - Renamed PowerShell module to CleanupMonster
 - Invoke-ADComputersCleanup
   - Support for more AD controlled parameters
