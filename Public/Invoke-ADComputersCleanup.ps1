@@ -334,7 +334,7 @@
             '*OU=Domain Controllers*'
         ),
         [switch] $DisableModifyDescription,
-        [switch] $DisableModifyAdminDescription,
+        [alias('DisableAdminModifyDescription')][switch] $DisableModifyAdminDescription,
         [string] $Filter = '*',
         [string] $DataStorePath,
         [switch] $ReportOnly,
