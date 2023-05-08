@@ -1,5 +1,7 @@
 ﻿### 1.4.0 - 2023.05.08
 - Add an alias to Invoke-ADComputersCleanup
+- Show AllProperties for History & Pending values in HTML report
+- Fix small issues with HTML
 
 ### 1.3.0 - 2023.05.08
 - Remove verbose from Jamf queries
