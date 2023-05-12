@@ -3,7 +3,7 @@
     param(
         [Array] $Computers,
         [System.Collections.IDictionary] $DeleteOnlyIf,
-        [Array] $Exclusions = @('OU=Domain Controllers'),
+        [Array] $Exclusions,
         [System.Collections.IDictionary] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers,
         [System.Collections.IDictionary] $AzureInformationCache,
