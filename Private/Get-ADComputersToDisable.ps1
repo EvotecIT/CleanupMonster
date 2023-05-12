@@ -3,8 +3,7 @@
     param(
         [Array] $Computers,
         [System.Collections.IDictionary] $DisableOnlyIf,
-        [Array] $Exclusions = @('OU=Domain Controllers'),
-        [string] $Filter = '*',
+        [Array] $Exclusions,
         [System.Collections.IDictionary] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers,
         [System.Collections.IDictionary] $AzureInformationCache,
@@ -29,24 +28,6 @@
                 }
             }
         }
-        if ($DisableOnlyIf.IsEnabled -eq $true) {
-            # Disable computer only if it's Enabled
-            if ($Computer.Enabled -eq $false) {
-                continue SkipComputer
-            }
-        } elseif ($DisableOnlyIf.IsEnabled -eq $false) {
-            # Disable computer only if it's Disabled
-            # a bit useless as it's already disable right...
-            # so we skip computer both times as it's  already done
-            if ($Computer.Enabled -eq $true) {
-                continue SkipComputer
-            } else {
-                continue SkipComputer
-            }
-        } else {
-            # If null it should ignore condition
-        }
-
         foreach ($PartialExclusion in $Exclusions) {
             if ($Computer.DistinguishedName -like "$PartialExclusion") {
                 continue SkipComputer
@@ -77,6 +58,23 @@
             if (-not $FoundInclude) {
                 continue SkipComputer
             }
+        }
+        if ($DisableOnlyIf.IsEnabled -eq $true) {
+            # Disable computer only if it's Enabled
+            if ($Computer.Enabled -eq $false) {
+                continue SkipComputer
+            }
+        } elseif ($DisableOnlyIf.IsEnabled -eq $false) {
+            # Disable computer only if it's Disabled
+            # a bit useless as it's already disable right...
+            # so we skip computer both times as it's  already done
+            if ($Computer.Enabled -eq $true) {
+                continue SkipComputer
+            } else {
+                continue SkipComputer
+            }
+        } else {
+            # If null it should ignore condition
         }
         if ($DisableOnlyIf.NoServicePrincipalName -eq $true) {
             # Disable computer only if it has no service principal names defined
