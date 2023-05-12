@@ -300,6 +300,9 @@
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
+        [string] $Forest,
+        [alias('Domain')][string[]] $IncludeDomains,
+        [string[]] $ExcludeDomains,
         [switch] $Disable,
         [switch] $Delete,
         [nullable[bool]] $DisableIsEnabled,
@@ -426,8 +429,9 @@
     Write-Color '[i] ', "[CleanupMonster] ", 'Version', ' [Informative] ', $Export['Version'] -Color Yellow, DarkGray, Yellow, DarkGray, Magenta
     Write-Color -Text "[i] Started process of cleaning up stale computers" -Color Green
     Write-Color -Text "[i] Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Green
+
     try {
-        $Forest = Get-ADForest
+        $ForestInformation = Get-WinADForestDetails -PreferWritable -Forest $Forest -Extended -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains
     } catch {
         Write-Color -Text "[i] ", "Couldn't get forest. Terminating. Lack of domain contact? Error: $($_.Exception.Message)." -Color Yellow, Red
         return
@@ -473,7 +477,7 @@
 
     $SplatADComputers = [ordered] @{
         Report                         = $Report
-        Forest                         = $Forest
+        ForestInformation              = $ForestInformation
         Filter                         = $Filter
         Properties                     = $Properties
         Disable                        = $Disable
