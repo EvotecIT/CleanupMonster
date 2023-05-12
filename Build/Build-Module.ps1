@@ -20,7 +20,7 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     New-ConfigurationManifest @Manifest
 
     New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSWriteColor', 'PSEventViewer' -Guid Auto -Version Latest
-    New-ConfigurationModule -Type ExternalModule -Name 'ActiveDirectory', 'Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management'
+    New-ConfigurationModule -Type ExternalModule -Name 'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
     New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule'
 
     $ConfigurationFormat = [ordered] @{
@@ -29,12 +29,12 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
         PlaceOpenBraceEnable                        = $true
         PlaceOpenBraceOnSameLine                    = $true
         PlaceOpenBraceNewLineAfter                  = $true
-        PlaceOpenBraceIgnoreOneLineBlock            = $false
+        PlaceOpenBraceIgnoreOneLineBlock            = $true
 
         PlaceCloseBraceEnable                       = $true
-        PlaceCloseBraceNewLineAfter                 = $true
-        PlaceCloseBraceIgnoreOneLineBlock           = $false
-        PlaceCloseBraceNoEmptyLineBefore            = $true
+        PlaceCloseBraceNewLineAfter                 = $false
+        PlaceCloseBraceIgnoreOneLineBlock           = $true
+        PlaceCloseBraceNoEmptyLineBefore            = $false
 
         UseConsistentIndentationEnable              = $true
         UseConsistentIndentationKind                = 'space'
