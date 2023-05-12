@@ -1,4 +1,8 @@
-﻿### 1.4.0 - 2023.05.08
+﻿### 1.5.0 - 2023.05.12
+- Fixes an error when using processed list when deleting computers
+- Fixes an +1 in the count of objects displayed in HTML
+
+### 1.4.0 - 2023.05.08
 - Add an alias to Invoke-ADComputersCleanup
 - Show AllProperties for History & Pending values in HTML report
 - Fix small issues with HTML

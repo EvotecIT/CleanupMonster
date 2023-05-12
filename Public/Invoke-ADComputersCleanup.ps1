@@ -536,12 +536,13 @@
 
     if ($Delete) {
         $requestADComputersDeleteSplat = @{
-            Report       = $Report
-            WhatIfDelete = $WhatIfDelete
-            WhatIf       = $WhatIfPreference
-            DeleteLimit  = $DeleteLimit
-            ReportOnly   = $ReportOnly
-            Today        = $Today
+            Report             = $Report
+            WhatIfDelete       = $WhatIfDelete
+            WhatIf             = $WhatIfPreference
+            DeleteLimit        = $DeleteLimit
+            ReportOnly         = $ReportOnly
+            Today              = $Today
+            ProcessedComputers = $ProcessedComputers
         }
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
     }
@@ -556,8 +557,25 @@
 
     # Building up summary
     $Export.PendingDeletion = $ProcessedComputers
-    $Export.CurrentRun = @($ReportDisabled + $ReportDeleted)
-    $Export.History = @($Export.History + $ReportDisabled + $ReportDeleted)
+    $Export.CurrentRun = @(
+        if ($ReportDisabled.Count -gt 0) {
+            $ReportDisabled
+        }
+        if ($ReportDeleted.Count -gt 0) {
+            $ReportDeleted
+        }
+    )
+    $Export.History = @(
+        if ($Export.History) {
+            $Export.History
+        }
+        if ($ReportDisabled.Count -gt 0) {
+            $ReportDisabled
+        }
+        if ($ReportDeleted.Count -gt 0) {
+            $ReportDeleted
+        }
+    )
 
     Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
     if (-not $ReportOnly) {
