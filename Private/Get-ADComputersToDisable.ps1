@@ -5,7 +5,7 @@
         [System.Collections.IDictionary] $DisableOnlyIf,
         [Array] $Exclusions = @('OU=Domain Controllers'),
         [string] $Filter = '*',
-        [Microsoft.ActiveDirectory.Management.ADDomain] $DomainInformation,
+        [System.Collections.IDictionary] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers,
         [System.Collections.IDictionary] $AzureInformationCache,
         [System.Collections.IDictionary] $JamfInformationCache,
