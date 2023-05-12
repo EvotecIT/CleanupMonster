@@ -2,7 +2,7 @@
     [CmdletBinding()]
     param(
         [System.Collections.IDictionary] $Report,
-        [Microsoft.ActiveDirectory.Management.ADForest] $Forest,
+        [System.Collections.IDictionary] $ForestInformation,
         [string] $Filter,
         [string[]] $Properties,
         [bool] $Disable,
@@ -51,11 +51,14 @@
             $IntuneRequired = $true
         }
     }
-    foreach ($Domain in $Forest.Domains) {
+    foreach ($Domain in $ForestInformation.Domains) {
         $Report["$Domain"] = [ordered] @{ }
-        $DC = Get-ADDomainController -Discover -DomainName $Domain
-        $Server = $DC.HostName[0]
-        $DomainInformation = Get-ADDomain -Identity $Domain -Server $Server
+        $Server = $ForestInformation['QueryServers'][$Domain].HostName[0]
+        if (-not $Server) {
+            Write-Color "[e] ", "No server found for domain $Domain" -Color Yellow, Red
+            continue
+        }
+        $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
         $Report["$Domain"]['Server'] = $Server
         Write-Color "[i] Getting all computers for domain ", $Domain -Color Yellow, Magenta, Yellow
         [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties #| Where-Object { $_.SamAccountName -like 'Windows2012*' }
