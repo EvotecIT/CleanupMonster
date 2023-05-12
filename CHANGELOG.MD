@@ -1,4 +1,13 @@
-﻿### 1.5.0 - 2023.05.12
+﻿### 1.6.0 - 2023.05.12
+This PR addresses:
+- Fixes #4
+
+Following features are added:
+- Add support for Forest
+- Add support for IncludeDomains
+- Add support for ExcludeDomain
+
+### 1.5.0 - 2023.05.12
 - Fixes an error when using processed list when deleting computers
 - Fixes an +1 in the count of objects displayed in HTML
 
