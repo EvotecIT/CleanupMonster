@@ -7,6 +7,7 @@
         [string[]] $Properties,
         [bool] $Disable,
         [bool] $Delete,
+        [bool] $Move,
         [nullable[int]] $DisableLastLogonDateMoreThan,
         [nullable[int]] $DeleteLastLogonDateMoreThan,
         [nullable[bool]] $DeleteNoServicePrincipalName,
@@ -17,6 +18,7 @@
         [nullable[int]] $DeletePasswordLastSetMoreThan,
         [System.Collections.IDictionary] $DisableOnlyIf,
         [System.Collections.IDictionary] $DeleteOnlyIf,
+        [System.Collections.IDictionary] $MoveOnlyIf,
         [Array] $Exclusions,
         [System.Collections.IDictionary] $ProcessedComputers,
         [nullable[int]] $SafetyADLimit,
@@ -40,6 +42,17 @@
             $IntuneRequired = $true
         }
     }
+    if ($MoveOnlyIf) {
+        if ($null -ne $MoveOnlyIf.LastSyncAzureMoreThan -or $null -ne $MoveOnlyIf.LastSeenAzureMoreThan) {
+            $AzureRequired = $true
+        }
+        if ($null -ne $MoveOnlyIf.LastContactJamfMoreThan) {
+            $JamfRequired = $true
+        }
+        if ($null -ne $MoveOnlyIf.LastSeenIntuneMoreThan) {
+            $IntuneRequired = $true
+        }
+    }
     if ($DeleteOnlyIf) {
         if ($null -ne $DeleteOnlyIf.LastSyncAzureMoreThan -or $null -ne $DeleteOnlyIf.LastSeenAzureMoreThan) {
             $AzureRequired = $true
@@ -51,6 +64,7 @@
             $IntuneRequired = $true
         }
     }
+
     foreach ($Domain in $ForestInformation.Domains) {
         $Report["$Domain"] = [ordered] @{ }
         $Server = $ForestInformation['QueryServers'][$Domain].HostName[0]
@@ -97,8 +111,12 @@
                 IncludeAzureAD        = $AzureRequired
                 IncludeJamf           = $JamfRequired
                 IncludeIntune         = $IntuneRequired
+                Type                  = 'Disable'
             }
-            $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToDisable @getADComputersToDisableSplat
+            $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToProcess @getADComputersToDisableSplat
+        }
+        if ($Move) {
+
         }
         if ($Delete) {
             Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
@@ -125,8 +143,9 @@
                 IncludeAzureAD        = $AzureRequired
                 IncludeJamf           = $JamfRequired
                 IncludeIntune         = $IntuneRequired
+                Type                  = 'Delete'
             }
-            $Report["$Domain"]['ComputersToBeDeleted'] = Get-ADComputersToDelete @getADComputersToDeleteSplat
+            $Report["$Domain"]['ComputersToBeDeleted'] = Get-ADComputersToProcess @getADComputersToDeleteSplat
         }
     }
     if ($null -ne $SafetyADLimit -and $AllComputers.Count -lt $SafetyADLimit) {
