@@ -72,7 +72,8 @@
     It's using the -like operator, so you can use wildcards.
 
     .PARAMETER DeleteIsEnabled
-    Delete computer only if it's Enabled or only if it's Disabled. By default it will try to delete all computers that are either disabled or enabled.
+    Delete computer only if it's Enabled or only if it's Disabled.
+    By default it will try to delete all computers that are either disabled or enabled.
 
     .PARAMETER DeleteNoServicePrincipalName
     Delete computer only if it has a ServicePrincipalName or only if it doesn't have a ServicePrincipalName.
@@ -129,6 +130,76 @@
     or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DeleteLimit
+    Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
+    This is to prevent accidental deletion of all computers that meet the criteria.
+    Adjust the limit to your needs.
+
+    .PARAMETER MoveIsEnabled
+    Move computer only if it's Enabled or only if it's Disabled.
+    By default it will try to Move all computers that are either disabled or enabled.
+
+    .PARAMETER MoveNoServicePrincipalName
+    Move computer only if it has a ServicePrincipalName or only if it doesn't have a ServicePrincipalName.
+    By default it doesn't care if it has a ServicePrincipalName or not.
+
+    .PARAMETER MoveLastLogonDateMoreThan
+    Move computer only if it has a LastLogonDate that is more than the specified number of days.
+
+    .PARAMETER MovePasswordLastSetMoreThan
+    Move computer only if it has a PasswordLastSet that is more than the specified number of days.
+
+    .PARAMETER MoveListProcessedMoreThan
+    Move computer only if it has been processed by this script more than the specified number of days ago.
+    This is useful if you want to Move computers that have been disabled for a certain amount of time.
+    It uses XML file to store the list of processed computers, so please make sure to not remove it or it will start over.
+
+    .PARAMETER MovePasswordLastSetOlderThan
+    Move computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER MoveLastLogonDateOlderThan
+    Move computer only if it has a LastLogonDate that is older than the specified date.
+
+    .PARAMETER MoveLastSeenAzureMoreThan
+    Move computer only if it Last Seen in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure using Connect-MgGraph with proper permissions first.
+    Additionally yopu will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER MoveLastSeenIntuneMoreThan
+    Move computer only if it Last Seen in Intune is more than the specified number of days.
+    Please note that you need to make connection to Intune using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER MoveLastSyncAzureMoreThan
+    Move computer only if it Last Synced in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure AD using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER MoveLastContactJamfMoreThan
+    Move computer only if it Last Contacted in Jamf is more than the specified number of days.
+    Please note that you need to make connection to Jamf using PowerJamf PowerShell Module first.
+    Additionally you will need PowerJamf PowerShell Module installed.
+
+    .PARAMETER MoveExcludeSystems
+    Move computer only if it's not on the list of excluded operating systems.
+    If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*'
+    or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+    It's using OperatingSystem property of the computer object for comparison.
+
+    .PARAMETER MoveIncludeSystems
+    Move computer only if it's on the list of included operating systems.
+    If you want to include Windows 10, you can specify 'Windows 10' or 'Windows 10*'
+    or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveLimit
+    Limit the number of computers that will be moved. 0 = unlimited. Default is 1.
+    This is to prevent accidental move of all computers that meet the criteria.
+    Adjust the limit to your needs.
 
     .PARAMETER DeleteLimit
     Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
@@ -592,10 +663,10 @@
     }
 
     Write-Color "[i] ", "Cleanup process for processed computers that no longer exists in AD" -Color Yellow, Green
-    foreach ($DN in [string[]] $ProcessedComputers.Keys) {
-        if (-not $AllComputers["$($DN)"]) {
-            Write-Color -Text "[*] Removing computer from pending list ", $ProcessedComputers[$DN].SamAccountName, " ($DN)" -Color Yellow, Green, Yellow
-            $ProcessedComputers.Remove("$($DN)")
+    foreach ($FullName in [string[]] $ProcessedComputers.Keys) {
+        if (-not $AllComputers["$($FullName)"]) {
+            Write-Color -Text "[*] Removing computer from pending list ", $ProcessedComputers[$FullName].SamAccountName, " ($($ProcessedComputers[$FullName].DistinguishedName))" -Color Yellow, Green, Yellow
+            $ProcessedComputers.Remove("$($FullName)")
         }
     }
 
