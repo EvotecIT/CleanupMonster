@@ -45,7 +45,9 @@
                 } else {
                     $Computer.ActionStatus = $Success
                 }
-                $ProcessedComputers.Remove("$($Computer.DistinguishedName)")
+                # lets remove computer from $ProcessedComputers
+                $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
+                $ProcessedComputers.Remove("$ComputerOnTheList")
 
                 # return computer to $ReportDeleted so we can see summary just in case
                 $Computer
