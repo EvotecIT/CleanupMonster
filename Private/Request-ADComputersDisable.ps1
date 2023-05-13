@@ -69,7 +69,9 @@
                 } else {
                     $Computer.ActionStatus = $Success
                 }
-                $ProcessedComputers["$($Computer.DistinguishedName)"] = $Computer
+
+                $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
+                $ProcessedComputers[$FullComputerName] = $Computer
                 # return computer to $ReportDisabled so we can see summary just in case
                 $Computer
                 $CountDisable++
