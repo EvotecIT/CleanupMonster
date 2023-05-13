@@ -8,14 +8,14 @@
         [bool] $Disable,
         [bool] $Delete,
         [bool] $Move,
-        [nullable[int]] $DisableLastLogonDateMoreThan,
-        [nullable[int]] $DeleteLastLogonDateMoreThan,
-        [nullable[bool]] $DeleteNoServicePrincipalName,
-        [nullable[bool]] $DisableNoServicePrincipalName,
-        [nullable[bool]] $DeleteIsEnabled,
-        [nullable[bool]] $DisableIsEnabled,
-        [nullable[int]] $DisablePasswordLastSetMoreThan,
-        [nullable[int]] $DeletePasswordLastSetMoreThan,
+        # [nullable[int]] $DisableLastLogonDateMoreThan,
+        # [nullable[int]] $DeleteLastLogonDateMoreThan,
+        # [nullable[bool]] $DeleteNoServicePrincipalName,
+        # [nullable[bool]] $DisableNoServicePrincipalName,
+        # [nullable[bool]] $DeleteIsEnabled,
+        # [nullable[bool]] $DisableIsEnabled,
+        # [nullable[int]] $DisablePasswordLastSetMoreThan,
+        # [nullable[int]] $DeletePasswordLastSetMoreThan,
         [System.Collections.IDictionary] $DisableOnlyIf,
         [System.Collections.IDictionary] $DeleteOnlyIf,
         [System.Collections.IDictionary] $MoveOnlyIf,
@@ -95,11 +95,6 @@
         Write-Color "[i] ", "Computers found for domain $Domain`: ", $($Computers.Count) -Color Yellow, Cyan, Green
         if ($Disable) {
             Write-Color "[i] ", "Processing computers to disable for domain $Domain" -Color Yellow, Cyan, Green
-            Write-Color "[i] ", "Looking for computers with LastLogonDate more than ", $DisableLastLogonDateMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            Write-Color "[i] ", "Looking for computers with PasswordLastSet more than ", $DisablePasswordLastSetMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            if ($DisableNoServicePrincipalName) {
-                Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
-            }
             $getADComputersToDisableSplat = @{
                 Computers             = $Report["$Domain"]['Computers']
                 DisableOnlyIf         = $DisableOnlyIf
@@ -116,22 +111,24 @@
             $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToProcess @getADComputersToDisableSplat
         }
         if ($Move) {
-
+            Write-Color "[i] ", "Processing computers to move for domain $Domain" -Color Yellow, Cyan, Green
+            $getADComputersToDeleteSplat = @{
+                Computers             = $Report["$Domain"]['Computers']
+                MoveOnlyIf            = $MoveOnlyIf
+                Exclusions            = $Exclusions
+                DomainInformation     = $DomainInformation
+                ProcessedComputers    = $ProcessedComputers
+                AzureInformationCache = $AzureInformationCache
+                JamfInformationCache  = $JamfInformationCache
+                IncludeAzureAD        = $AzureRequired
+                IncludeJamf           = $JamfRequired
+                IncludeIntune         = $IntuneRequired
+                Type                  = 'Move'
+            }
+            $Report["$Domain"]['ComputersToBeMoved'] = Get-ADComputersToProcess @getADComputersToDeleteSplat
         }
         if ($Delete) {
             Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
-            Write-Color "[i] ", "Looking for computers with LastLogonDate more than ", $DeleteLastLogonDateMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            Write-Color "[i] ", "Looking for computers with PasswordLastSet more than ", $DeletePasswordLastSetMoreThan, " days" -Color Yellow, Cyan, Green, Cyan
-            if ($DeleteNoServicePrincipalName) {
-                Write-Color "[i] ", "Looking for computers with no ServicePrincipalName" -Color Yellow, Cyan, Green
-            }
-            if ($null -ne $DeleteIsEnabled) {
-                if ($DeleteIsEnabled) {
-                    Write-Color "[i] ", "Looking for computers that are enabled" -Color Yellow, Cyan, Green
-                } else {
-                    Write-Color "[i] ", "Looking for computers that are disabled" -Color Yellow, Cyan, Green
-                }
-            }
             $getADComputersToDeleteSplat = @{
                 Computers             = $Report["$Domain"]['Computers']
                 DeleteOnlyIf          = $DeleteOnlyIf
