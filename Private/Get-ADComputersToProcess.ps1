@@ -13,9 +13,26 @@
         [switch] $IncludeIntune,
         [switch] $IncludeJamf
     )
-
+    Write-Color -Text "[i] ", "Applying following rules to $Type action: " -Color Yellow, Cyan, Green
+    foreach ($Key in $ActionIf.Keys) {
+        if ($null -eq $ActionIf[$Key] -or $ActionIf[$Key].Count -eq 0) {
+            Write-Color -Text "   [>] ", $($Key), " is ", 'Not Set' -Color Yellow, Cyan, Yellow
+        } else {
+            if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
+                Write-Color -Text "   [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never logged on" -Color Yellow, Cyan, Green
+            } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
+                Write-Color -Text "  [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never changed" -Color Yellow, Cyan, Green
+            } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
+                Write-Color -Text "  [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never synced/seen" -Color Yellow, Cyan, Green
+            } else {
+                Write-Color -Text "  [>] ", $($Key), " is ", $($ActionIf[$Key]) -Color Yellow, Cyan, Green
+            }
+        }
+    }
     $Count = 0
     $Today = Get-Date
+
+    Write-Color -Text "[i] ", "Looking for computers to $Type" -Color Yellow, Cyan, Green
     :SkipComputer foreach ($Computer in $Computers) {
         if ($Type -eq 'Delete') {
             # actions to happen only if we are deleting computers
