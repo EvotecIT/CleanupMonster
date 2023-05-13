@@ -8,7 +8,10 @@
         [nullable[int]] $DeleteLastSyncAzureMoreThan,
         [nullable[int]] $DisableLastSeenAzureMoreThan,
         [nullable[int]] $DisableLastSeenIntuneMoreThan,
-        [nullable[int]] $DisableLastSyncAzureMoreThan
+        [nullable[int]] $DisableLastSyncAzureMoreThan,
+        [nullable[int]] $MoveLastSeenAzureMoreThan,
+        [nullable[int]] $MoveLastSeenIntuneMoreThan,
+        [nullable[int]] $MoveLastSyncAzureMoreThan
     )
 
     $AzureInformationCache = [ordered] @{
@@ -19,7 +22,9 @@
     if ($PSBoundParameters.ContainsKey('DisableLastSeenAzureMoreThan') -or
         $PSBoundParameters.ContainsKey('DisableLastSyncAzureMoreThan') -or
         $PSBoundParameters.ContainsKey('DeleteLastSeenAzureMoreThan') -or
-        $PSBoundParameters.ContainsKey('DeleteLastSyncAzureMoreThan')) {
+        $PSBoundParameters.ContainsKey('DeleteLastSyncAzureMoreThan') -or
+        $PSBoundParameters.ContainsKey('MoveLastSeenAzureMoreThan') -or
+        $PSBoundParameters.ContainsKey('MoveLastSyncAzureMoreThan')) {
         Write-Color "[i] ", "Getting all computers from AzureAD" -Color Yellow, Cyan, Green
 
         [Array] $Devices = Get-MyDevice -Synchronized -WarningAction SilentlyContinue -WarningVariable WarningVar
@@ -42,7 +47,8 @@
         Write-Color "[i] ", "Synchronized Computers found in AzureAD`: ", $($Devices.Count) -Color Yellow, Cyan, Green
     }
     if ($PSBoundParameters.ContainsKey('DisableLastSeenIntuneMoreThan') -or
-        $PSBoundParameters.ContainsKey('DeleteLastSeenIntuneMoreThan')) {
+        $PSBoundParameters.ContainsKey('DeleteLastSeenIntuneMoreThan') -or
+        $PSBoundParameters.ContainsKey('MoveLastSeenIntuneMoreThan')) {
         Write-Color "[i] ", "Getting all computers from Intune" -Color Yellow, Cyan, Green
 
         [Array] $DevicesIntune = Get-MyDeviceIntune -WarningAction SilentlyContinue -WarningVariable WarningVar
