@@ -303,8 +303,8 @@
         [string] $Forest,
         [alias('Domain')][string[]] $IncludeDomains,
         [string[]] $ExcludeDomains,
+        # Disable options
         [switch] $Disable,
-        [switch] $Delete,
         [nullable[bool]] $DisableIsEnabled,
         [nullable[bool]] $DisableNoServicePrincipalName,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
@@ -317,6 +317,26 @@
         [nullable[int]] $DisableLastContactJamfMoreThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
+        [int] $DisableLimit = 1, # 0 = unlimitedą
+        # Move options
+        [switch] $Move,
+        [nullable[bool]] $MoveIsEnabled,
+        [nullable[bool]] $MoveNoServicePrincipalName,
+        [nullable[int]] $MoveLastLogonDateMoreThan,
+        [nullable[int]] $MovePasswordLastSetMoreThan,
+        [nullable[int]] $MoveListProcessedMoreThan,
+        [nullable[DateTime]] $MovePasswordLastSetOlderThan,
+        [nullable[DateTime]] $MoveLastLogonDateOlderThan,
+        [nullable[int]] $MoveLastSeenAzureMoreThan,
+        [nullable[int]] $MoveLastSeenIntuneMoreThan,
+        [nullable[int]] $MoveLastSyncAzureMoreThan,
+        [nullable[int]] $MoveLastContactJamfMoreThan,
+        [Array] $MoveExcludeSystems = @(),
+        [Array] $MoveIncludeSystems = @(),
+        [int] $MoveLimit = 1, # 0 = unlimited
+        [string] $MoveTargetOrganizationalUnit,
+        # Delete options
+        [switch] $Delete,
         [nullable[bool]] $DeleteIsEnabled,
         [nullable[bool]] $DeleteNoServicePrincipalName,
         [nullable[int]] $DeleteLastLogonDateMoreThan = 180,
@@ -331,9 +351,9 @@
         [Array] $DeleteExcludeSystems = @(),
         [Array] $DeleteIncludeSystems = @(),
         [int] $DeleteLimit = 1, # 0 = unlimited
-        [int] $DisableLimit = 1, # 0 = unlimited
+        # General options
         [Array] $Exclusions = @(
-            # default exclusions
+            # default globalexclusions
             '*OU=Domain Controllers*'
         ),
         [switch] $DisableModifyDescription,
@@ -386,6 +406,29 @@
         # Jamf
         LastContactJamfMoreThan  = $DisableLastContactJamfMoreThan
     }
+
+    $MoveOnlyIf = [ordered] @{
+        # Active directory
+        IsEnabled                = $MoveIsEnabled
+        NoServicePrincipalName   = $MoveNoServicePrincipalName
+        LastLogonDateMoreThan    = $MoveLastLogonDateMoreThan
+        PasswordLastSetMoreThan  = $MovePasswordLastSetMoreThan
+        ListProcessedMoreThan    = $MoveListProcessedMoreThan
+        ExcludeSystems           = $MoveExcludeSystems
+        IncludeSystems           = $MoveIncludeSystems
+        PasswordLastSetOlderThan = $MovePasswordLastSetOlderThan
+        LastLogonDateOlderThan   = $MoveLastLogonDateOlderThan
+        # Intune
+        LastSeenIntuneMoreThan   = $MoveLastSeenIntuneMoreThan
+        # Azure
+        LastSeenAzureMoreThan    = $MoveLastSeenAzureMoreThan
+        LastSyncAzureMoreThan    = $MoveLastSyncAzureMoreThan
+        # Jamf
+        LastContactJamfMoreThan  = $MoveLastContactJamfMoreThan
+        # special option for move only
+        TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
+    }
+
     $DeleteOnlyIf = [ordered] @{
         # Active directory
         IsEnabled                = $DeleteIsEnabled
@@ -457,6 +500,9 @@
         DisableLastSeenAzureMoreThan  = $DisableLastSeenAzureMoreThan
         DisableLastSeenIntuneMoreThan = $DisableLastSeenIntuneMoreThan
         DisableLastSyncAzureMoreThan  = $DisableLastSyncAzureMoreThan
+        MoveLastSeenAzureMoreThan     = $MoveLastSeenAzureMoreThan
+        MoveLastSeenIntuneMoreThan    = $MoveLastSeenIntuneMoreThan
+        MoveLastSyncAzureMoreThan     = $MoveLastSyncAzureMoreThan
     }
     Remove-EmptyValue -Hashtable $getInitialGraphComputersSplat
     $AzureInformationCache = Get-InitialGraphComputers @getInitialGraphComputersSplat
@@ -467,6 +513,7 @@
     $getInitialJamf = @{
         DisableLastContactJamfMoreThan = $DisableLastContactJamfMoreThan
         DeleteLastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+        MoveLastContactJamfMoreThan    = $MoveLastContactJamfMoreThan
         SafetyJamfLimit                = $SafetyJamfLimit
     }
     Remove-EmptyValue -Hashtable $getInitialJamf
@@ -476,27 +523,20 @@
     }
 
     $SplatADComputers = [ordered] @{
-        Report                         = $Report
-        ForestInformation              = $ForestInformation
-        Filter                         = $Filter
-        Properties                     = $Properties
-        Disable                        = $Disable
-        Delete                         = $Delete
-        DisableLastLogonDateMoreThan   = $DisableLastLogonDateMoreThan
-        DeleteLastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
-        DeleteNoServicePrincipalName   = $DeleteNoServicePrincipalName
-        DisableNoServicePrincipalName  = $DisableNoServicePrincipalName
-        DeleteIsEnabled                = $DeleteIsEnabled
-        DisableIsEnabled               = $DisableIsEnabled
-        DisablePasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan
-        DeletePasswordLastSetMoreThan  = $DeletePasswordLastSetMoreThan
-        DisableOnlyIf                  = $DisableOnlyIf
-        DeleteOnlyIf                   = $DeleteOnlyIf
-        Exclusions                     = $Exclusions
-        ProcessedComputers             = $ProcessedComputers
-        SafetyADLimit                  = $SafetyADLimit
-        AzureInformationCache          = $AzureInformationCache
-        JamfInformationCache           = $JamfInformationCache
+        Report                = $Report
+        ForestInformation     = $ForestInformation
+        Filter                = $Filter
+        Properties            = $Properties
+        Disable               = $Disable
+        Delete                = $Delete
+        DisableOnlyIf         = $DisableOnlyIf
+        DeleteOnlyIf          = $DeleteOnlyIf
+        MoveOnlyIf            = $MoveOnlyIf
+        Exclusions            = $Exclusions
+        ProcessedComputers    = $ProcessedComputers
+        SafetyADLimit         = $SafetyADLimit
+        AzureInformationCache = $AzureInformationCache
+        JamfInformationCache  = $JamfInformationCache
     }
 
     $AllComputers = Get-InitialADComputers @SplatADComputers
