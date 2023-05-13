@@ -70,7 +70,10 @@
         [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties #| Where-Object { $_.SamAccountName -like 'Windows2012*' }
         foreach ($Computer in $Computers) {
             # we will be using it later to just check if computer exists in AD
-            $AllComputers[$($Computer.DistinguishedName)] = $Computer
+            $DomainName = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
+            $ComputerFullName = -join ($Computer.SamAccountName, "@", $DomainName)
+            # initially we used DN, but DN changes when moving so it wouldn't work
+            $AllComputers[$ComputerFullName] = $Computer
         }
         $Report["$Domain"]['Computers'] = @(
             $convertToPreparedComputerSplat = @{
