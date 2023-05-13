@@ -1,6 +1,14 @@
-﻿### 1.6.0 - 2023.05.12
-This PR addresses:
-- Fixes #4
+﻿### 2.0.0
+Issues resolved:
+- Fixes [#2](https://github.com/EvotecIT/CleanupMonster/issues/2)
+
+Improvements:
+- Add ability to move objects (disable, move or/and delete) as sepaaate action
+- Fix handling processing list (using custom search rather then DN which would not work if object was moved)
+
+### 1.6.0 - 2023.05.12
+Issues resolved:
+- Fixes [#4](https://github.com/EvotecIT/CleanupMonster/issues/4)
 
 Following features are added:
 - Add support for Forest
