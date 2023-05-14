@@ -48,12 +48,14 @@
                 if ($WhatIfDelete.IsPresent) {
                     $Computer.ActionStatus = 'WhatIf'
                 } else {
+                    if ($Success) {
+                        # lets remove computer from $ProcessedComputers
+                        # but only if it's not WhatIf and only if it's successful
+                        $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
+                        $ProcessedComputers.Remove("$ComputerOnTheList")
+                    }
                     $Computer.ActionStatus = $Success
                 }
-                # lets remove computer from $ProcessedComputers
-                $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
-                $ProcessedComputers.Remove("$ComputerOnTheList")
-
                 # return computer to $ReportDeleted so we can see summary just in case
                 $Computer
                 $CountDeleteLimit++
