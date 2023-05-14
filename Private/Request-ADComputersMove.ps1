@@ -1,6 +1,7 @@
 ﻿function Request-ADComputersMove {
     [cmdletBinding(SupportsShouldProcess)]
     param(
+        [nullable[bool]] $Delete,
         [System.Collections.IDictionary] $Report,
         [switch] $ReportOnly,
         [switch] $WhatIfMove,
@@ -34,46 +35,51 @@
                 $Computer
             } else {
                 if ($OrganizationalUnit[$Domain]) {
-                    Write-Color -Text "[i] Moving computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
-                    try {
-                        $Success = $true
-                        Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfMove -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $TargetOrganizationalUnit[$Domain]
-                        Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) successful." -Color Yellow, Green, Yellow
-                        if (-not $DontWriteToEventLog) {
-                            Write-Event -ID 11 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) successful." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove) -WarningAction SilentlyContinue -WarningVariable warnings
-                        }
-                        foreach ($W in $Warnings) {
-                            Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                        }
-                        # lets remove computer from $ProcessedComputers
-                        $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
-                        $ProcessedComputers.Remove("$ComputerOnTheList")
-
-                    } catch {
-                        $Success = $false
-                        Write-Color -Text "[-] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                        if (-not $DontWriteToEventLog) {
-                            Write-Event -ID 11 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) failed." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
-                        }
-                        foreach ($W in $Warnings) {
-                            Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                        }
-                        $Computer.ActionComment = $_.Exception.Message
-                    }
-                    $Computer.ActionDate = $Today
-                    if ($WhatIfMove.IsPresent) {
-                        $Computer.ActionStatus = 'WhatIf'
+                    # we check if the computer is already in the correct OU
+                    if ($Computer.OrganizationalUnit -eq $OrganizationalUnit[$Domain]) {
+                        # this shouldn't really happen as we should have filtered it out earlier
                     } else {
-                        $Computer.ActionStatus = $Success
-                    }
-
-
-                    # return computer to $ReportMoved so we can see summary just in case
-                    $Computer
-                    $CountMoveLimit++
-                    if ($MoveLimit) {
-                        if ($MoveLimit -eq $CountMoveLimit) {
-                            break topLoop # this breaks top loop
+                        Write-Color -Text "[i] Moving computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
+                        try {
+                            $Success = $true
+                            Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfMove -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $OrganizationalUnit[$Domain]
+                            Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) successful." -Color Yellow, Green, Yellow
+                            if (-not $DontWriteToEventLog) {
+                                Write-Event -ID 11 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) successful." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove) -WarningAction SilentlyContinue -WarningVariable warnings
+                            }
+                            foreach ($W in $Warnings) {
+                                Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
+                            }
+                            if (-not $Delete) {
+                                # lets remove computer from $ProcessedComputers
+                                # we only remove it if Delete is not part of the removal process and move is the last step
+                                $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
+                                $ProcessedComputers.Remove("$ComputerOnTheList")
+                            }
+                        } catch {
+                            $Success = $false
+                            Write-Color -Text "[-] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
+                            if (-not $DontWriteToEventLog) {
+                                Write-Event -ID 11 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) failed." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
+                            }
+                            foreach ($W in $Warnings) {
+                                Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
+                            }
+                            $Computer.ActionComment = $_.Exception.Message
+                        }
+                        $Computer.ActionDate = $Today
+                        if ($WhatIfMove.IsPresent) {
+                            $Computer.ActionStatus = 'WhatIf'
+                        } else {
+                            $Computer.ActionStatus = $Success
+                        }
+                        # return computer to $ReportMoved so we can see summary just in case
+                        $Computer
+                        $CountMoveLimit++
+                        if ($MoveLimit) {
+                            if ($MoveLimit -eq $CountMoveLimit) {
+                                break topLoop # this breaks top loop
+                            }
                         }
                     }
                 } else {
