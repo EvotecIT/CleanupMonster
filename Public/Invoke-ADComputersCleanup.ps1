@@ -242,11 +242,15 @@
 
     .PARAMETER WhatIfDelete
     WhatIf parameter for the Delete process.
-    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
+    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to all processes.
 
     .PARAMETER WhatIfDisable
     WhatIf parameter for the Disable process.
-    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
+    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to all processes.
+
+    .PARAMETER WhatIfMove
+    WhatIf parameter for the Move process.
+    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to all processes.
 
     .PARAMETER LogPath
     Path to the log file. Default is no logging to file.
@@ -290,6 +294,10 @@
     Default is not to check.
     This is there to prevent accidental deletion of all computers if there is a problem with Jamf.
     It only applies if Jamf parameters are used.
+
+    .PARAMETER DontWriteToEventLog
+    By default the function will write to the event log making sure the cleanup process is logged.
+    This parameter will prevent the function from writing to the event log.
 
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
@@ -405,7 +413,7 @@
         [Array] $MoveExcludeSystems = @(),
         [Array] $MoveIncludeSystems = @(),
         [int] $MoveLimit = 1, # 0 = unlimited
-        [string] $MoveTargetOrganizationalUnit,
+        [Object] $MoveTargetOrganizationalUnit,
         # Delete options
         [switch] $Delete,
         [nullable[bool]] $DeleteIsEnabled,
@@ -435,6 +443,7 @@
         [int] $ReportMaximum,
         [switch] $WhatIfDelete,
         [switch] $WhatIfDisable,
+        [switch] $WhatIfMove,
         [string] $LogPath,
         [int] $LogMaximum = 5,
         [switch] $Suppress,
@@ -444,7 +453,8 @@
         [nullable[int]] $SafetyADLimit,
         [nullable[int]] $SafetyAzureADLimit,
         [nullable[int]] $SafetyIntuneLimit,
-        [nullable[int]] $SafetyJamfLimit
+        [nullable[int]] $SafetyJamfLimit,
+        [switch] $DontWriteToEventLog
     )
 
     # we will use it to check for intune/azuread/jamf functionality
@@ -624,6 +634,16 @@
             }
             Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'], ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
+
+        if ($Move) {
+            if ($MoveLimit -eq 0) {
+                $MoveLimitText = 'Unlimited'
+            } else {
+                $MoveLimitText = $MoveLimit
+            }
+            Write-Color "[i] ", "Computers to be moved for domain $Domain`: ", $Report["$Domain"]['ComputersToBeMoved'], ". Current move limit: ", $MoveLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+        }
+
         if ($Delete) {
             if ($DeleteLimit -eq 0) {
                 $DeleteLimitText = 'Unlimited'
@@ -633,6 +653,7 @@
             Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'], ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
     }
+
 
     if ($Disable) {
         $requestADComputersDisableSplat = @{
@@ -644,20 +665,36 @@
             DisableLimit                  = $DisableLimit
             ReportOnly                    = $ReportOnly
             Today                         = $Today
+            DontWriteToEventLog           = $DontWriteToEventLog
         }
-
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
+    }
+
+    if ($Move) {
+        $requestADComputersMoveSplat = @{
+            Report                   = $Report
+            WhatIfMove               = $WhatIfMove
+            WhatIf                   = $WhatIfPreference
+            MoveLimit                = $MoveLimit
+            ReportOnly               = $ReportOnly
+            Today                    = $Today
+            ProcessedComputers       = $ProcessedComputers
+            TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
+            DontWriteToEventLog      = $DontWriteToEventLog
+        }
+        [Array] $ReportDisabled = Request-ADComputersMove @requestADComputersMoveSplat
     }
 
     if ($Delete) {
         $requestADComputersDeleteSplat = @{
-            Report             = $Report
-            WhatIfDelete       = $WhatIfDelete
-            WhatIf             = $WhatIfPreference
-            DeleteLimit        = $DeleteLimit
-            ReportOnly         = $ReportOnly
-            Today              = $Today
-            ProcessedComputers = $ProcessedComputers
+            Report              = $Report
+            WhatIfDelete        = $WhatIfDelete
+            WhatIf              = $WhatIfPreference
+            DeleteLimit         = $DeleteLimit
+            ReportOnly          = $ReportOnly
+            Today               = $Today
+            ProcessedComputers  = $ProcessedComputers
+            DontWriteToEventLog = $DontWriteToEventLog
         }
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
     }
@@ -738,6 +775,7 @@
             ComputersToProcess = $ComputersToProcess
             DisableOnlyIf      = $DisableOnlyIf
             DeleteOnlyIf       = $DeleteOnlyIf
+            MoveOnlyIf         = $MoveOnlyIf
             Delete             = $Delete
             Disable            = $Disable
             ReportOnly         = $ReportOnly
