@@ -12,8 +12,11 @@
     .PARAMETER Disable
     Enable the disable process, meaning the computers that meet the criteria will be disabled.
 
-    .PARAMETER Delete
-    Enable the delete process, meaning the computers that meet the criteria will be deleted.
+    .PARAMETER DisableAndMove
+    Enable the disable and move process, meaning the computers that meet the criteria will be disabled and moved (in that order).
+    This is useful if you want to disable computers first and then move them to a different OU right after.
+    It's integral part of disabling process.
+    If you want Move as a separate process, use Move settings.
 
     .PARAMETER DisableIsEnabled
     Disable computer only if it's Enabled or only if it's Disabled.
@@ -70,6 +73,14 @@
     or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DisableMoveTargetOrganizationalUnit
+    Move computer to the specified OU after it's disabled.
+    It can take a string with DistinguishedName, or hashtable with key being the domain, and value being the DistinguishedName.
+    If you have a forest with multiple domains and want to move computers to different OUs based on their domain, you can use hashtable.
+
+    .PARAMETER Delete
+    Enable the delete process, meaning the computers that meet the criteria will be deleted.
 
     .PARAMETER DeleteIsEnabled
     Delete computer only if it's Enabled or only if it's Disabled.
@@ -195,6 +206,11 @@
     or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveTargetOrganizationalUnit
+    Target Organizational Unit where the computer will be moved as part of Move action.
+    It can take a string with DistinguishedName, or hashtable with key being the domain, and value being the DistinguishedName.
+    If you have a forest with multiple domains and want to move computers to different OUs based on their domain, you can use hashtable.
 
     .PARAMETER MoveLimit
     Limit the number of computers that will be moved. 0 = unlimited. Default is 1.
@@ -384,6 +400,7 @@
         [string[]] $ExcludeDomains,
         # Disable options
         [switch] $Disable,
+        [switch] $DisableAndMove,
         [nullable[bool]] $DisableIsEnabled,
         [nullable[bool]] $DisableNoServicePrincipalName,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
@@ -396,7 +413,8 @@
         [nullable[int]] $DisableLastContactJamfMoreThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
-        [int] $DisableLimit = 1, # 0 = unlimitedą
+        [int] $DisableLimit = 1, # 0 = unlimited
+        [Object] $DisableMoveTargetOrganizationalUnit,
         # Move options
         [switch] $Move,
         [nullable[bool]] $MoveIsEnabled,
@@ -655,17 +673,24 @@
     }
 
 
-    if ($Disable) {
+    if ($Disable -or $DisableAndMove) {
         $requestADComputersDisableSplat = @{
-            Report                        = $Report
-            WhatIfDisable                 = $WhatIfDisable
-            WhatIf                        = $WhatIfPreference
-            DisableModifyDescription      = $DisableModifyDescription.IsPresent
-            DisableModifyAdminDescription = $DisableModifyAdminDescription.IsPresent
-            DisableLimit                  = $DisableLimit
-            ReportOnly                    = $ReportOnly
-            Today                         = $Today
-            DontWriteToEventLog           = $DontWriteToEventLog
+            # those 2 are added only to make sure we don't add to processing list
+            # if there is no process later on
+            Delete                              = $Delete
+            Move                                = $Move
+            # we can disable and move on one go
+            DisableAndMove                      = $DisableAndMove
+            Report                              = $Report
+            WhatIfDisable                       = $WhatIfDisable
+            WhatIf                              = $WhatIfPreference
+            DisableModifyDescription            = $DisableModifyDescription.IsPresent
+            DisableModifyAdminDescription       = $DisableModifyAdminDescription.IsPresent
+            DisableLimit                        = $DisableLimit
+            ReportOnly                          = $ReportOnly
+            Today                               = $Today
+            DontWriteToEventLog                 = $DontWriteToEventLog
+            DisableMoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
         }
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
     }
@@ -681,8 +706,9 @@
             ProcessedComputers       = $ProcessedComputers
             TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
             DontWriteToEventLog      = $DontWriteToEventLog
+            Delete                   = $Delete
         }
-        [Array] $ReportDisabled = Request-ADComputersMove @requestADComputersMoveSplat
+        [Array] $ReportMoved = Request-ADComputersMove @requestADComputersMoveSplat
     }
 
     if ($Delete) {
@@ -713,6 +739,9 @@
         if ($ReportDisabled.Count -gt 0) {
             $ReportDisabled
         }
+        if ($ReportMoved.Count -gt 0) {
+            $ReportMoved
+        }
         if ($ReportDeleted.Count -gt 0) {
             $ReportDeleted
         }
@@ -723,6 +752,9 @@
         }
         if ($ReportDisabled.Count -gt 0) {
             $ReportDisabled
+        }
+        if ($ReportMoved.Count -gt 0) {
+            $ReportMoved
         }
         if ($ReportDeleted.Count -gt 0) {
             $ReportDeleted
