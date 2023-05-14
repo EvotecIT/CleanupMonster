@@ -5,6 +5,7 @@ Issues resolved:
 Improvements:
 - Add ability to move objects (disable, move or/and delete) as sepaaate action
 - Fix handling processing list (using custom search rather then DN which would not work if object was moved)
+- Add `DontWriteToEventLog` switch to disable writing to event log
 
 ### 1.6.0 - 2023.05.12
 Issues resolved:
