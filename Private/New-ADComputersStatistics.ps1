@@ -5,21 +5,35 @@
     )
     $Statistics = [ordered] @{
         All                          = $ComputersToProcess.Count
+
+        ToMove                       = 0
+        ToMoveComputerWorkstation    = 0
+        ToMoveComputerServer         = 0
+        ToMoveComputerUnknown        = 0
+
         ToDisable                    = 0
-        ToDelete                     = 0
+        ToDisableComputerUnknown     = 0
         ToDisableComputerWorkstation = 0
         ToDisableComputerServer      = 0
+
+        ToDelete                     = 0
         ToDeleteComputerWorkstation  = 0
         ToDeleteComputerServer       = 0
-        ToDisableComputerUnknown     = 0
         ToDeleteComputerUnknown      = 0
+
         TotalWindowsServers          = 0
         TotalWindowsWorkstations     = 0
         TotalMacOS                   = 0
         TotalLinux                   = 0
         TotalUnknown                 = 0
+
         Delete                       = [ordered] @{
             LastLogonDays           = [ordered ]@{}
+            PasswordLastChangedDays = [ordered] @{}
+            Systems                 = [ordered] @{}
+        }
+        Move                         = [ordered] @{
+            LastLogonDays           = [ordered] @{}
             PasswordLastChangedDays = [ordered] @{}
             Systems                 = [ordered] @{}
         }
@@ -54,6 +68,15 @@
                 $Statistics.ToDisableComputerWorkstation++
             } else {
                 $Statistics.ToDisableComputerUnknown++
+            }
+        } elseif ($Computer.Action -eq 'Move') {
+            $Statistics.ToMove++
+            if ($Computer.OperatingSystem -like "Windows Server*") {
+                $Statistics.ToMoveComputerServer++
+            } elseif ($Computer.OperatingSystem -notlike "Windows Server*" -and $Computer.OperatingSystem -like "Windows*") {
+                $Statistics.ToMoveComputerWorkstation++
+            } else {
+                $Statistics.ToMoveComputerUnknown++
             }
         } elseif ($Computer.Action -eq 'Delete') {
             $Statistics.ToDelete++
