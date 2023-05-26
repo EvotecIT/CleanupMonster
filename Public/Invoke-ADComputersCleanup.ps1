@@ -74,6 +74,16 @@
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
 
+    .PARAMETER DisableExcludeServicePrincipalName
+    Disable computer only if it's not on the list of excluded ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DisableIncludeServicePrincipalName
+    Disable computer only if it's on the list of included ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
     .PARAMETER DisableMoveTargetOrganizationalUnit
     Move computer to the specified OU after it's disabled.
     It can take a string with DistinguishedName, or hashtable with key being the domain, and value being the DistinguishedName.
@@ -142,6 +152,16 @@
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
 
+    .PARAMETER DeleteExcludeServicePrincipalName
+    Delete computer only if it's not on the list of excluded ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DeleteIncludeServicePrincipalName
+    Delete computer only if it's on the list of included ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
     .PARAMETER DeleteLimit
     Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
     This is to prevent accidental deletion of all computers that meet the criteria.
@@ -205,6 +225,16 @@
     If you want to include Windows 10, you can specify 'Windows 10' or 'Windows 10*'
     or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
     You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveExcludeServicePrincipalName
+    Move computer only if it's not on the list of excluded ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveIncludeServicePrincipalName
+    Move computer only if it's on the list of included ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
     It's using the -like operator, so you can use wildcards.
 
     .PARAMETER MoveTargetOrganizationalUnit
@@ -413,6 +443,8 @@
         [nullable[int]] $DisableLastContactJamfMoreThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
+        [Array] $DisableExcludeServicePrincipalName = @(),
+        [Array] $DisableIncludeServicePrincipalName = @(),
         [int] $DisableLimit = 1, # 0 = unlimited
         [Object] $DisableMoveTargetOrganizationalUnit,
         # Move options
@@ -430,6 +462,8 @@
         [nullable[int]] $MoveLastContactJamfMoreThan,
         [Array] $MoveExcludeSystems = @(),
         [Array] $MoveIncludeSystems = @(),
+        [Array] $MoveExcludeServicePrincipalName = @(),
+        [Array] $MoveIncludeServicePrincipalName = @(),
         [int] $MoveLimit = 1, # 0 = unlimited
         [Object] $MoveTargetOrganizationalUnit,
         # Delete options
@@ -447,6 +481,8 @@
         [nullable[int]] $DeleteLastContactJamfMoreThan,
         [Array] $DeleteExcludeSystems = @(),
         [Array] $DeleteIncludeSystems = @(),
+        [Array] $DeleteExcludeServicePrincipalName = @(),
+        [Array] $DeleteIncludeServicePrincipalName = @(),
         [int] $DeleteLimit = 1, # 0 = unlimited
         # General options
         [Array] $Exclusions = @(
@@ -489,63 +525,69 @@
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                = $DisableIsEnabled
-        NoServicePrincipalName   = $DisableNoServicePrincipalName
-        LastLogonDateMoreThan    = $DisableLastLogonDateMoreThan
-        PasswordLastSetMoreThan  = $DisablePasswordLastSetMoreThan
-        ExcludeSystems           = $DisableExcludeSystems
-        IncludeSystems           = $DisableIncludeSystems
-        PasswordLastSetOlderThan = $DisablePasswordLastSetOlderThan
-        LastLogonDateOlderThan   = $DisableLastLogonDateOlderThan
+        IsEnabled                   = $DisableIsEnabled
+        NoServicePrincipalName      = $DisableNoServicePrincipalName
+        LastLogonDateMoreThan       = $DisableLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $DisablePasswordLastSetMoreThan
+        ExcludeSystems              = $DisableExcludeSystems
+        IncludeSystems              = $DisableIncludeSystems
+        ExcludeServicePrincipalName = $DisableExcludeServicePrincipalName
+        IncludeServicePrincipalName = $DisableIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $DisablePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $DisableLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan   = $DisableLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan      = $DisableLastSeenIntuneMoreThan
         # Azure
-        LastSyncAzureMoreThan    = $DisableLastSyncAzureMoreThan
-        LastSeenAzureMoreThan    = $DisableLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $DisableLastSyncAzureMoreThan
+        LastSeenAzureMoreThan       = $DisableLastSeenAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan  = $DisableLastContactJamfMoreThan
+        LastContactJamfMoreThan     = $DisableLastContactJamfMoreThan
     }
 
     $MoveOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                = $MoveIsEnabled
-        NoServicePrincipalName   = $MoveNoServicePrincipalName
-        LastLogonDateMoreThan    = $MoveLastLogonDateMoreThan
-        PasswordLastSetMoreThan  = $MovePasswordLastSetMoreThan
-        ListProcessedMoreThan    = $MoveListProcessedMoreThan
-        ExcludeSystems           = $MoveExcludeSystems
-        IncludeSystems           = $MoveIncludeSystems
-        PasswordLastSetOlderThan = $MovePasswordLastSetOlderThan
-        LastLogonDateOlderThan   = $MoveLastLogonDateOlderThan
+        IsEnabled                   = $MoveIsEnabled
+        NoServicePrincipalName      = $MoveNoServicePrincipalName
+        LastLogonDateMoreThan       = $MoveLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $MovePasswordLastSetMoreThan
+        ListProcessedMoreThan       = $MoveListProcessedMoreThan
+        ExcludeSystems              = $MoveExcludeSystems
+        IncludeSystems              = $MoveIncludeSystems
+        ExcludeServicePrincipalName = $MoveExcludeServicePrincipalName
+        IncludeServicePrincipalName = $MoveIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $MovePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $MoveLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan   = $MoveLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan      = $MoveLastSeenIntuneMoreThan
         # Azure
-        LastSeenAzureMoreThan    = $MoveLastSeenAzureMoreThan
-        LastSyncAzureMoreThan    = $MoveLastSyncAzureMoreThan
+        LastSeenAzureMoreThan       = $MoveLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $MoveLastSyncAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan  = $MoveLastContactJamfMoreThan
+        LastContactJamfMoreThan     = $MoveLastContactJamfMoreThan
         # special option for move only
-        TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
+        TargetOrganizationalUnit    = $MoveTargetOrganizationalUnit
     }
 
     $DeleteOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                = $DeleteIsEnabled
-        NoServicePrincipalName   = $DeleteNoServicePrincipalName
-        LastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
-        PasswordLastSetMoreThan  = $DeletePasswordLastSetMoreThan
-        ListProcessedMoreThan    = $DeleteListProcessedMoreThan
-        ExcludeSystems           = $DeleteExcludeSystems
-        IncludeSystems           = $DeleteIncludeSystems
-        PasswordLastSetOlderThan = $DeletePasswordLastSetOlderThan
-        LastLogonDateOlderThan   = $DeleteLastLogonDateOlderThan
+        IsEnabled                   = $DeleteIsEnabled
+        NoServicePrincipalName      = $DeleteNoServicePrincipalName
+        LastLogonDateMoreThan       = $DeleteLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $DeletePasswordLastSetMoreThan
+        ListProcessedMoreThan       = $DeleteListProcessedMoreThan
+        ExcludeSystems              = $DeleteExcludeSystems
+        IncludeSystems              = $DeleteIncludeSystems
+        ExcludeServicePrincipalName = $DeleteExcludeServicePrincipalName
+        IncludeServicePrincipalName = $DeleteIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $DeletePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $DeleteLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan   = $DeleteLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan      = $DeleteLastSeenIntuneMoreThan
         # Azure
-        LastSeenAzureMoreThan    = $DeleteLastSeenAzureMoreThan
-        LastSyncAzureMoreThan    = $DeleteLastSyncAzureMoreThan
+        LastSeenAzureMoreThan       = $DeleteLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $DeleteLastSyncAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+        LastContactJamfMoreThan     = $DeleteLastContactJamfMoreThan
     }
 
     if (-not $DataStorePath) {

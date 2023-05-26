@@ -88,6 +88,26 @@
                 continue SkipComputer
             }
         }
+        if ($ActionIf.ExcludeServicePrincipalName.Count -gt 0) {
+            foreach ($ExcludeSPN in $ActionIf.ExcludeServicePrincipalName) {
+                if ($Computer.servicePrincipalName -like "$ExcludeSPN") {
+                    continue SkipComputer
+                }
+            }
+        }
+        if ($ActionIf.IncludeServicePrincipalName.Count -gt 0) {
+            $FoundInclude = $false
+            foreach ($IncludeSPN in $ActionIf.IncludeServicePrincipalName) {
+                if ($Computer.servicePrincipalName -like "$IncludeSPN") {
+                    $FoundInclude = $true
+                    break
+                }
+            }
+            # If not found in includes we need to skip the computer
+            if (-not $FoundInclude) {
+                continue SkipComputer
+            }
+        }
         if ($ActionIf.ExcludeSystems.Count -gt 0) {
             foreach ($Exclude in $ActionIf.ExcludeSystems) {
                 if ($Computer.OperatingSystem -like $Exclude) {
