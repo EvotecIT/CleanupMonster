@@ -1,6 +1,7 @@
 ﻿### 2.0.0
 Issues resolved:
-- Fixes [#2](https://github.com/EvotecIT/CleanupMonster/issues/2)
+- Implement move and move on disable [#2](https://github.com/EvotecIT/CleanupMonster/issues/2)
+- Allow exclude or include for Disable/Delete or Move and Service Principal Name [#7](https://github.com/EvotecIT/CleanupMonster/issues/7)
 
 Improvements:
 - Add ability to move objects (disable, move or/and delete) as separate action
@@ -10,6 +11,9 @@ Improvements:
 - Add `DontWriteToEventLog` switch to disable writing to event log
 - Processed lists now only remove items if delete or move is successful
 - Computers is removed from processed list if it's moved, and there's no delete action, otherwise it's removed only on delete. Make sure to not use `Delete` switch if you don't plan to delete objects
+- Add ability to exclude or include computers based on specific SPN (Service Principal Name) - `DisableExcludeServicePrincipalName` and `DisableIncludeServicePrincipalName`
+- Add ability to exclude or include computers based on specific SPN (Service Principal Name) - `MoveExcludeServicePrincipalName` and `MoveIncludeServicePrincipalName`
+- Add ability to exclude or include computers based on specific SPN (Service Principal Name) - `DeleteExcludeServicePrincipalName` and `DeleteIncludeServicePrincipalName`
 
 ### 1.6.0 - 2023.05.12
 Issues resolved:
