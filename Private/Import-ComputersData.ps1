@@ -10,6 +10,9 @@
     try {
         if ($DataStorePath -and (Test-Path -LiteralPath $DataStorePath)) {
             $FileImport = Import-Clixml -LiteralPath $DataStorePath -ErrorAction Stop
+            # convert old format to new format
+            $FileImport = Convert-ListProcessed -FileImport $FileImport
+
             if ($FileImport.PendingDeletion) {
                 if ($FileImport.PendingDeletion.GetType().Name -ne 'Hashtable') {
                     Write-Color -Text "[e] ", "Incorrecting XML format. PendingDeletion is not a hashtable. Terminating." -Color Yellow, Red
