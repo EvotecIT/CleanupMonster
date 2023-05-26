@@ -12,8 +12,11 @@
     .PARAMETER Disable
     Enable the disable process, meaning the computers that meet the criteria will be disabled.
 
-    .PARAMETER Delete
-    Enable the delete process, meaning the computers that meet the criteria will be deleted.
+    .PARAMETER DisableAndMove
+    Enable the disable and move process, meaning the computers that meet the criteria will be disabled and moved (in that order).
+    This is useful if you want to disable computers first and then move them to a different OU right after.
+    It's integral part of disabling process.
+    If you want Move as a separate process, use Move settings.
 
     .PARAMETER DisableIsEnabled
     Disable computer only if it's Enabled or only if it's Disabled.
@@ -71,8 +74,27 @@
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
 
+    .PARAMETER DisableExcludeServicePrincipalName
+    Disable computer only if it's not on the list of excluded ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DisableIncludeServicePrincipalName
+    Disable computer only if it's on the list of included ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DisableMoveTargetOrganizationalUnit
+    Move computer to the specified OU after it's disabled.
+    It can take a string with DistinguishedName, or hashtable with key being the domain, and value being the DistinguishedName.
+    If you have a forest with multiple domains and want to move computers to different OUs based on their domain, you can use hashtable.
+
+    .PARAMETER Delete
+    Enable the delete process, meaning the computers that meet the criteria will be deleted.
+
     .PARAMETER DeleteIsEnabled
-    Delete computer only if it's Enabled or only if it's Disabled. By default it will try to delete all computers that are either disabled or enabled.
+    Delete computer only if it's Enabled or only if it's Disabled.
+    By default it will try to delete all computers that are either disabled or enabled.
 
     .PARAMETER DeleteNoServicePrincipalName
     Delete computer only if it has a ServicePrincipalName or only if it doesn't have a ServicePrincipalName.
@@ -130,6 +152,101 @@
     You can also specify multiple operating systems by separating them with a comma.
     It's using the -like operator, so you can use wildcards.
 
+    .PARAMETER DeleteExcludeServicePrincipalName
+    Delete computer only if it's not on the list of excluded ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DeleteIncludeServicePrincipalName
+    Delete computer only if it's on the list of included ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER DeleteLimit
+    Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
+    This is to prevent accidental deletion of all computers that meet the criteria.
+    Adjust the limit to your needs.
+
+    .PARAMETER MoveIsEnabled
+    Move computer only if it's Enabled or only if it's Disabled.
+    By default it will try to Move all computers that are either disabled or enabled.
+
+    .PARAMETER MoveNoServicePrincipalName
+    Move computer only if it has a ServicePrincipalName or only if it doesn't have a ServicePrincipalName.
+    By default it doesn't care if it has a ServicePrincipalName or not.
+
+    .PARAMETER MoveLastLogonDateMoreThan
+    Move computer only if it has a LastLogonDate that is more than the specified number of days.
+
+    .PARAMETER MovePasswordLastSetMoreThan
+    Move computer only if it has a PasswordLastSet that is more than the specified number of days.
+
+    .PARAMETER MoveListProcessedMoreThan
+    Move computer only if it has been processed by this script more than the specified number of days ago.
+    This is useful if you want to Move computers that have been disabled for a certain amount of time.
+    It uses XML file to store the list of processed computers, so please make sure to not remove it or it will start over.
+
+    .PARAMETER MovePasswordLastSetOlderThan
+    Move computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER MoveLastLogonDateOlderThan
+    Move computer only if it has a LastLogonDate that is older than the specified date.
+
+    .PARAMETER MoveLastSeenAzureMoreThan
+    Move computer only if it Last Seen in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure using Connect-MgGraph with proper permissions first.
+    Additionally yopu will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER MoveLastSeenIntuneMoreThan
+    Move computer only if it Last Seen in Intune is more than the specified number of days.
+    Please note that you need to make connection to Intune using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER MoveLastSyncAzureMoreThan
+    Move computer only if it Last Synced in Azure is more than the specified number of days.
+    Please note that you need to make connection to Azure AD using Connect-MgGraph with proper permissions first.
+    Additionally you will need GraphEssentials PowerShell Module installed.
+
+    .PARAMETER MoveLastContactJamfMoreThan
+    Move computer only if it Last Contacted in Jamf is more than the specified number of days.
+    Please note that you need to make connection to Jamf using PowerJamf PowerShell Module first.
+    Additionally you will need PowerJamf PowerShell Module installed.
+
+    .PARAMETER MoveExcludeSystems
+    Move computer only if it's not on the list of excluded operating systems.
+    If you want to exclude Windows 10, you can specify 'Windows 10' or 'Windows 10*'
+    or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+    It's using OperatingSystem property of the computer object for comparison.
+
+    .PARAMETER MoveIncludeSystems
+    Move computer only if it's on the list of included operating systems.
+    If you want to include Windows 10, you can specify 'Windows 10' or 'Windows 10*'
+    or 'Windows 10*' or '*Windows 10*' or '*Windows 10*'.
+    You can also specify multiple operating systems by separating them with a comma.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveExcludeServicePrincipalName
+    Move computer only if it's not on the list of excluded ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveIncludeServicePrincipalName
+    Move computer only if it's on the list of included ServicePrincipalNames.
+    You can also specify multiple ServicePrincipalNames by providing an array of entries.
+    It's using the -like operator, so you can use wildcards.
+
+    .PARAMETER MoveTargetOrganizationalUnit
+    Target Organizational Unit where the computer will be moved as part of Move action.
+    It can take a string with DistinguishedName, or hashtable with key being the domain, and value being the DistinguishedName.
+    If you have a forest with multiple domains and want to move computers to different OUs based on their domain, you can use hashtable.
+
+    .PARAMETER MoveLimit
+    Limit the number of computers that will be moved. 0 = unlimited. Default is 1.
+    This is to prevent accidental move of all computers that meet the criteria.
+    Adjust the limit to your needs.
+
     .PARAMETER DeleteLimit
     Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
     This is to prevent accidental deletion of all computers that meet the criteria.
@@ -171,11 +288,15 @@
 
     .PARAMETER WhatIfDelete
     WhatIf parameter for the Delete process.
-    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
+    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to all processes.
 
     .PARAMETER WhatIfDisable
     WhatIf parameter for the Disable process.
-    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to both processes.
+    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to all processes.
+
+    .PARAMETER WhatIfMove
+    WhatIf parameter for the Move process.
+    It's not nessessary to specify this parameter if you use WhatIf parameter which applies to all processes.
 
     .PARAMETER LogPath
     Path to the log file. Default is no logging to file.
@@ -219,6 +340,10 @@
     Default is not to check.
     This is there to prevent accidental deletion of all computers if there is a problem with Jamf.
     It only applies if Jamf parameters are used.
+
+    .PARAMETER DontWriteToEventLog
+    By default the function will write to the event log making sure the cleanup process is logged.
+    This parameter will prevent the function from writing to the event log.
 
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
@@ -303,8 +428,9 @@
         [string] $Forest,
         [alias('Domain')][string[]] $IncludeDomains,
         [string[]] $ExcludeDomains,
+        # Disable options
         [switch] $Disable,
-        [switch] $Delete,
+        [switch] $DisableAndMove,
         [nullable[bool]] $DisableIsEnabled,
         [nullable[bool]] $DisableNoServicePrincipalName,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
@@ -317,6 +443,31 @@
         [nullable[int]] $DisableLastContactJamfMoreThan,
         [Array] $DisableExcludeSystems = @(),
         [Array] $DisableIncludeSystems = @(),
+        [Array] $DisableExcludeServicePrincipalName = @(),
+        [Array] $DisableIncludeServicePrincipalName = @(),
+        [int] $DisableLimit = 1, # 0 = unlimited
+        [Object] $DisableMoveTargetOrganizationalUnit,
+        # Move options
+        [switch] $Move,
+        [nullable[bool]] $MoveIsEnabled,
+        [nullable[bool]] $MoveNoServicePrincipalName,
+        [nullable[int]] $MoveLastLogonDateMoreThan,
+        [nullable[int]] $MovePasswordLastSetMoreThan,
+        [nullable[int]] $MoveListProcessedMoreThan,
+        [nullable[DateTime]] $MovePasswordLastSetOlderThan,
+        [nullable[DateTime]] $MoveLastLogonDateOlderThan,
+        [nullable[int]] $MoveLastSeenAzureMoreThan,
+        [nullable[int]] $MoveLastSeenIntuneMoreThan,
+        [nullable[int]] $MoveLastSyncAzureMoreThan,
+        [nullable[int]] $MoveLastContactJamfMoreThan,
+        [Array] $MoveExcludeSystems = @(),
+        [Array] $MoveIncludeSystems = @(),
+        [Array] $MoveExcludeServicePrincipalName = @(),
+        [Array] $MoveIncludeServicePrincipalName = @(),
+        [int] $MoveLimit = 1, # 0 = unlimited
+        [Object] $MoveTargetOrganizationalUnit,
+        # Delete options
+        [switch] $Delete,
         [nullable[bool]] $DeleteIsEnabled,
         [nullable[bool]] $DeleteNoServicePrincipalName,
         [nullable[int]] $DeleteLastLogonDateMoreThan = 180,
@@ -330,10 +481,12 @@
         [nullable[int]] $DeleteLastContactJamfMoreThan,
         [Array] $DeleteExcludeSystems = @(),
         [Array] $DeleteIncludeSystems = @(),
+        [Array] $DeleteExcludeServicePrincipalName = @(),
+        [Array] $DeleteIncludeServicePrincipalName = @(),
         [int] $DeleteLimit = 1, # 0 = unlimited
-        [int] $DisableLimit = 1, # 0 = unlimited
+        # General options
         [Array] $Exclusions = @(
-            # default exclusions
+            # default globalexclusions
             '*OU=Domain Controllers*'
         ),
         [switch] $DisableModifyDescription,
@@ -344,6 +497,7 @@
         [int] $ReportMaximum,
         [switch] $WhatIfDelete,
         [switch] $WhatIfDisable,
+        [switch] $WhatIfMove,
         [string] $LogPath,
         [int] $LogMaximum = 5,
         [switch] $Suppress,
@@ -353,7 +507,8 @@
         [nullable[int]] $SafetyADLimit,
         [nullable[int]] $SafetyAzureADLimit,
         [nullable[int]] $SafetyIntuneLimit,
-        [nullable[int]] $SafetyJamfLimit
+        [nullable[int]] $SafetyJamfLimit,
+        [switch] $DontWriteToEventLog
     )
 
     # we will use it to check for intune/azuread/jamf functionality
@@ -370,40 +525,69 @@
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                = $DisableIsEnabled
-        NoServicePrincipalName   = $DisableNoServicePrincipalName
-        LastLogonDateMoreThan    = $DisableLastLogonDateMoreThan
-        PasswordLastSetMoreThan  = $DisablePasswordLastSetMoreThan
-        ExcludeSystems           = $DisableExcludeSystems
-        IncludeSystems           = $DisableIncludeSystems
-        PasswordLastSetOlderThan = $DisablePasswordLastSetOlderThan
-        LastLogonDateOlderThan   = $DisableLastLogonDateOlderThan
+        IsEnabled                   = $DisableIsEnabled
+        NoServicePrincipalName      = $DisableNoServicePrincipalName
+        LastLogonDateMoreThan       = $DisableLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $DisablePasswordLastSetMoreThan
+        ExcludeSystems              = $DisableExcludeSystems
+        IncludeSystems              = $DisableIncludeSystems
+        ExcludeServicePrincipalName = $DisableExcludeServicePrincipalName
+        IncludeServicePrincipalName = $DisableIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $DisablePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $DisableLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan   = $DisableLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan      = $DisableLastSeenIntuneMoreThan
         # Azure
-        LastSyncAzureMoreThan    = $DisableLastSyncAzureMoreThan
-        LastSeenAzureMoreThan    = $DisableLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $DisableLastSyncAzureMoreThan
+        LastSeenAzureMoreThan       = $DisableLastSeenAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan  = $DisableLastContactJamfMoreThan
+        LastContactJamfMoreThan     = $DisableLastContactJamfMoreThan
     }
+
+    $MoveOnlyIf = [ordered] @{
+        # Active directory
+        IsEnabled                   = $MoveIsEnabled
+        NoServicePrincipalName      = $MoveNoServicePrincipalName
+        LastLogonDateMoreThan       = $MoveLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $MovePasswordLastSetMoreThan
+        ListProcessedMoreThan       = $MoveListProcessedMoreThan
+        ExcludeSystems              = $MoveExcludeSystems
+        IncludeSystems              = $MoveIncludeSystems
+        ExcludeServicePrincipalName = $MoveExcludeServicePrincipalName
+        IncludeServicePrincipalName = $MoveIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $MovePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $MoveLastLogonDateOlderThan
+        # Intune
+        LastSeenIntuneMoreThan      = $MoveLastSeenIntuneMoreThan
+        # Azure
+        LastSeenAzureMoreThan       = $MoveLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $MoveLastSyncAzureMoreThan
+        # Jamf
+        LastContactJamfMoreThan     = $MoveLastContactJamfMoreThan
+        # special option for move only
+        TargetOrganizationalUnit    = $MoveTargetOrganizationalUnit
+    }
+
     $DeleteOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                = $DeleteIsEnabled
-        NoServicePrincipalName   = $DeleteNoServicePrincipalName
-        LastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
-        PasswordLastSetMoreThan  = $DeletePasswordLastSetMoreThan
-        ListProcessedMoreThan    = $DeleteListProcessedMoreThan
-        ExcludeSystems           = $DeleteExcludeSystems
-        IncludeSystems           = $DeleteIncludeSystems
-        PasswordLastSetOlderThan = $DeletePasswordLastSetOlderThan
-        LastLogonDateOlderThan   = $DeleteLastLogonDateOlderThan
+        IsEnabled                   = $DeleteIsEnabled
+        NoServicePrincipalName      = $DeleteNoServicePrincipalName
+        LastLogonDateMoreThan       = $DeleteLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $DeletePasswordLastSetMoreThan
+        ListProcessedMoreThan       = $DeleteListProcessedMoreThan
+        ExcludeSystems              = $DeleteExcludeSystems
+        IncludeSystems              = $DeleteIncludeSystems
+        ExcludeServicePrincipalName = $DeleteExcludeServicePrincipalName
+        IncludeServicePrincipalName = $DeleteIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $DeletePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $DeleteLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan   = $DeleteLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan      = $DeleteLastSeenIntuneMoreThan
         # Azure
-        LastSeenAzureMoreThan    = $DeleteLastSeenAzureMoreThan
-        LastSyncAzureMoreThan    = $DeleteLastSyncAzureMoreThan
+        LastSeenAzureMoreThan       = $DeleteLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $DeleteLastSyncAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+        LastContactJamfMoreThan     = $DeleteLastContactJamfMoreThan
     }
 
     if (-not $DataStorePath) {
@@ -457,6 +641,9 @@
         DisableLastSeenAzureMoreThan  = $DisableLastSeenAzureMoreThan
         DisableLastSeenIntuneMoreThan = $DisableLastSeenIntuneMoreThan
         DisableLastSyncAzureMoreThan  = $DisableLastSyncAzureMoreThan
+        MoveLastSeenAzureMoreThan     = $MoveLastSeenAzureMoreThan
+        MoveLastSeenIntuneMoreThan    = $MoveLastSeenIntuneMoreThan
+        MoveLastSyncAzureMoreThan     = $MoveLastSyncAzureMoreThan
     }
     Remove-EmptyValue -Hashtable $getInitialGraphComputersSplat
     $AzureInformationCache = Get-InitialGraphComputers @getInitialGraphComputersSplat
@@ -467,6 +654,7 @@
     $getInitialJamf = @{
         DisableLastContactJamfMoreThan = $DisableLastContactJamfMoreThan
         DeleteLastContactJamfMoreThan  = $DeleteLastContactJamfMoreThan
+        MoveLastContactJamfMoreThan    = $MoveLastContactJamfMoreThan
         SafetyJamfLimit                = $SafetyJamfLimit
     }
     Remove-EmptyValue -Hashtable $getInitialJamf
@@ -476,27 +664,20 @@
     }
 
     $SplatADComputers = [ordered] @{
-        Report                         = $Report
-        ForestInformation              = $ForestInformation
-        Filter                         = $Filter
-        Properties                     = $Properties
-        Disable                        = $Disable
-        Delete                         = $Delete
-        DisableLastLogonDateMoreThan   = $DisableLastLogonDateMoreThan
-        DeleteLastLogonDateMoreThan    = $DeleteLastLogonDateMoreThan
-        DeleteNoServicePrincipalName   = $DeleteNoServicePrincipalName
-        DisableNoServicePrincipalName  = $DisableNoServicePrincipalName
-        DeleteIsEnabled                = $DeleteIsEnabled
-        DisableIsEnabled               = $DisableIsEnabled
-        DisablePasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan
-        DeletePasswordLastSetMoreThan  = $DeletePasswordLastSetMoreThan
-        DisableOnlyIf                  = $DisableOnlyIf
-        DeleteOnlyIf                   = $DeleteOnlyIf
-        Exclusions                     = $Exclusions
-        ProcessedComputers             = $ProcessedComputers
-        SafetyADLimit                  = $SafetyADLimit
-        AzureInformationCache          = $AzureInformationCache
-        JamfInformationCache           = $JamfInformationCache
+        Report                = $Report
+        ForestInformation     = $ForestInformation
+        Filter                = $Filter
+        Properties            = $Properties
+        Disable               = $Disable
+        Delete                = $Delete
+        DisableOnlyIf         = $DisableOnlyIf
+        DeleteOnlyIf          = $DeleteOnlyIf
+        MoveOnlyIf            = $MoveOnlyIf
+        Exclusions            = $Exclusions
+        ProcessedComputers    = $ProcessedComputers
+        SafetyADLimit         = $SafetyADLimit
+        AzureInformationCache = $AzureInformationCache
+        JamfInformationCache  = $JamfInformationCache
     }
 
     $AllComputers = Get-InitialADComputers @SplatADComputers
@@ -513,6 +694,16 @@
             }
             Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'], ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
+
+        if ($Move) {
+            if ($MoveLimit -eq 0) {
+                $MoveLimitText = 'Unlimited'
+            } else {
+                $MoveLimitText = $MoveLimit
+            }
+            Write-Color "[i] ", "Computers to be moved for domain $Domain`: ", $Report["$Domain"]['ComputersToBeMoved'], ". Current move limit: ", $MoveLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
+        }
+
         if ($Delete) {
             if ($DeleteLimit -eq 0) {
                 $DeleteLimitText = 'Unlimited'
@@ -523,39 +714,64 @@
         }
     }
 
-    if ($Disable) {
-        $requestADComputersDisableSplat = @{
-            Report                        = $Report
-            WhatIfDisable                 = $WhatIfDisable
-            WhatIf                        = $WhatIfPreference
-            DisableModifyDescription      = $DisableModifyDescription.IsPresent
-            DisableModifyAdminDescription = $DisableModifyAdminDescription.IsPresent
-            DisableLimit                  = $DisableLimit
-            ReportOnly                    = $ReportOnly
-            Today                         = $Today
-        }
 
+    if ($Disable -or $DisableAndMove) {
+        $requestADComputersDisableSplat = @{
+            # those 2 are added only to make sure we don't add to processing list
+            # if there is no process later on
+            Delete                              = $Delete
+            Move                                = $Move
+            # we can disable and move on one go
+            DisableAndMove                      = $DisableAndMove
+            Report                              = $Report
+            WhatIfDisable                       = $WhatIfDisable
+            WhatIf                              = $WhatIfPreference
+            DisableModifyDescription            = $DisableModifyDescription.IsPresent
+            DisableModifyAdminDescription       = $DisableModifyAdminDescription.IsPresent
+            DisableLimit                        = $DisableLimit
+            ReportOnly                          = $ReportOnly
+            Today                               = $Today
+            DontWriteToEventLog                 = $DontWriteToEventLog
+            DisableMoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
+        }
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
+    }
+
+    if ($Move) {
+        $requestADComputersMoveSplat = @{
+            Report                   = $Report
+            WhatIfMove               = $WhatIfMove
+            WhatIf                   = $WhatIfPreference
+            MoveLimit                = $MoveLimit
+            ReportOnly               = $ReportOnly
+            Today                    = $Today
+            ProcessedComputers       = $ProcessedComputers
+            TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
+            DontWriteToEventLog      = $DontWriteToEventLog
+            Delete                   = $Delete
+        }
+        [Array] $ReportMoved = Request-ADComputersMove @requestADComputersMoveSplat
     }
 
     if ($Delete) {
         $requestADComputersDeleteSplat = @{
-            Report             = $Report
-            WhatIfDelete       = $WhatIfDelete
-            WhatIf             = $WhatIfPreference
-            DeleteLimit        = $DeleteLimit
-            ReportOnly         = $ReportOnly
-            Today              = $Today
-            ProcessedComputers = $ProcessedComputers
+            Report              = $Report
+            WhatIfDelete        = $WhatIfDelete
+            WhatIf              = $WhatIfPreference
+            DeleteLimit         = $DeleteLimit
+            ReportOnly          = $ReportOnly
+            Today               = $Today
+            ProcessedComputers  = $ProcessedComputers
+            DontWriteToEventLog = $DontWriteToEventLog
         }
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
     }
 
     Write-Color "[i] ", "Cleanup process for processed computers that no longer exists in AD" -Color Yellow, Green
-    foreach ($DN in [string[]] $ProcessedComputers.Keys) {
-        if (-not $AllComputers["$($DN)"]) {
-            Write-Color -Text "[*] Removing computer from pending list ", $ProcessedComputers[$DN].SamAccountName, " ($DN)" -Color Yellow, Green, Yellow
-            $ProcessedComputers.Remove("$($DN)")
+    foreach ($FullName in [string[]] $ProcessedComputers.Keys) {
+        if (-not $AllComputers["$($FullName)"]) {
+            Write-Color -Text "[*] Removing computer from pending list ", $ProcessedComputers[$FullName].SamAccountName, " ($($ProcessedComputers[$FullName].DistinguishedName))" -Color Yellow, Green, Yellow
+            $ProcessedComputers.Remove("$($FullName)")
         }
     }
 
@@ -564,6 +780,9 @@
     $Export.CurrentRun = @(
         if ($ReportDisabled.Count -gt 0) {
             $ReportDisabled
+        }
+        if ($ReportMoved.Count -gt 0) {
+            $ReportMoved
         }
         if ($ReportDeleted.Count -gt 0) {
             $ReportDeleted
@@ -575,6 +794,9 @@
         }
         if ($ReportDisabled.Count -gt 0) {
             $ReportDisabled
+        }
+        if ($ReportMoved.Count -gt 0) {
+            $ReportMoved
         }
         if ($ReportDeleted.Count -gt 0) {
             $ReportDeleted
@@ -627,6 +849,7 @@
             ComputersToProcess = $ComputersToProcess
             DisableOnlyIf      = $DisableOnlyIf
             DeleteOnlyIf       = $DeleteOnlyIf
+            MoveOnlyIf         = $MoveOnlyIf
             Delete             = $Delete
             Disable            = $Disable
             ReportOnly         = $ReportOnly

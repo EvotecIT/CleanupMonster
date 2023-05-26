@@ -2,11 +2,15 @@
     [CmdletBinding()]
     param(
         [bool] $DisableLastContactJamfMoreThan,
+        [bool] $MoveLastContactJamfMoreThan,
         [bool] $DeleteLastContactJamfMoreThan,
         [nullable[int]] $SafetyJamfLimit
     )
     $JamfCache = [ordered] @{}
-    if ($PSBoundParameters.ContainsKey('DisableLastContactJamfMoreThan') -or $PSBoundParameters.ContainsKey('DeleteLastContactJamfMoreThan')) {
+    if ($PSBoundParameters.ContainsKey('DisableLastContactJamfMoreThan') -or
+        $PSBoundParameters.ContainsKey('DeleteLastContactJamfMoreThan') -or
+        $PSBoundParameters.ContainsKey('MoveLastContactJamfMoreThan')
+    ) {
         Write-Color "[i] ", "Getting all computers from Jamf" -Color Yellow, Cyan, Green
         [Array] $Jamf = Get-JamfDevice -WarningAction SilentlyContinue -WarningVariable WarningVar
         if ($WarningVar) {

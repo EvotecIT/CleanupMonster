@@ -166,3 +166,69 @@ $Configuration = @{
 $Output = Invoke-ADComputersCleanup @Configuration
 $Output
 ```
+
+#### Non-interactively (scheduled task)
+
+This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
+
+Thi example shows how to use AzureAD, Intune and Jamf to clean up computers in Active Directory where computer also needs needs to be non-existant in AzureAD, Intune and Jamf or have last seen date matches in AzureAD, Intune and Jamf.
+
+This example also moves computers to different OU's as part of the disable process.
+
+```powershell
+# connect to graph for Azure AD, Intune (requires GraphEssentials module)
+Connect-MgGraph -Scopes Device.Read.All, DeviceManagementManagedDevices.Read.All, Directory.ReadWrite.All, DeviceManagementConfiguration.Read.All
+# connect to jamf (requires PowerJamf module)
+Connect-Jamf -Organization 'aaa' -UserName 'aaa' -Suppress -Force -PasswordEncrypted 'aaaaa'
+
+$invokeADComputersCleanupSplat = @{
+    # safety limits (minimum amount of computers that has to be returned from each source)
+    SafetyADLimit                       = 30
+    SafetyAzureADLimit                  = 5
+    SafetyIntuneLimit                   = 3
+    SafetyJamfLimit                     = 50
+    # disable settings
+    Disable                             = $true
+    DisableLimit                        = 3
+    DisableLastLogonDateMoreThan        = 90
+    DisablePasswordLastSetMoreThan      = 90
+    DisableLastSeenAzureMoreThan   = 90
+    DisableLastSyncAzureMoreThan   = 90
+    DisableLastContactJamfMoreThan = 90
+    DisableLastSeenIntuneMoreThan  = 90
+    DisableAndMove                      = $true
+    DisableMoveTargetOrganizationalUnit = @{
+        'ad.evotec.xyz' = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=xyz'
+        'ad.evotec.pl'  = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=pl'
+    }
+    # delete settings
+    Delete                              = $true
+    DeleteLimit                         = 3
+    DeleteLastLogonDateMoreThan         = 180
+    DeletePasswordLastSetMoreThan       = 180
+    DeleteLastSeenAzureMoreThan    = 180
+    DeleteLastSyncAzureMoreThan    = 180
+    DeleteLastContactJamfMoreThan  = 180
+    DeleteLastSeenIntuneMoreThan   = 180
+    DeleteListProcessedMoreThan    = 90 # disabled computer has to spend 90 days in list before it can be deleted
+    DeleteIsEnabled                     = $false # Computer has to be disabled to be deleted
+    # global exclusions
+    Exclusions                          = @(
+        '*OU=Domain Controllers*' # exclude Domain Controllers
+    )
+    # filter for AD search
+    Filter                              = '*'
+    # logs, reports and datastores
+    LogPath                             = "$PSScriptRoot\Logs\CleanupComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log"
+    DataStorePath                       = "$PSScriptRoot\CleanupComputers_ListProcessed.xml"
+    ReportPath                          = "$PSScriptRoot\Reports\CleanupComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+    # WhatIf settings
+    #ReportOnly                     = $true
+    WhatIfDisable                       = $true
+    WhatIfDelete                        = $true
+    ShowHTML                            = $true
+}
+
+$Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
+$Output
+```

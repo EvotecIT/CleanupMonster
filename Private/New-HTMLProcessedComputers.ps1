@@ -4,6 +4,7 @@
         [System.Collections.IDictionary] $Export,
         [System.Collections.IDictionary] $DisableOnlyIf,
         [System.Collections.IDictionary] $DeleteOnlyIf,
+        [System.Collections.IDictionary] $MoveOnlyIf,
         [Array] $ComputersToProcess,
         [string] $FilePath,
         [switch] $Online,
@@ -37,10 +38,17 @@
                     New-HTMLPanel {
                         New-HTMLToast -TextHeader 'Total in this run' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
                     } -Invisible
+
                     [Array] $ListDisabled = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Disable' }))
                     New-HTMLPanel {
                         New-HTMLToast -TextHeader 'Disable' -Text "Computers disabled: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
                     } -Invisible
+
+                    [Array] $ListMoved = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Move' }))
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Disable' -Text "Computers moved: $($ListMoved.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                    } -Invisible
+
                     [Array] $ListDeleted = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Delete' }))
                     New-HTMLPanel {
                         New-HTMLToast -TextHeader 'Delete' -Text "Computers deleted: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
@@ -58,19 +66,28 @@
                 New-HTMLSection {
                     [Array] $ListAll = $($Export.History)
                     New-HTMLPanel {
-                        New-HTMLToast -TextHeader 'Total History' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
+                        New-HTMLToast -TextHeader 'Total History' -Text "Actions (disable & move & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
                     } -Invisible
+
                     [Array] $ListDisabled = $($($Export.History | Where-Object { $_.Action -eq 'Disable' }))
                     New-HTMLPanel {
                         New-HTMLToast -TextHeader 'Disabled History' -Text "Computers disabled so far: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
                     } -Invisible
+
+                    [Array] $ListMoved = $($($Export.History | Where-Object { $_.Action -eq 'Move' }))
+                    New-HTMLPanel {
+                        New-HTMLToast -TextHeader 'Moved History' -Text "Computers moved so far: $($ListMoved.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                    } -Invisible
+
                     [Array] $ListDeleted = $($($Export.History | Where-Object { $_.Action -eq 'Delete' }))
                     New-HTMLPanel {
                         New-HTMLToast -TextHeader 'Deleted History' -Text "Computers deleted so far: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
                     } -Invisible
+
                 } -Invisible
                 New-HTMLTable -DataTable $Export.History -Filtering -ScrollX {
                     New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
                     New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
@@ -80,6 +97,7 @@
             New-HTMLTab -Name 'Devices Pending' {
                 New-HTMLTable -DataTable $Export.PendingDeletion.Values -Filtering -ScrollX {
                     New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
                     New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
                     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
@@ -96,6 +114,9 @@
                     New-HTMLToast -TextHeader 'To disable' -Text "Computers to be disabled: $($Export.Statistics.ToDisable)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
                 } -Invisible
                 New-HTMLPanel {
+                    New-HTMLToast -TextHeader 'To move' -Text "Computers to be moved: $($Export.Statistics.ToMove)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                } -Invisible
+                New-HTMLPanel {
                     New-HTMLToast -TextHeader 'To delete' -Text "Computers to be deleted: $($Export.Statistics.ToDelete)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
                 } -Invisible
             } -Invisible
@@ -103,6 +124,7 @@
                 New-HTMLPanel {
                     New-HTMLChart {
                         New-ChartPie -Name 'To be disabled' -Value $Export.Statistics.ToDisable
+                        New-ChartPie -Name 'To be deleted' -Value $Export.Statistics.ToMove
                         New-ChartPie -Name 'To be deleted' -Value $Export.Statistics.ToDelete
                     } -Title "Computers to be disabled or deleted"
                 }
@@ -155,6 +177,34 @@
                         }
                     } else {
                         New-HTMLText -Text "Computers will not be disabled, as the disable functionality was not enabled. " -FontWeight bold
+                    }
+                }
+                New-HTMLPanel {
+                    if ($Disable) {
+                        New-HTMLText -Text "Computers will be moved only if: " -FontWeight bold
+                        New-HTMLList {
+                            foreach ($Key in $MoveOnlyIf.Keys) {
+                                New-HTMLListItem -Text @(
+                                    if ($null -eq $MoveOnlyIf[$Key] -or $MoveOnlyIf[$Key].Count -eq 0) {
+                                        $($Key), " is ", 'Not Set'
+                                        $ColorInUse = 'Cinnabar'
+                                    } else {
+                                        if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
+                                            $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never logged on"
+                                        } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
+                                            $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never changed"
+                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
+                                            $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never synced/seen"
+                                        } else {
+                                            $($Key), " is ", $($MoveOnlyIf[$Key])
+                                        }
+                                        $ColorInUse = 'Apple'
+                                    }
+                                ) -FontWeight bold, normal, bold, normal, bold -Color $ColorInUse, None, CornflowerBlue, None, CornflowerBlue
+                            }
+                        }
+                    } else {
+                        New-HTMLText -Text "Computers will not be moved, as the move functionality was not enabled. " -FontWeight bold
                     }
                 }
                 New-HTMLPanel {

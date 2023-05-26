@@ -56,6 +56,7 @@
         $DataStart = [ordered] @{
             'DNSHostName'             = $Computer.DNSHostName
             'SamAccountName'          = $Computer.SamAccountName
+            'DomainName'              = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
             'Enabled'                 = $Computer.Enabled
             'Action'                  = 'Not required'
             'ActionStatus'            = $null

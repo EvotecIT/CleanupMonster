@@ -1,6 +1,19 @@
-﻿### 1.6.0 - 2023.05.12
-This PR addresses:
-- Fixes #4
+﻿### 2.0.0
+Issues resolved:
+- Fixes [#2](https://github.com/EvotecIT/CleanupMonster/issues/2)
+
+Improvements:
+- Add ability to move objects (disable, move or/and delete) as separate action
+  - disable, move and delete all have their separate rules to act upon
+- Add ability to move objects as part of the disable process (disable and move right after) - `DisableAndMove` switch
+- Fix handling processing list (using custom search rather then DN which would not work if object was moved)
+- Add `DontWriteToEventLog` switch to disable writing to event log
+- Processed lists now only remove items if delete or move is successful
+- Computers is removed from processed list if it's moved, and there's no delete action, otherwise it's removed only on delete. Make sure to not use `Delete` switch if you don't plan to delete objects
+
+### 1.6.0 - 2023.05.12
+Issues resolved:
+- Fixes [#4](https://github.com/EvotecIT/CleanupMonster/issues/4)
 
 Following features are added:
 - Add support for Forest
