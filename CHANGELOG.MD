@@ -14,6 +14,7 @@ Improvements:
 - Add ability to exclude or include computers based on specific SPN (Service Principal Name) - `DisableExcludeServicePrincipalName` and `DisableIncludeServicePrincipalName`
 - Add ability to exclude or include computers based on specific SPN (Service Principal Name) - `MoveExcludeServicePrincipalName` and `MoveIncludeServicePrincipalName`
 - Add ability to exclude or include computers based on specific SPN (Service Principal Name) - `DeleteExcludeServicePrincipalName` and `DeleteIncludeServicePrincipalName`
+- Added `DoNotAddToPendingList` switch to disable adding computers to pending list when disabling or moving, and when deletion is enabled
 
 ### 1.6.0 - 2023.05.12
 Issues resolved:
