@@ -10,7 +10,7 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
         Author               = 'Przemyslaw Klys'
         CompanyName          = 'Evotec'
         Copyright            = "(c) 2011 - $((Get-Date).Year) Przemyslaw Klys @ Evotec. All rights reserved."
-        Description          = "This module provides an easy way to cleanup Active Directory from dead/old objects."
+        Description          = "This module provides an easy way to cleanup Active Directory from dead/old objects based on various criteria. It can also disable, move or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them."
         PowerShellVersion    = '5.1'
         Tags                 = 'windows', 'activedirectory'
         IconUri              = 'https://evotec.xyz/wp-content/uploads/2023/04/CleanupMonster.png'
