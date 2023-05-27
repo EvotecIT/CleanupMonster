@@ -13,7 +13,8 @@ $invokeADComputersCleanupSplat = @{
     SafetyJamfLimit                     = 50
     # disable settings
     Disable                             = $true
-    DisableAndMove                      = $true
+    DisableAndMove                      = $false
+    #DisableIsEnabled                    = $true
     DisableLimit                        = 1
     DisableLastLogonDateMoreThan        = 90
     DisablePasswordLastSetMoreThan      = 90
@@ -25,6 +26,22 @@ $invokeADComputersCleanupSplat = @{
         'ad.evotec.xyz' = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=xyz'
         'ad.evotec.pl'  = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=pl'
     }
+    # move settings
+    Move                                = $true
+    MoveLimit                           = 1
+    MoveLastLogonDateMoreThan           = 90
+    MovePasswordLastSetMoreThan         = 90
+    #MoveLastSeenAzureMoreThan    = 180
+    #MoveLastSyncAzureMoreThan    = 180
+    #MoveLastContactJamfMoreThan  = 180
+    #MoveLastSeenIntuneMoreThan   = 180
+    #MoveListProcessedMoreThan    = 90 # disabled computer has to spend 90 days in list before it can be deleted
+    MoveIsEnabled                       = $false # Computer has to be disabled to be moved
+    MoveTargetOrganizationalUnit        = @{
+        'ad.evotec.xyz' = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=xyz'
+        'ad.evotec.pl'  = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=pl'
+    }
+
     # delete settings
     Delete                              = $false
     DeleteLimit                         = 3
@@ -48,7 +65,8 @@ $invokeADComputersCleanupSplat = @{
     ReportPath                          = "$PSScriptRoot\Reports\CleanupComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
     # WhatIf settings
     #ReportOnly                     = $true
-    WhatIfDisable                       = $true
+    WhatIfDisable                       = $false
+    WhatIfMove                          = $false
     WhatIfDelete                        = $true
     ShowHTML                            = $true
 
