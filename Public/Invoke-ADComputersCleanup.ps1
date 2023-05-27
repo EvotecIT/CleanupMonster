@@ -813,7 +813,7 @@
         }
     }
     Write-Color -Text "[i] ", "Summary of cleaning up stale computers" -Color Yellow, Cyan
-    foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'PendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
+    foreach ($Domain in $Report.Keys) {
         if ($Disable -or $DisableAndMove) {
             Write-Color -Text "[i] ", "Computers to be disabled for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDisabled'] -Color Yellow, Cyan, Green
         }
@@ -839,7 +839,7 @@
 
     if ($Export -and $ReportPath) {
         Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
-        [Array] $ComputersToProcess = foreach ($Domain in $Report.Keys | Where-Object { $_ -notin 'PendingDeletion', 'ReportDisabled', 'ReportDeleted' }) {
+        [Array] $ComputersToProcess = foreach ($Domain in $Report.Keys) {
             if ($Report["$Domain"]['Computers'].Count -gt 0) {
                 $Report["$Domain"]['Computers']
             }
