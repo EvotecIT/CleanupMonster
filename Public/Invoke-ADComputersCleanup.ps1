@@ -89,6 +89,10 @@
     It can take a string with DistinguishedName, or hashtable with key being the domain, and value being the DistinguishedName.
     If you have a forest with multiple domains and want to move computers to different OUs based on their domain, you can use hashtable.
 
+    .PARAMETER DisableDoNotAddToPendingList
+    By default, computers that are disabled are added to the list of computers that will be actioned later (moved/deleted).
+    If you want to disable computers, but not add them to the list of computers that will be actioned later (aka pending list),  use this switch.
+
     .PARAMETER Delete
     Enable the delete process, meaning the computers that meet the criteria will be deleted.
 
@@ -246,6 +250,10 @@
     Limit the number of computers that will be moved. 0 = unlimited. Default is 1.
     This is to prevent accidental move of all computers that meet the criteria.
     Adjust the limit to your needs.
+
+    .PARAMETER MoveDoNotAddToPendingList
+    By default the script will add computers that are moved to a list of computers that will be actioned later (deleted).
+    If you want to move computers, but not add them to the list of computers that will be action later (aka pending list),  use this switch.
 
     .PARAMETER DeleteLimit
     Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
@@ -447,6 +455,7 @@
         [Array] $DisableIncludeServicePrincipalName = @(),
         [int] $DisableLimit = 1, # 0 = unlimited
         [Object] $DisableMoveTargetOrganizationalUnit,
+        [switch] $DisableDoNotAddToPendingList,
         # Move options
         [switch] $Move,
         [nullable[bool]] $MoveIsEnabled,
@@ -542,6 +551,8 @@
         LastSeenAzureMoreThan       = $DisableLastSeenAzureMoreThan
         # Jamf
         LastContactJamfMoreThan     = $DisableLastContactJamfMoreThan
+
+        DoNotAddToPendingList       = $DisableDoNotAddToPendingList
     }
 
     $MoveOnlyIf = [ordered] @{
@@ -566,6 +577,8 @@
         LastContactJamfMoreThan     = $MoveLastContactJamfMoreThan
         # special option for move only
         TargetOrganizationalUnit    = $MoveTargetOrganizationalUnit
+
+        DoNotAddToPendingList       = $MoveDoNotAddToPendingList
     }
 
     $DeleteOnlyIf = [ordered] @{
@@ -734,6 +747,8 @@
             Today                               = $Today
             DontWriteToEventLog                 = $DontWriteToEventLog
             DisableMoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
+
+            DoNotAddToPendingList               = $DisableDoNotAddToPendingList
         }
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
     }
@@ -750,6 +765,8 @@
             TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
             DontWriteToEventLog      = $DontWriteToEventLog
             Delete                   = $Delete
+
+            DoNotAddToPendingList    = $MoveDoNotAddToPendingList
         }
         [Array] $ReportMoved = Request-ADComputersMove @requestADComputersMoveSplat
     }
