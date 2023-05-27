@@ -13,20 +13,20 @@ $invokeADComputersCleanupSplat = @{
     SafetyJamfLimit                     = 50
     # disable settings
     Disable                             = $true
-    DisableLimit                        = 3
+    DisableAndMove                      = $true
+    DisableLimit                        = 1
     DisableLastLogonDateMoreThan        = 90
     DisablePasswordLastSetMoreThan      = 90
     #DisableLastSeenAzureMoreThan   = 90
     #DisableLastSyncAzureMoreThan   = 90
     #DisableLastContactJamfMoreThan = 90
     #DisableLastSeenIntuneMoreThan  = 90
-    DisableAndMove                      = $true
     DisableMoveTargetOrganizationalUnit = @{
         'ad.evotec.xyz' = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=xyz'
         'ad.evotec.pl'  = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=pl'
     }
     # delete settings
-    Delete                              = $true
+    Delete                              = $false
     DeleteLimit                         = 3
     DeleteLastLogonDateMoreThan         = 180
     DeletePasswordLastSetMoreThan       = 180
@@ -51,6 +51,8 @@ $invokeADComputersCleanupSplat = @{
     WhatIfDisable                       = $true
     WhatIfDelete                        = $true
     ShowHTML                            = $true
+
+    DontWriteToEventLog                 = $true
 }
 
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
