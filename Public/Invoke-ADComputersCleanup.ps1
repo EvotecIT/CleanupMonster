@@ -684,6 +684,7 @@
         Properties            = $Properties
         Disable               = $Disable
         Delete                = $Delete
+        Move                  = $Move
         DisableOnlyIf         = $DisableOnlyIf
         DeleteOnlyIf          = $DeleteOnlyIf
         MoveOnlyIf            = $MoveOnlyIf
