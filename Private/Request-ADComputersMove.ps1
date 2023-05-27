@@ -9,7 +9,8 @@
         [System.Collections.IDictionary] $ProcessedComputers,
         [DateTime] $Today,
         [Object] $TargetOrganizationalUnit,
-        [switch] $DontWriteToEventLog
+        [switch] $DontWriteToEventLog,
+        [switch] $DoNotAddToPendingList
     )
 
     if ($TargetOrganizationalUnit -is [System.Collections.IDictionary]) {
@@ -53,8 +54,10 @@
                             if (-not $Delete) {
                                 # lets remove computer from $ProcessedComputers
                                 # we only remove it if Delete is not part of the removal process and move is the last step
-                                $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
-                                $ProcessedComputers.Remove("$ComputerOnTheList")
+                                if (-not $DoNotAddToPendingList) {
+                                    $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
+                                    $ProcessedComputers.Remove("$ComputerOnTheList")
+                                }
                             }
                         } catch {
                             $Success = $false

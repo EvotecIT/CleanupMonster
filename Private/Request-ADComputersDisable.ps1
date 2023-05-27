@@ -12,7 +12,8 @@
         [switch] $ReportOnly,
         [DateTime] $Today,
         [switch] $DontWriteToEventLog,
-        [Object] $DisableMoveTargetOrganizationalUnit
+        [Object] $DisableMoveTargetOrganizationalUnit,
+        [switch] $DoNotAddToPendingList
     )
 
     if ($DisableAndMove -and $DisableMoveTargetOrganizationalUnit) {
@@ -126,8 +127,10 @@
                 if ($Move -or $Delete) {
                     # we only add to processed list if Move or Delete are also enabled
                     # otherwise it makes no sense to add computers to processed list
-                    $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
-                    $ProcessedComputers[$FullComputerName] = $Computer
+                    if (-not $DoNotAddToPendingList) {
+                        $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
+                        $ProcessedComputers[$FullComputerName] = $Computer
+                    }
                 }
                 # return computer to $ReportDisabled so we can see summary just in case
                 $Computer
