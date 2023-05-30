@@ -63,12 +63,13 @@
         if ($Type -eq 'Disable') {
             # actions to happen only if we are disabling computers
             if ($ProcessedComputers.Count -gt 0) {
-                $FoundComputer = $ProcessedComputers["$($Computer.DistinguishedName)"]
+                $FullComputerName = "$($Computer.SamAccountName)@$($Computer.DomainName)"
+                $FoundComputer = $ProcessedComputers[$FullComputerName]
                 if ($FoundComputer) {
                     if ($Computer.Enabled -eq $true) {
                         # We checked and it seems the computer has been enabled since it was added to list, we remove it from the list and reprocess
-                        Write-Color -Text "[*] Removing computer from pending list (computer is enabled) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkMagenta, Green, DarkMagenta
-                        $ProcessedComputers.Remove("$($Computer.DistinguishedName)")
+                        Write-Color -Text "[*] Removing computer from pending list (computer is enabled) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
+                        $ProcessedComputers.Remove($FullComputerName)
                     } else {
                         # we skip adding to disabled because it's already on the list for removing
                         continue SkipComputer
