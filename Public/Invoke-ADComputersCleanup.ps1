@@ -519,7 +519,6 @@
         [nullable[int]] $SafetyJamfLimit,
         [switch] $DontWriteToEventLog
     )
-
     # we will use it to check for intune/azuread/jamf functionality
     $Script:CleanupOptions = [ordered] @{}
 
@@ -636,6 +635,9 @@
 
     if (-not $ReportOnly) {
         $ProcessedComputers = Import-ComputersData -Export $Export -DataStorePath $DataStorePath
+        if ($ProcessedComputers -eq $false) {
+            return
+        }
         Write-Color -Text "[i] ", "Loaded ", $($ProcessedComputers.Count), " computers from $($DataStorePath) and added to pending list of computers." -Color Yellow, White, Green, White
     }
 
