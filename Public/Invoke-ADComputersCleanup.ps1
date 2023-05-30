@@ -845,7 +845,7 @@
         }
     }
     if (-not $ReportOnly) {
-        Write-Color -Text "[i] ", "Computers on pending list`:", $Export['PendingDeletion'].Count -Color Yellow, Cyan, Green
+        Write-Color -Text "[i] ", "Computers on pending list`: ", $Export['PendingDeletion'].Count -Color Yellow, Cyan, Green
     }
     if (($Disable -or $DisableAndMove) -and -not $ReportOnly) {
         Write-Color -Text "[i] ", "Computers disabled in this run`: ", $ReportDisabled.Count -Color Yellow, Cyan, Green
