@@ -858,7 +858,6 @@
     }
 
     if ($Export -and $ReportPath) {
-        Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
         [Array] $ComputersToProcess = foreach ($Domain in $Report.Keys) {
             if ($Report["$Domain"]['Computers'].Count -gt 0) {
                 $Report["$Domain"]['Computers']
@@ -881,6 +880,7 @@
             Disable            = $Disable
             ReportOnly         = $ReportOnly
         }
+        Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
         New-HTMLProcessedComputers @newHTMLProcessedComputersSplat
     }
 
