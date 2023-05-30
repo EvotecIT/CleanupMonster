@@ -198,27 +198,27 @@
 
         if ($IncludeAzureAD) {
             if ($null -ne $ActionIf.LastSeenAzureMoreThan -and $null -ne $Computer.AzureLastSeenDays) {
-                if ($ActionIf.LastSeenAzureMoreThan -le $Computer.AzureLastSeenDays) {
+                if ($Computer.AzureLastSeenDays -le $ActionIf.LastSeenAzureMoreThan) {
                     continue SkipComputer
                 }
 
             }
             if ($null -ne $ActionIf.LastSyncAzureMoreThan -and $null -ne $Computer.AzureLastSyncDays) {
-                if ($ActionIf.LastSyncAzureMoreThan -le $Computer.AzureLastSyncDays) {
+                if ($Computer.AzureLastSyncDays -le $ActionIf.LastSyncAzureMoreThan) {
                     continue SkipComputer
                 }
             }
         }
         if ($IncludeIntune) {
             if ($null -ne $ActionIf.LastSeenIntuneMoreThan -and $null -ne $Computer.IntuneLastSeenDays) {
-                if ($ActionIf.LastSeenIntuneMoreThan -le $Computer.IntuneLastSeenDays) {
+                if ($Computer.IntuneLastSeenDays -le $ActionIf.LastSeenIntuneMoreThan) {
                     continue SkipComputer
                 }
             }
         }
         if ($IncludeJamf) {
             if ($null -ne $ActionIf.LastContactJamfMoreThan -and $null -ne $Computer.JamfLastContactTimeDays) {
-                if ($ActionIf.LastContactJamfMoreThan -le $Computer.JamfLastContactTimeDays) {
+                if ($Computer.JamfLastContactTimeDays -le $ActionIf.LastContactJamfMoreThan) {
                     continue SkipComputer
                 }
             }
