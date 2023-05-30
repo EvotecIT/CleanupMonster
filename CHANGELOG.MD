@@ -1,4 +1,4 @@
-﻿### 2.3.0 - 2023.05.30
+﻿### 2.4.0 - 2023.05.30
 - Fixes removing computers from processed list after list conversion
 
 ### 2.2.0 - 2023.05.30
