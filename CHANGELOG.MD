@@ -1,4 +1,7 @@
-﻿### 2.1.0 - 2023.05.30
+﻿### 2.2.0 - 2023.05.30
+- Fixes conversion logic
+
+### 2.1.0 - 2023.05.30
 - Fixes bug around AzureAD, Intune, Jamf processing wrong computers
 - Fixed wrong function placement on import
 - Small improvements
