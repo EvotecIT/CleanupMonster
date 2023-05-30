@@ -22,7 +22,7 @@
     param(
         [System.Collections.IDictionary] $FileImport
     )
-    if (-not $FileImport.PendingDeletion -or $FileImport.PendingDeletion.Keys.Count -gt 0) {
+    if (-not $FileImport.Contains('PendingDeletion') -and $FileImport.PendingDeletion.Keys.Count -eq 0) {
         return $FileImport
     }
     if ($FileImport.PendingDeletion.Keys[0] -like "*@*") {
