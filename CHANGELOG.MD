@@ -1,4 +1,9 @@
-﻿### 2.0.0
+﻿### 2.1.0 - 2023.05.30
+- Fixes bug around AzureAD, Intune, Jamf processing wrong computers
+- Fixed wrong function placement on import
+- Small improvements
+
+### 2.0.0
 Issues resolved:
 - Implement move and move on disable [#2](https://github.com/EvotecIT/CleanupMonster/issues/2)
 - Allow exclude or include for Disable/Delete or Move and Service Principal Name [#7](https://github.com/EvotecIT/CleanupMonster/issues/7)
