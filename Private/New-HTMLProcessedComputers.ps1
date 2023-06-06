@@ -46,7 +46,7 @@
 
                     [Array] $ListMoved = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Move' }))
                     New-HTMLPanel {
-                        New-HTMLToast -TextHeader 'Disable' -Text "Computers moved: $($ListMoved.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
+                        New-HTMLToast -TextHeader 'Move' -Text "Computers moved: $($ListMoved.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
                     } -Invisible
 
                     [Array] $ListDeleted = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Delete' }))
