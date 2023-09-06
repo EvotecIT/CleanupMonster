@@ -1,4 +1,7 @@
-﻿### 2.5.0
+﻿### 2.6.0
+- Fix display issue with HTML report
+
+### 2.5.0
 - Fix for Jamf Pro where it would only process 100 computers
 - Fix for processed list during deletion would use DN instead of FullName as expected, preventing deletion
 
