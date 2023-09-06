@@ -21,11 +21,11 @@
             if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
                 Write-Color -Text "   [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never logged on" -Color Yellow, Cyan, Green
             } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
-                Write-Color -Text "  [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never changed" -Color Yellow, Cyan, Green
+                Write-Color -Text "   [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never changed" -Color Yellow, Cyan, Green
             } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
-                Write-Color -Text "  [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never synced/seen" -Color Yellow, Cyan, Green
+                Write-Color -Text "   [>] ", $($Key), " is ", $($ActionIf[$Key]), " or ", "Never synced/seen" -Color Yellow, Cyan, Green
             } else {
-                Write-Color -Text "  [>] ", $($Key), " is ", $($ActionIf[$Key]) -Color Yellow, Cyan, Green
+                Write-Color -Text "   [>] ", $($Key), " is ", $($ActionIf[$Key]) -Color Yellow, Cyan, Green
             }
         }
     }
