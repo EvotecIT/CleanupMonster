@@ -39,7 +39,8 @@
             if ($null -ne $ActionIf.ListProcessedMoreThan) {
                 # if more then 0 this means computer has to be on list of disabled computers for that number of days.
                 if ($ProcessedComputers.Count -gt 0) {
-                    $FoundComputer = $ProcessedComputers["$($Computer.DistinguishedName)"]
+                    $FullComputerName = "$($Computer.SamAccountName)@$($Computer.DomainName)"
+                    $FoundComputer = $ProcessedComputers[$FullComputerName]
                     if ($FoundComputer) {
                         if ($FoundComputer.ActionDate -is [DateTime]) {
                             $TimeSpan = New-TimeSpan -Start $FoundComputer.ActionDate -End $Today
