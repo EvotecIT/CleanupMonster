@@ -1,4 +1,8 @@
-﻿### 2.4.1 - 2023.06.06
+﻿### 2.5.0
+- Fix for Jamf Pro where it would only process 100 computers
+- Fix for processed list during deletion would use DN instead of FullName as expected, preventing deletion
+
+### 2.4.1 - 2023.06.06
 - Fixes typo in a report
 
 ### 2.4.0 - 2023.05.30
