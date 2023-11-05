@@ -312,6 +312,12 @@
     .PARAMETER LogMaximum
     Maximum number of log files to keep. Default is 5.
 
+    .PARAMETER LogShowTime
+    Show time in the log file. Default is $false
+
+    .PARAMETER LogTimeFormat
+    Time format to use when logging to file. Default is 'yyyy-MM-dd HH:mm:ss'
+
     .PARAMETER Suppress
     Suppress output of the object and only display to console
 
@@ -509,6 +515,8 @@
         [switch] $WhatIfMove,
         [string] $LogPath,
         [int] $LogMaximum = 5,
+        [switch] $LogShowTime,
+        [string] $LogTimeFormat,
         [switch] $Suppress,
         [switch] $ShowHTML,
         [switch] $Online,
@@ -528,7 +536,7 @@
     }
 
     # lets enable global logging
-    Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum
+    Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
 
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
