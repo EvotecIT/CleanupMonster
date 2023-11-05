@@ -1,8 +1,9 @@
 ﻿function Set-LoggingCapabilities {
     [CmdletBinding()]
     param(
-        [string] $LogPath,
-        [int] $LogMaximum,
+        [parameter()][string] $LogPath,
+        [parameter(Mandatory)][string] $ScriptPath,
+        [parameter(Mandatory)][int] $LogMaximum,
         [switch] $ShowTime,
         [string] $TimeFormat
     )
@@ -20,6 +21,11 @@
             $null = New-Item -Path $FolderPath -ItemType Directory -Force -WhatIf:$false
         }
         if ($LogMaximum -gt 0) {
+            $ScriptPathFolder = [io.path]::GetDirectoryName($ScriptPath)
+            if ($ScriptPathFolder -eq $FolderPath) {
+                Write-Color -Text '[i] ', "LogMaximum is set to ", $LogMaximum, " but log files are in the same folder as the script. Cleanup disabled." -Color Yellow, White, DarkCyan, White
+                return
+            }
             $CurrentLogs = Get-ChildItem -LiteralPath $FolderPath | Sort-Object -Property CreationTime -Descending | Select-Object -Skip $LogMaximum
             if ($CurrentLogs) {
                 Write-Color -Text '[i] ', "Logs directory has more than ", $LogMaximum, " log files. Cleanup required..." -Color Yellow, DarkCyan, Red, DarkCyan
