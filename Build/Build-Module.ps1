@@ -4,7 +4,7 @@ Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
 Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '2.X.0'
+        ModuleVersion        = '2.6.X'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'

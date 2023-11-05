@@ -1,4 +1,8 @@
-﻿### 2.6.0
+﻿### 2.6.1
+- Improve Logging Capabilities to not delete log if it's the same folder
+- Add additional loggin options
+
+### 2.6.0
 - Fix display issue with HTML report
 
 ### 2.5.0
