@@ -1,7 +1,7 @@
 ﻿Import-Module .\CleanupMonster.psd1 -Force
 
 # connect to graph for Azure AD, Intune (requires GraphEssentials module)
-#Connect-MgGraph -Scopes Device.Read.All, DeviceManagementManagedDevices.Read.All, Directory.ReadWrite.All, DeviceManagementConfiguration.Read.All
+Connect-MgGraph -Scopes Device.Read.All, DeviceManagementManagedDevices.Read.All, Directory.ReadWrite.All, DeviceManagementConfiguration.Read.All
 # connect to jamf (requires PowerJamf module)
 #Connect-Jamf -Organization 'aaa' -UserName 'aaa' -Suppress -Force -PasswordEncrypted 'aaaaa'
 
@@ -15,19 +15,21 @@ $invokeADComputersCleanupSplat = @{
     Disable                             = $true
     DisableAndMove                      = $false
     #DisableIsEnabled                    = $true
-    DisableLimit                        = 1
+    DisableLimit                        = 2
     DisableLastLogonDateMoreThan        = 90
     DisablePasswordLastSetMoreThan      = 90
-    #DisableLastSeenAzureMoreThan   = 90
+    DisableLastSeenAzureMoreThan        = 90
+
+    DisablePasswordLastSetOlderThan     = Get-Date -Year 2023 -Month 1 -Day 1
     #DisableLastSyncAzureMoreThan   = 90
     #DisableLastContactJamfMoreThan = 90
-    #DisableLastSeenIntuneMoreThan  = 90
+    DisableLastSeenIntuneMoreThan       = 90
     DisableMoveTargetOrganizationalUnit = @{
         'ad.evotec.xyz' = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=xyz'
         'ad.evotec.pl'  = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=pl'
     }
     # move settings
-    Move                                = $true
+    Move                                = $false
     MoveLimit                           = 1
     MoveLastLogonDateMoreThan           = 90
     MovePasswordLastSetMoreThan         = 90
@@ -43,11 +45,11 @@ $invokeADComputersCleanupSplat = @{
     }
 
     # delete settings
-    Delete                              = $false
-    DeleteLimit                         = 3
+    Delete                              = $true
+    DeleteLimit                         = 2
     DeleteLastLogonDateMoreThan         = 180
     DeletePasswordLastSetMoreThan       = 180
-    #DeleteLastSeenAzureMoreThan    = 180
+    DeleteLastSeenAzureMoreThan         = 180
     #DeleteLastSyncAzureMoreThan    = 180
     #DeleteLastContactJamfMoreThan  = 180
     #DeleteLastSeenIntuneMoreThan   = 180
@@ -64,9 +66,9 @@ $invokeADComputersCleanupSplat = @{
     DataStorePath                       = "$PSScriptRoot\CleanupComputers_ListProcessed.xml"
     ReportPath                          = "$PSScriptRoot\Reports\CleanupComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
     # WhatIf settings
-    #ReportOnly                     = $true
-    WhatIfDisable                       = $false
-    WhatIfMove                          = $false
+    ReportOnly                          = $false
+    WhatIfDisable                       = $true
+    WhatIfMove                          = $true
     WhatIfDelete                        = $true
     ShowHTML                            = $true
 
