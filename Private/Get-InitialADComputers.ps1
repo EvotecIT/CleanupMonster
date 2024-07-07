@@ -67,7 +67,7 @@
         $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
         $Report["$Domain"]['Server'] = $Server
         Write-Color "[i] Getting all computers for domain ", $Domain -Color Yellow, Magenta, Yellow
-        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties #| Where-Object { $_.SamAccountName -like 'Windows2012*' }
+        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties
         foreach ($Computer in $Computers) {
             # we will be using it later to just check if computer exists in AD
             $DomainName = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
