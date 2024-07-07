@@ -25,7 +25,9 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
         'Microsoft.WSMan.Management', 'NetTCPIP'
     )
     New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule'
-    New-ConfigurationModuleSkip -IgnoreModuleName 'PowerJamf', 'GraphEssentials'
+    New-ConfigurationModuleSkip -IgnoreModuleName 'PowerJamf', 'GraphEssentials' -IgnoreFunctionName @(
+        'Get-JamfDevice'
+    )
 
     $ConfigurationFormat = [ordered] @{
         RemoveComments                              = $false
