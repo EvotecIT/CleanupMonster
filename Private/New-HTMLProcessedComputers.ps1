@@ -124,7 +124,7 @@
                 New-HTMLPanel {
                     New-HTMLChart {
                         New-ChartPie -Name 'To be disabled' -Value $Export.Statistics.ToDisable
-                        New-ChartPie -Name 'To be deleted' -Value $Export.Statistics.ToMove
+                        New-ChartPie -Name 'To be moved' -Value $Export.Statistics.ToMove
                         New-ChartPie -Name 'To be deleted' -Value $Export.Statistics.ToDelete
                     } -Title "Computers to be disabled or deleted"
                 }
