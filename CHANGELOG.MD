@@ -1,4 +1,7 @@
-﻿### 2.6.1
+﻿### 2.6.2
+- Fix typo in HTML report
+
+### 2.6.1
 - Improve Logging Capabilities to not delete log if it's the same folder
 - Add additional loggin options
 
