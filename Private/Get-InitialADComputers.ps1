@@ -57,7 +57,9 @@
         }
     }
 
+    $CountDomains = 0
     foreach ($Domain in $ForestInformation.Domains) {
+        $CountDomains++
         $Report["$Domain"] = [ordered] @{ }
         $Server = $ForestInformation['QueryServers'][$Domain].HostName[0]
         if (-not $Server) {
@@ -66,8 +68,8 @@
         }
         $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
         $Report["$Domain"]['Server'] = $Server
-        Write-Color "[i] Getting all computers for domain ", $Domain -Color Yellow, Magenta, Yellow
-        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties #| Where-Object { $_.SamAccountName -like 'Windows2012*' }
+        Write-Color "[i] Getting all computers for domain ", $Domain, " [", $CountDomains, "/", $ForestInformation.Domains.Count, "]" -Color Yellow, Magenta, Yellow
+        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties
         foreach ($Computer in $Computers) {
             # we will be using it later to just check if computer exists in AD
             $DomainName = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
@@ -104,6 +106,7 @@
                 Type                  = 'Disable'
             }
             $Report["$Domain"]['ComputersToBeDisabled'] = Get-ADComputersToProcess @getADComputersToDisableSplat
+            #Write-Color "[i] ", "Computers to be disabled for domain $Domain`: ", $($Report["$Domain"]['ComputersToBeDisabled'].Count) -Color Yellow, Cyan, Green
         }
         if ($Move) {
             Write-Color "[i] ", "Processing computers to move for domain $Domain" -Color Yellow, Cyan, Green
@@ -121,6 +124,7 @@
                 Type                  = 'Move'
             }
             $Report["$Domain"]['ComputersToBeMoved'] = Get-ADComputersToProcess @getADComputersToDeleteSplat
+            #Write-Color "[i] ", "Computers to be moved for domain $Domain`: ", $($Report["$Domain"]['ComputersToBeMoved'].Count) -Color Yellow, Cyan, Green
         }
         if ($Delete) {
             Write-Color "[i] ", "Processing computers to delete for domain $Domain" -Color Yellow, Cyan, Green
@@ -138,6 +142,7 @@
                 Type                  = 'Delete'
             }
             $Report["$Domain"]['ComputersToBeDeleted'] = Get-ADComputersToProcess @getADComputersToDeleteSplat
+            #Write-Color "[i] ", "Computers to be deleted for domain $Domain`: ", $($Report["$Domain"]['ComputersToBeDeleted'].Count) -Color Yellow, Cyan, Green
         }
     }
     if ($null -ne $SafetyADLimit -and $AllComputers.Count -lt $SafetyADLimit) {
