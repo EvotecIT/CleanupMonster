@@ -4,7 +4,7 @@ Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
 Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '2.6.X'
+        ModuleVersion        = '2.7.X'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
@@ -79,6 +79,6 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.v<ModuleVersion>.zip'
 
     # options for publishing to github/psgallery
-    New-ConfigurationPublish -Type PowerShellGallery -FilePath 'C:\Support\Important\PowerShellGalleryAPI.txt' -Enabled
-    New-ConfigurationPublish -Type GitHub -FilePath 'C:\Support\Important\GitHubAPI.txt' -UserName 'EvotecIT' -Enabled
+    #New-ConfigurationPublish -Type PowerShellGallery -FilePath 'C:\Support\Important\PowerShellGalleryAPI.txt' -Enabled
+    #New-ConfigurationPublish -Type GitHub -FilePath 'C:\Support\Important\GitHubAPI.txt' -UserName 'EvotecIT' -Enabled
 }
