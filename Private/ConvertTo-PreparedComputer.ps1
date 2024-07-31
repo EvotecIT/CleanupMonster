@@ -71,15 +71,16 @@
             'PasswordLastChangedDays' = $PasswordLastChangedDays
         }
         $DataEnd = [ordered] @{
-            'PasswordExpired'      = $Computer.PasswordExpired
-            'LogonCount'           = $Computer.logonCount
-            'ManagedBy'            = $Computer.ManagedBy
-            'DistinguishedName'    = $Computer.DistinguishedName
-            'OrganizationalUnit'   = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
-            'Description'          = $Computer.Description
-            'WhenCreated'          = $Computer.WhenCreated
-            'WhenChanged'          = $Computer.WhenChanged
-            'ServicePrincipalName' = $Computer.servicePrincipalName #-join [System.Environment]::NewLine
+            'PasswordExpired'            = $Computer.PasswordExpired
+            'LogonCount'                 = $Computer.logonCount
+            'ManagedBy'                  = $Computer.ManagedBy
+            'DistinguishedName'          = $Computer.DistinguishedName
+            'OrganizationalUnit'         = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
+            'Description'                = $Computer.Description
+            'WhenCreated'                = $Computer.WhenCreated
+            'WhenChanged'                = $Computer.WhenChanged
+            'ServicePrincipalName'       = $Computer.servicePrincipalName #-join [System.Environment]::NewLine
+            'DistinguishedNameAfterMove' = $null
         }
         if ($IncludeAzureAD -and $IncludeIntune -and $IncludeJamf) {
             $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd
