@@ -13,7 +13,11 @@
         [DateTime] $Today,
         [switch] $DontWriteToEventLog,
         [Object] $DisableMoveTargetOrganizationalUnit,
-        [switch] $DoNotAddToPendingList
+        [switch] $DoNotAddToPendingList,
+        [ValidateSet(
+            'DisableAndMove',
+            'MoveAndDisable'
+        )][string] $DisableAndMoveOrder = 'DisableAndMove'
     )
 
     if ($DisableAndMove -and $DisableMoveTargetOrganizationalUnit) {
@@ -42,57 +46,13 @@
             if ($ReportOnly) {
                 $Computer
             } else {
-                Write-Color -Text "[i] Disabling computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
-                try {
-                    Disable-ADAccount -Identity $Computer.DistinguishedName -Server $Server -WhatIf:$WhatIfDisable -ErrorAction Stop
-                    Write-Color -Text "[+] Disabling computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) successful." -Color Yellow, Green, Yellow
-                    if (-not $DontWriteToEventLog) {
-                        Write-Event -ID 10 -LogName 'Application' -EntryType Information -Category 1000 -Source 'CleanupComputers' -Message "Disabling computer $($Computer.SamAccountName) successful." -AdditionalFields @('Disable', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable) -WarningAction SilentlyContinue -WarningVariable warnings
-                    }
-                    foreach ($W in $Warnings) {
-                        Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                    }
-                    $Success = $true
-                } catch {
-                    $Computer.ActionComment = $_.Exception.Message
-                    $Success = $false
-                    Write-Color -Text "[-] Disabling computer ", $Computer.DistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                    if (-not $DontWriteToEventLog) {
-                        Write-Event -ID 10 -LogName 'Application' -EntryType Error -Category 1001 -Source 'CleanupComputers' -Message "Disabling computer $($Computer.SamAccountName) failed. Error: $($_.Exception.Message)" -AdditionalFields @('Disable', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
-                    }
-                    foreach ($W in $Warnings) {
-                        Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                    }
-                }
-                if ($Success -and $DisableAndMove) {
-                    # we only move if we successfully disabled the computer
-                    if ($OrganizationalUnit[$Domain]) {
-                        if ($Computer.OrganizationalUnit -eq $OrganizationalUnit[$Domain]) {
-
-                        } else {
-                            try {
-                                $Success = $WhatIfDisable
-                                Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfDisable -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $OrganizationalUnit[$Domain]
-                                Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDisable.IsPresent)) successful." -Color Yellow, Green, Yellow
-                                if (-not $DontWriteToEventLog) {
-                                    Write-Event -ID 11 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) successful." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable) -WarningAction SilentlyContinue -WarningVariable warnings
-                                }
-                                foreach ($W in $Warnings) {
-                                    Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                                }
-                            } catch {
-                                $Success = $false
-                                Write-Color -Text "[-] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDisable.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                                if (-not $DontWriteToEventLog) {
-                                    Write-Event -ID 11 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) failed." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
-                                }
-                                foreach ($W in $Warnings) {
-                                    Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                                }
-                                $Computer.ActionComment = $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
-                            }
-                        }
-                    }
+                $Success = $true
+                if ($DisableAndMoveOrder -eq 'DisableAndMove') {
+                    $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
+                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server
+                } else {
+                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server
+                    $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
                 }
                 if ($Success) {
                     if ($DisableModifyDescription -eq $true) {
@@ -124,14 +84,15 @@
                 } else {
                     $Computer.ActionStatus = $Success
                 }
-                if ($Move -or $Delete) {
-                    # we only add to processed list if Move or Delete are also enabled
-                    # otherwise it makes no sense to add computers to processed list
-                    if (-not $DoNotAddToPendingList) {
-                        $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
-                        $ProcessedComputers[$FullComputerName] = $Computer
-                    }
+
+                # We add computer to pending list in all cases because otherwise we would be going in circles
+                # if move or delete were not enabled
+                # please use -DoNotAddToPendingList if you don't want to add computer to pending list
+                if (-not $DoNotAddToPendingList) {
+                    $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
+                    $ProcessedComputers[$FullComputerName] = $Computer
                 }
+
                 # return computer to $ReportDisabled so we can see summary just in case
                 $Computer
                 $CountDisable++
