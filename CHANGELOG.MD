@@ -1,4 +1,4 @@
-﻿### 2.7.0
+﻿### 2.7.0 - 2024.07.31
 - Added `DisableAndMoveOrder` to allow for moving computers before disabling them when DisableAndMove is enabled. Options are: `DisableAndMove`, `MoveAndDisable`. Default is `DisableAndMove` (current setting)
 - Improve handling of processed list when moving computers
 - Improve output in HTML report
