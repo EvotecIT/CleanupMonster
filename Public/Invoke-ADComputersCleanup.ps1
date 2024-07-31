@@ -18,6 +18,10 @@
     It's integral part of disabling process.
     If you want Move as a separate process, use Move settings.
 
+    .PARAMETER DisableAndMoveOrder
+    Order of the Disable and Move process. Default is 'DisableAndMove'.
+    If you want to move computers first and then disable them, use 'MoveAndDisable'.
+
     .PARAMETER DisableIsEnabled
     Disable computer only if it's Enabled or only if it's Disabled.
     By default it will try to disable all computers that are either disabled or enabled.
@@ -445,6 +449,10 @@
         # Disable options
         [switch] $Disable,
         [switch] $DisableAndMove,
+        [ValidateSet(
+            'DisableAndMove',
+            'MoveAndDisable'
+        )][string] $DisableAndMoveOrder = 'DisableAndMove',
         [nullable[bool]] $DisableIsEnabled,
         [nullable[bool]] $DisableNoServicePrincipalName,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
@@ -541,51 +549,54 @@
     # prepare configuration
     $DisableOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                   = $DisableIsEnabled
-        NoServicePrincipalName      = $DisableNoServicePrincipalName
-        LastLogonDateMoreThan       = $DisableLastLogonDateMoreThan
-        PasswordLastSetMoreThan     = $DisablePasswordLastSetMoreThan
-        ExcludeSystems              = $DisableExcludeSystems
-        IncludeSystems              = $DisableIncludeSystems
-        ExcludeServicePrincipalName = $DisableExcludeServicePrincipalName
-        IncludeServicePrincipalName = $DisableIncludeServicePrincipalName
-        PasswordLastSetOlderThan    = $DisablePasswordLastSetOlderThan
-        LastLogonDateOlderThan      = $DisableLastLogonDateOlderThan
+        IsEnabled                    = $DisableIsEnabled
+        NoServicePrincipalName       = $DisableNoServicePrincipalName
+        LastLogonDateMoreThan        = $DisableLastLogonDateMoreThan
+        PasswordLastSetMoreThan      = $DisablePasswordLastSetMoreThan
+        ExcludeSystems               = $DisableExcludeSystems
+        IncludeSystems               = $DisableIncludeSystems
+        ExcludeServicePrincipalName  = $DisableExcludeServicePrincipalName
+        IncludeServicePrincipalName  = $DisableIncludeServicePrincipalName
+        PasswordLastSetOlderThan     = $DisablePasswordLastSetOlderThan
+        LastLogonDateOlderThan       = $DisableLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan      = $DisableLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan       = $DisableLastSeenIntuneMoreThan
         # Azure
-        LastSyncAzureMoreThan       = $DisableLastSyncAzureMoreThan
-        LastSeenAzureMoreThan       = $DisableLastSeenAzureMoreThan
+        LastSyncAzureMoreThan        = $DisableLastSyncAzureMoreThan
+        LastSeenAzureMoreThan        = $DisableLastSeenAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan     = $DisableLastContactJamfMoreThan
+        LastContactJamfMoreThan      = $DisableLastContactJamfMoreThan
 
-        DoNotAddToPendingList       = $DisableDoNotAddToPendingList
+        DoNotAddToPendingList        = $DisableDoNotAddToPendingList
+        MoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
+        DisableAndMove               = $DisableAndMove.IsPresent
     }
 
     $MoveOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                   = $MoveIsEnabled
-        NoServicePrincipalName      = $MoveNoServicePrincipalName
-        LastLogonDateMoreThan       = $MoveLastLogonDateMoreThan
-        PasswordLastSetMoreThan     = $MovePasswordLastSetMoreThan
-        ListProcessedMoreThan       = $MoveListProcessedMoreThan
-        ExcludeSystems              = $MoveExcludeSystems
-        IncludeSystems              = $MoveIncludeSystems
-        ExcludeServicePrincipalName = $MoveExcludeServicePrincipalName
-        IncludeServicePrincipalName = $MoveIncludeServicePrincipalName
-        PasswordLastSetOlderThan    = $MovePasswordLastSetOlderThan
-        LastLogonDateOlderThan      = $MoveLastLogonDateOlderThan
+        IsEnabled                    = $MoveIsEnabled
+        NoServicePrincipalName       = $MoveNoServicePrincipalName
+        LastLogonDateMoreThan        = $MoveLastLogonDateMoreThan
+        PasswordLastSetMoreThan      = $MovePasswordLastSetMoreThan
+        ListProcessedMoreThan        = $MoveListProcessedMoreThan
+        ExcludeSystems               = $MoveExcludeSystems
+        IncludeSystems               = $MoveIncludeSystems
+        ExcludeServicePrincipalName  = $MoveExcludeServicePrincipalName
+        IncludeServicePrincipalName  = $MoveIncludeServicePrincipalName
+        PasswordLastSetOlderThan     = $MovePasswordLastSetOlderThan
+        LastLogonDateOlderThan       = $MoveLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan      = $MoveLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan       = $MoveLastSeenIntuneMoreThan
         # Azure
-        LastSeenAzureMoreThan       = $MoveLastSeenAzureMoreThan
-        LastSyncAzureMoreThan       = $MoveLastSyncAzureMoreThan
+        LastSeenAzureMoreThan        = $MoveLastSeenAzureMoreThan
+        LastSyncAzureMoreThan        = $MoveLastSyncAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan     = $MoveLastContactJamfMoreThan
+        LastContactJamfMoreThan      = $MoveLastContactJamfMoreThan
         # special option for move only
-        TargetOrganizationalUnit    = $MoveTargetOrganizationalUnit
+        TargetOrganizationalUnit     = $MoveTargetOrganizationalUnit
 
-        DoNotAddToPendingList       = $MoveDoNotAddToPendingList
+        DoNotAddToPendingList        = $MoveDoNotAddToPendingList
+        #MoveTargetOrganizationalUnit = $MoveTargetOrganizationalUnit
     }
 
     $DeleteOnlyIf = [ordered] @{
@@ -760,6 +771,7 @@
             DisableMoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
 
             DoNotAddToPendingList               = $DisableDoNotAddToPendingList
+            DisableAndMoveOrder                 = $DisableAndMoveOrder
         }
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
     }
@@ -886,6 +898,7 @@
             MoveOnlyIf         = $MoveOnlyIf
             Delete             = $Delete
             Disable            = $Disable
+            Move               = $Move
             ReportOnly         = $ReportOnly
         }
         Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
