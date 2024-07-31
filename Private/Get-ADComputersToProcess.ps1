@@ -32,6 +32,18 @@
     $Count = 0
     $Today = Get-Date
 
+    # Let's cache the destination move, if we have them
+    $CachedDestinationMove = @{}
+    if ($ActionIf.MoveTargetOrganizationalUnit -is [string]) {
+        $Domain = ConvertFrom-DistinguishedName -DistinguishedName $ActionIf.MoveTargetOrganizationalUnit -ToDomainCN
+        $CachedDestinationMove[$ActionIf.MoveTargetOrganizationalUnit] = $Domain
+    } elseif ($ActionIf.MoveTargetOrganizationalUnit -is [System.Collections.IDictionary]) {
+        foreach ($Domain in $ActionIf.MoveTargetOrganizationalUnit.Keys) {
+            $OU = $ActionIf.MoveTargetOrganizationalUnit[$Domain]
+            $CachedDestinationMove[$OU] = $Domain
+        }
+    }
+
     Write-Color -Text "[i] ", "Looking for computers to $Type" -Color Yellow, Cyan, Green
     :SkipComputer foreach ($Computer in $Computers) {
         if ($Type -eq 'Delete') {
@@ -71,6 +83,14 @@
                         # We checked and it seems the computer has been enabled since it was added to list, we remove it from the list and reprocess
                         Write-Color -Text "[*] Removing computer from pending list (computer is enabled) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
                         $ProcessedComputers.Remove($FullComputerName)
+                    } elseif ($ActionIf.DisableAndMove -and $Computer.Enabled -eq $false) {
+                        if ($ActionIf.MoveTargetOrganizationalUnit) {
+                            if (-not $CachedDestinationMove[$Computer.OrganizationalUnit]) {
+                                # We checked and it seems the computer has been moved since it was added to list, we remove it from the list and reprocess
+                                Write-Color -Text "[*] Removing computer from pending list (computer is moved out of pending deletion OU) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
+                                $ProcessedComputers.Remove($FullComputerName)
+                            }
+                        }
                     } else {
                         # we skip adding to disabled because it's already on the list for removing
                         continue SkipComputer
