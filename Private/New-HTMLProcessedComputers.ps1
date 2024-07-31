@@ -154,7 +154,7 @@
             New-HTMLSection -Invisible {
                 New-HTMLPanel {
                     if ($Disable) {
-                        New-HTMLText -Text "Computers will be disabled only if: " -FontWeight bold
+                        New-HTMLText -Text "Computers will be disabled (and moved) only if: " -FontWeight bold
                         New-HTMLList {
                             foreach ($Key in $DisableOnlyIf.Keys) {
                                 $newHTMLListItemSplat = @{
