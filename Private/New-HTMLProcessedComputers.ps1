@@ -12,6 +12,7 @@
         [string] $LogFile,
         [switch] $Disable,
         [switch] $Delete,
+        [switch] $Move,
         [switch] $ReportOnly
     )
 
@@ -156,23 +157,46 @@
                         New-HTMLText -Text "Computers will be disabled only if: " -FontWeight bold
                         New-HTMLList {
                             foreach ($Key in $DisableOnlyIf.Keys) {
-                                New-HTMLListItem -Text @(
-                                    if ($null -eq $DisableOnlyIf[$Key] -or $DisableOnlyIf[$Key].Count -eq 0) {
-                                        $($Key), " is ", 'Not Set'
-                                        $ColorInUse = 'Cinnabar'
-                                    } else {
-                                        if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
-                                            $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never logged on"
-                                        } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
-                                            $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never changed"
-                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
-                                            $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never synced/seen"
+                                $newHTMLListItemSplat = @{
+                                    Text       = @(
+                                        if ($null -eq $DisableOnlyIf[$Key] -or $DisableOnlyIf[$Key].Count -eq 0) {
+                                            $($Key), " is ", 'Not Set'
+                                            $ColorInUse = 'Cinnabar'
                                         } else {
-                                            $($Key), " is ", $($DisableOnlyIf[$Key])
+                                            if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
+                                                $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never logged on"
+                                            } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
+                                                $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never changed"
+                                            } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
+                                                $($Key), " is ", $($DisableOnlyIf[$Key]), " or ", "Never synced/seen"
+                                            } elseif ($Key -in 'MoveTargetOrganizationalUnit') {
+                                                if ($DisableOnlyIf[$Key] -is [string]) {
+                                                    $($Key), " is ", $MoveOnlyIf[$Key]
+                                                } elseif ($DisableOnlyIf[$Key] -is [System.Collections.IDictionary]) {
+                                                    $Key
+                                                }
+                                            } else {
+                                                $($Key), " is ", $($DisableOnlyIf[$Key])
+                                            }
+                                            $ColorInUse = 'Apple'
                                         }
-                                        $ColorInUse = 'Apple'
+                                    )
+                                    FontWeight = 'bold', 'normal', 'bold', 'normal', 'bold'
+                                    Color      = $ColorInUse, 'None', 'CornflowerBlue', 'None', 'CornflowerBlue'
+
+                                }
+                                if ($Key -eq 'MoveTargetOrganizationalUnit') {
+                                    $newHTMLListItemSplat.NestedListItems = {
+                                        New-HTMLList {
+                                            foreach ($MoveKey in $DisableOnlyIf[$Key].Keys) {
+                                                New-HTMLListItem -Text @(
+                                                    $MoveKey, " to ", $DisableOnlyIf[$Key][$MoveKey]
+                                                ) -FontWeight 'bold', 'normal', 'bold', 'normal', 'bold' -Color $ColorInUse, 'None', 'CornflowerBlue', 'None', 'CornflowerBlue'
+                                            }
+                                        }
                                     }
-                                ) -FontWeight bold, normal, bold, normal, bold -Color $ColorInUse, None, CornflowerBlue, None, CornflowerBlue
+                                }
+                                New-HTMLListItem @newHTMLListItemSplat
                             }
                         }
                     } else {
@@ -180,27 +204,49 @@
                     }
                 }
                 New-HTMLPanel {
-                    if ($Disable) {
+                    if ($Move) {
                         New-HTMLText -Text "Computers will be moved only if: " -FontWeight bold
                         New-HTMLList {
                             foreach ($Key in $MoveOnlyIf.Keys) {
-                                New-HTMLListItem -Text @(
-                                    if ($null -eq $MoveOnlyIf[$Key] -or $MoveOnlyIf[$Key].Count -eq 0) {
-                                        $($Key), " is ", 'Not Set'
-                                        $ColorInUse = 'Cinnabar'
-                                    } else {
-                                        if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
-                                            $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never logged on"
-                                        } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
-                                            $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never changed"
-                                        } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
-                                            $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never synced/seen"
+                                $newHTMLListItemSplat = @{
+                                    Text       = @(
+                                        if ($null -eq $MoveOnlyIf[$Key] -or $MoveOnlyIf[$Key].Count -eq 0) {
+                                            $($Key), " is ", 'Not Set'
+                                            $ColorInUse = 'Cinnabar'
                                         } else {
-                                            $($Key), " is ", $($MoveOnlyIf[$Key])
+                                            if ($Key -in 'LastLogonDateMoreThan', 'LastLogonDateOlderThan') {
+                                                $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never logged on"
+                                            } elseif ($Key -in 'PasswordLastSetMoreThan', 'PasswordLastSetOlderThan') {
+                                                $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never changed"
+                                            } elseif ($Key -in 'LastSeenAzureMoreThan', 'LastSeenIntuneMoreThan', 'LastSyncAzureMoreThan', 'LastContactJamfMoreThan') {
+                                                $($Key), " is ", $($MoveOnlyIf[$Key]), " or ", "Never synced/seen"
+                                            } elseif ($Key -in 'TargetOrganizationalUnit') {
+                                                if ($MoveOnlyIf[$Key] -is [string]) {
+                                                    $($Key), " is ", $MoveOnlyIf[$Key]
+                                                } elseif ($MoveOnlyIf[$Key] -is [System.Collections.IDictionary]) {
+                                                    $Key
+                                                }
+                                            } else {
+                                                $($Key), " is ", $($MoveOnlyIf[$Key])
+                                            }
+                                            $ColorInUse = 'Apple'
                                         }
-                                        $ColorInUse = 'Apple'
+                                    )
+                                    FontWeight = 'bold', 'normal', 'bold', 'normal', 'bold'
+                                    Color      = $ColorInUse, 'None', 'CornflowerBlue', 'None', 'CornflowerBlue'
+                                }
+                                if ($Key -eq 'TargetOrganizationalUnit') {
+                                    $newHTMLListItemSplat.NestedListItems = {
+                                        New-HTMLList {
+                                            foreach ($MoveKey in $MoveOnlyIf[$Key].Keys) {
+                                                New-HTMLListItem -Text @(
+                                                    $MoveKey, " to ", $MoveOnlyIf[$Key][$MoveKey]
+                                                ) -FontWeight 'bold', 'normal', 'bold', 'normal', 'bold' -Color $ColorInUse, 'None', 'CornflowerBlue', 'None', 'CornflowerBlue'
+                                            }
+                                        }
                                     }
-                                ) -FontWeight bold, normal, bold, normal, bold -Color $ColorInUse, None, CornflowerBlue, None, CornflowerBlue
+                                }
+                                New-HTMLListItem @newHTMLListItemSplat
                             }
                         }
                     } else {
