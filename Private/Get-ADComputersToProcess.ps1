@@ -90,9 +90,11 @@
                                 Write-Color -Text "[*] Removing computer from pending list (computer is moved out of pending deletion OU) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
                                 $ProcessedComputers.Remove($FullComputerName)
                             } else {
+                                # We checked and it seems the computer is in place where it's supposed to, we skip to next computer
                                 continue SkipComputer
                             }
                         } else {
+                            # We checked and it seems the computer is in place where it's supposed to, we skip to next computer
                             continue SkipComputer
                         }
                     } else {
