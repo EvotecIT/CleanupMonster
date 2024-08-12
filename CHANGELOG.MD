@@ -1,4 +1,7 @@
-﻿### 2.7.1 - 2024.08.07
+﻿### 2.7.2 - 2024.08.12
+- Fixes for processing computer over and over again when moving computers
+
+### 2.7.1 - 2024.08.07
 - Fixes bad export of aliases in module
 
 ### 2.7.0 - 2024.07.31
