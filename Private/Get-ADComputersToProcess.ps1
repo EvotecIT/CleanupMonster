@@ -89,7 +89,11 @@
                                 # We checked and it seems the computer has been moved since it was added to list, we remove it from the list and reprocess
                                 Write-Color -Text "[*] Removing computer from pending list (computer is moved out of pending deletion OU) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
                                 $ProcessedComputers.Remove($FullComputerName)
+                            } else {
+                                continue SkipComputer
                             }
+                        } else {
+                            continue SkipComputer
                         }
                     } else {
                         # we skip adding to disabled because it's already on the list for removing
