@@ -38,6 +38,9 @@
     .PARAMETER DisablePasswordLastSetMoreThan
     Disable computer only if it has a PasswordLastSet that is more than the specified number of days.
 
+    .PARAMETER DisableRequireWhenCreatedMoreThan
+    Disable computer only if it was created more than the specified number of days ago.
+
     .PARAMETER DisablePasswordLastSetOlderThan
     Disable computer only if it has a PasswordLastSet that is older than the specified date.
 
@@ -113,6 +116,9 @@
 
     .PARAMETER DeletePasswordLastSetMoreThan
     Delete computer only if it has a PasswordLastSet that is more than the specified number of days.
+
+    .PARAMETER DeleteRequireWhenCreatedMoreThan
+    Delete computer only if it was created more than the specified number of days ago.
 
     .PARAMETER DeleteListProcessedMoreThan
     Delete computer only if it has been processed by this script more than the specified number of days ago.
@@ -196,6 +202,9 @@
 
     .PARAMETER MovePasswordLastSetOlderThan
     Move computer only if it has a PasswordLastSet that is older than the specified date.
+
+    .PARAMETER MoveRequireWhenCreatedMoreThan
+    Move computer only if it was created more than the specified number of days ago.
 
     .PARAMETER MoveLastLogonDateOlderThan
     Move computer only if it has a LastLogonDate that is older than the specified date.
@@ -457,6 +466,7 @@
         [nullable[bool]] $DisableNoServicePrincipalName,
         [nullable[int]] $DisableLastLogonDateMoreThan = 180,
         [nullable[int]] $DisablePasswordLastSetMoreThan = 180,
+        [nullable[int]] $DisableRequireWhenCreatedMoreThan = 90,
         [nullable[DateTime]] $DisablePasswordLastSetOlderThan,
         [nullable[DateTime]] $DisableLastLogonDateOlderThan,
         [nullable[int]] $DisableLastSeenAzureMoreThan,
@@ -477,6 +487,7 @@
         [nullable[int]] $MoveLastLogonDateMoreThan,
         [nullable[int]] $MovePasswordLastSetMoreThan,
         [nullable[int]] $MoveListProcessedMoreThan,
+        [nullable[int]] $MoveRequireWhenCreatedMoreThan,
         [nullable[DateTime]] $MovePasswordLastSetOlderThan,
         [nullable[DateTime]] $MoveLastLogonDateOlderThan,
         [nullable[int]] $MoveLastSeenAzureMoreThan,
@@ -495,6 +506,7 @@
         [nullable[bool]] $DeleteNoServicePrincipalName,
         [nullable[int]] $DeleteLastLogonDateMoreThan = 180,
         [nullable[int]] $DeletePasswordLastSetMoreThan = 180,
+        [nullable[int]] $DeleteRequireWhenCreatedMoreThan = 90,
         [nullable[int]] $DeleteListProcessedMoreThan,
         [nullable[DateTime]] $DeletePasswordLastSetOlderThan,
         [nullable[DateTime]] $DeleteLastLogonDateOlderThan,
@@ -570,33 +582,35 @@
         DoNotAddToPendingList        = $DisableDoNotAddToPendingList
         MoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
         DisableAndMove               = $DisableAndMove.IsPresent
+        RequireWhenCreatedMoreThan   = $DisableRequireWhenCreatedMoreThan
     }
 
     $MoveOnlyIf = [ordered] @{
         # Active directory
-        IsEnabled                    = $MoveIsEnabled
-        NoServicePrincipalName       = $MoveNoServicePrincipalName
-        LastLogonDateMoreThan        = $MoveLastLogonDateMoreThan
-        PasswordLastSetMoreThan      = $MovePasswordLastSetMoreThan
-        ListProcessedMoreThan        = $MoveListProcessedMoreThan
-        ExcludeSystems               = $MoveExcludeSystems
-        IncludeSystems               = $MoveIncludeSystems
-        ExcludeServicePrincipalName  = $MoveExcludeServicePrincipalName
-        IncludeServicePrincipalName  = $MoveIncludeServicePrincipalName
-        PasswordLastSetOlderThan     = $MovePasswordLastSetOlderThan
-        LastLogonDateOlderThan       = $MoveLastLogonDateOlderThan
+        IsEnabled                   = $MoveIsEnabled
+        NoServicePrincipalName      = $MoveNoServicePrincipalName
+        LastLogonDateMoreThan       = $MoveLastLogonDateMoreThan
+        PasswordLastSetMoreThan     = $MovePasswordLastSetMoreThan
+        ListProcessedMoreThan       = $MoveListProcessedMoreThan
+        ExcludeSystems              = $MoveExcludeSystems
+        IncludeSystems              = $MoveIncludeSystems
+        ExcludeServicePrincipalName = $MoveExcludeServicePrincipalName
+        IncludeServicePrincipalName = $MoveIncludeServicePrincipalName
+        PasswordLastSetOlderThan    = $MovePasswordLastSetOlderThan
+        LastLogonDateOlderThan      = $MoveLastLogonDateOlderThan
         # Intune
-        LastSeenIntuneMoreThan       = $MoveLastSeenIntuneMoreThan
+        LastSeenIntuneMoreThan      = $MoveLastSeenIntuneMoreThan
         # Azure
-        LastSeenAzureMoreThan        = $MoveLastSeenAzureMoreThan
-        LastSyncAzureMoreThan        = $MoveLastSyncAzureMoreThan
+        LastSeenAzureMoreThan       = $MoveLastSeenAzureMoreThan
+        LastSyncAzureMoreThan       = $MoveLastSyncAzureMoreThan
         # Jamf
-        LastContactJamfMoreThan      = $MoveLastContactJamfMoreThan
+        LastContactJamfMoreThan     = $MoveLastContactJamfMoreThan
         # special option for move only
-        TargetOrganizationalUnit     = $MoveTargetOrganizationalUnit
+        TargetOrganizationalUnit    = $MoveTargetOrganizationalUnit
 
-        DoNotAddToPendingList        = $MoveDoNotAddToPendingList
+        DoNotAddToPendingList       = $MoveDoNotAddToPendingList
         #MoveTargetOrganizationalUnit = $MoveTargetOrganizationalUnit
+        RequireWhenCreatedMoreThan  = $MoveRequireWhenCreatedMoreThan
     }
 
     $DeleteOnlyIf = [ordered] @{
@@ -619,6 +633,7 @@
         LastSyncAzureMoreThan       = $DeleteLastSyncAzureMoreThan
         # Jamf
         LastContactJamfMoreThan     = $DeleteLastContactJamfMoreThan
+        RequireWhenCreatedMoreThan  = $DeleteRequireWhenCreatedMoreThan
     }
 
     if (-not $DataStorePath) {

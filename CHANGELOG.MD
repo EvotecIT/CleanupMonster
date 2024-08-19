@@ -1,4 +1,11 @@
-﻿### 2.7.2 - 2024.08.12
+﻿### 2.8.0 - 2024.08.19
+Added 3 new parameters:
+- `DisableRequireWhenCreatedMoreThan` - disable computers only if they were created more than X days ago
+- `MoveRequireWhenCreatedMoreThan` - move computers only if they were created more than X days ago
+- `DeleteRequireWhenCreatedMoreThan` - delete computers only if they were created more than X days ago
+This is to prevent completly new computers being disabled, moved or deleted. By default Disable/Delete are set to old than 90 days old, and Move is not set at all.
+
+### 2.7.2 - 2024.08.12
 - Fixes for processing computer over and over again when moving computers
 
 ### 2.7.1 - 2024.08.07

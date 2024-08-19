@@ -104,6 +104,17 @@
                 }
             }
         }
+        if ($ActionIf.RequireWhenCreatedMoreThan) {
+            # This runs only if more than 0
+            if ($Computer.WhenCreated) {
+                # We ignore empty
+
+                $TimeToCompare = ($Computer.WhenCreated).AddDays($ActionIf.RequireWhenCreatedMoreThan)
+                if ($TimeToCompare -gt $Today) {
+                    continue SkipComputer
+                }
+            }
+        }
         # rest of actions are same for all types
         foreach ($PartialExclusion in $Exclusions) {
             if ($Computer.DistinguishedName -like "$PartialExclusion") {
