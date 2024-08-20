@@ -1,4 +1,7 @@
-﻿### 2.8.0 - 2024.08.19
+﻿### 2.8.1 - 2024.08.20
+- Add `ProtectedFromAccidentalDeletion` to the report
+
+### 2.8.0 - 2024.08.19
 Added 3 new parameters:
 - `DisableRequireWhenCreatedMoreThan` - disable computers only if they were created more than X days ago
 - `MoveRequireWhenCreatedMoreThan` - move computers only if they were created more than X days ago
