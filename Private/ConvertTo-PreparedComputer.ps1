@@ -54,21 +54,22 @@
 
 
         $DataStart = [ordered] @{
-            'DNSHostName'             = $Computer.DNSHostName
-            'SamAccountName'          = $Computer.SamAccountName
-            'DomainName'              = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
-            'Enabled'                 = $Computer.Enabled
-            'Action'                  = 'Not required'
-            'ActionStatus'            = $null
-            'ActionDate'              = $null
-            'ActionComment'           = $null
-            'OperatingSystem'         = $Computer.OperatingSystem
-            'OperatingSystemVersion'  = $Computer.OperatingSystemVersion
-            'OperatingSystemLong'     = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
-            'LastLogonDate'           = $Computer.LastLogonDate
-            'LastLogonDays'           = $LastLogonDays
-            'PasswordLastSet'         = $Computer.PasswordLastSet
-            'PasswordLastChangedDays' = $PasswordLastChangedDays
+            'DNSHostName'                     = $Computer.DNSHostName
+            'SamAccountName'                  = $Computer.SamAccountName
+            'DomainName'                      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
+            'Enabled'                         = $Computer.Enabled
+            'Action'                          = 'Not required'
+            'ActionStatus'                    = $null
+            'ActionDate'                      = $null
+            'ActionComment'                   = $null
+            'OperatingSystem'                 = $Computer.OperatingSystem
+            'OperatingSystemVersion'          = $Computer.OperatingSystemVersion
+            'OperatingSystemLong'             = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
+            'LastLogonDate'                   = $Computer.LastLogonDate
+            'LastLogonDays'                   = $LastLogonDays
+            'PasswordLastSet'                 = $Computer.PasswordLastSet
+            'PasswordLastChangedDays'         = $PasswordLastChangedDays
+            'ProtectedFromAccidentalDeletion' = $Computer.ProtectedFromAccidentalDeletion
         }
         $DataEnd = [ordered] @{
             'PasswordExpired'            = $Computer.PasswordExpired
