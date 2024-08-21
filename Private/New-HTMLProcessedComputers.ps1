@@ -289,6 +289,8 @@
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedByFilter' -BackgroundColor LightBlue
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedBySetting' -BackgroundColor LightPink
             } -WarningAction SilentlyContinue
         }
         if ($LogFile -and (Test-Path -LiteralPath $LogFile)) {
