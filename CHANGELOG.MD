@@ -1,4 +1,7 @@
-﻿### 2.8.1 - 2024.08.20
+﻿### 2.8.2 - 2024.08.21
+- Added to display `ExcludedByFilter`, `ExcludedBySetting` to HTML report. Keep in mind that standard filtering such as LastPassword/LastLogon/WhenCreated are ignored and are treated as "Not required".
+
+### 2.8.1 - 2024.08.20
 - Add `ProtectedFromAccidentalDeletion` to the report
 
 ### 2.8.0 - 2024.08.19
