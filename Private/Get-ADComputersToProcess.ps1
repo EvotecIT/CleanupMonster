@@ -104,32 +104,40 @@
                 }
             }
         }
-        if ($ActionIf.RequireWhenCreatedMoreThan) {
-            # This runs only if more than 0
-            if ($Computer.WhenCreated) {
-                # We ignore empty
 
-                $TimeToCompare = ($Computer.WhenCreated).AddDays($ActionIf.RequireWhenCreatedMoreThan)
-                if ($TimeToCompare -gt $Today) {
-                    continue SkipComputer
-                }
-            }
-        }
         # rest of actions are same for all types
         foreach ($PartialExclusion in $Exclusions) {
             if ($Computer.DistinguishedName -like "$PartialExclusion") {
+                $Computer.'Action' = 'ExcludedByFilter'
                 continue SkipComputer
             }
             if ($Computer.SamAccountName -like "$PartialExclusion") {
+                $Computer.'Action' = 'ExcludedByFilter'
                 continue SkipComputer
             }
             if ($Computer.DNSHostName -like "$PartialExclusion") {
+                $Computer.'Action' = 'ExcludedByFilter'
+                continue SkipComputer
+            }
+        }
+        if ($ActionIf.IncludeSystems.Count -gt 0) {
+            $FoundInclude = $false
+            foreach ($Include in $ActionIf.IncludeSystems) {
+                if ($Computer.OperatingSystem -like $Include) {
+                    $FoundInclude = $true
+                    break
+                }
+            }
+            # If not found in includes we need to skip the computer
+            if (-not $FoundInclude) {
+                $Computer.'Action' = 'ExcludedBySetting'
                 continue SkipComputer
             }
         }
         if ($ActionIf.ExcludeServicePrincipalName.Count -gt 0) {
             foreach ($ExcludeSPN in $ActionIf.ExcludeServicePrincipalName) {
                 if ($Computer.servicePrincipalName -like "$ExcludeSPN") {
+                    $Computer.'Action' = 'ExcludedBySetting'
                     continue SkipComputer
                 }
             }
@@ -144,27 +152,40 @@
             }
             # If not found in includes we need to skip the computer
             if (-not $FoundInclude) {
+                $Computer.'Action' = 'ExcludedBySetting'
                 continue SkipComputer
             }
         }
         if ($ActionIf.ExcludeSystems.Count -gt 0) {
             foreach ($Exclude in $ActionIf.ExcludeSystems) {
                 if ($Computer.OperatingSystem -like $Exclude) {
+                    $Computer.'Action' = 'ExcludedBySetting'
                     continue SkipComputer
                 }
             }
         }
-        if ($ActionIf.IncludeSystems.Count -gt 0) {
-            $FoundInclude = $false
-            foreach ($Include in $ActionIf.IncludeSystems) {
-                if ($Computer.OperatingSystem -like $Include) {
-                    $FoundInclude = $true
-                    break
-                }
-            }
-            # If not found in includes we need to skip the computer
-            if (-not $FoundInclude) {
+        if ($ActionIf.NoServicePrincipalName -eq $true) {
+            # action computer only if it has no service principal names defined
+            if ($Computer.servicePrincipalName.Count -gt 0) {
+                $Computer.'Action' = 'ExcludedBySetting'
                 continue SkipComputer
+            }
+        } elseif ($ActionIf.NoServicePrincipalName -eq $false) {
+            # action computer only if it has service principal names defined
+            if ($Computer.servicePrincipalName.Count -eq 0) {
+                $Computer.'Action' = 'ExcludedBySetting'
+                continue SkipComputer
+            }
+        }
+        if ($ActionIf.RequireWhenCreatedMoreThan) {
+            # This runs only if more than 0
+            if ($Computer.WhenCreated) {
+                # We ignore empty
+
+                $TimeToCompare = ($Computer.WhenCreated).AddDays($ActionIf.RequireWhenCreatedMoreThan)
+                if ($TimeToCompare -gt $Today) {
+                    continue SkipComputer
+                }
             }
         }
         if ($ActionIf.IsEnabled -eq $true) {
@@ -175,18 +196,6 @@
         } elseif ($ActionIf.IsEnabled -eq $false) {
             # action computer only if it's Disabled
             if ($Computer.Enabled -eq $true) {
-                continue SkipComputer
-            }
-        }
-
-        if ($ActionIf.NoServicePrincipalName -eq $true) {
-            # action computer only if it has no service principal names defined
-            if ($Computer.servicePrincipalName.Count -gt 0) {
-                continue SkipComputer
-            }
-        } elseif ($ActionIf.NoServicePrincipalName -eq $false) {
-            # action computer only if it has service principal names defined
-            if ($Computer.servicePrincipalName.Count -eq 0) {
                 continue SkipComputer
             }
         }
@@ -234,7 +243,6 @@
                 }
             }
         }
-
         if ($IncludeAzureAD) {
             if ($null -ne $ActionIf.LastSeenAzureMoreThan -and $null -ne $Computer.AzureLastSeenDays) {
                 if ($Computer.AzureLastSeenDays -le $ActionIf.LastSeenAzureMoreThan) {

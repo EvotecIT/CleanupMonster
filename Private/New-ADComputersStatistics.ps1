@@ -47,6 +47,17 @@
             PasswordLastChangedDays = [ordered] @{}
             Systems                 = [ordered] @{}
         }
+        'ExcludedBySetting'          = [ordered] @{
+            LastLogonDays           = [ordered] @{}
+            PasswordLastChangedDays = [ordered] @{}
+            Systems                 = [ordered] @{}
+        }
+        'ExcludedByFilter'           = [ordered] @{
+            LastLogonDays           = [ordered] @{}
+            PasswordLastChangedDays = [ordered] @{}
+            Systems                 = [ordered] @{}
+        }
+
     }
     foreach ($Computer in $ComputersToProcess) {
         if ($Computer.OperatingSystem -like "Windows Server*") {
