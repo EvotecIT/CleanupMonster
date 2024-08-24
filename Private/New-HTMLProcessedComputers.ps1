@@ -293,11 +293,15 @@
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedBySetting' -BackgroundColor LightPink
             } -WarningAction SilentlyContinue
         }
-        if ($LogFile -and (Test-Path -LiteralPath $LogFile)) {
-            $LogContent = Get-Content -Raw -LiteralPath $LogFile
-            New-HTMLTab -Name 'Log' {
-                New-HTMLCodeBlock -Code $LogContent -Style generic
+        try {
+            if ($LogFile -and (Test-Path -LiteralPath $LogFile -ErrorAction Stop)) {
+                $LogContent = Get-Content -Raw -LiteralPath $LogFile -ErrorAction Stop
+                New-HTMLTab -Name 'Log' {
+                    New-HTMLCodeBlock -Code $LogContent -Style generic
+                }
             }
+        } catch {
+            Write-Color -Text "[e] ", "Couldn't read the log file. Skipping adding log to HTML. Error: $($_.Exception.Message)" -Color Yellow, Red
         }
     } -FilePath $FilePath -Online:$Online.IsPresent -ShowHTML:$ShowHTML.IsPresent
 }

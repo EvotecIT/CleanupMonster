@@ -8,7 +8,7 @@
     $ProcessedComputers = [ordered] @{ }
 
     try {
-        if ($DataStorePath -and (Test-Path -LiteralPath $DataStorePath)) {
+        if ($DataStorePath -and (Test-Path -LiteralPath $DataStorePath -ErrorAction Stop)) {
             $FileImport = Import-Clixml -LiteralPath $DataStorePath -ErrorAction Stop
             # convert old format to new format
             $FileImport = Convert-ListProcessed -FileImport $FileImport
