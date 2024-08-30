@@ -57,6 +57,8 @@ Install-Module -Name CleanupMonster -Force -Verbose
 
 ## Using the module
 
+Here's a short blog post about the module: [Mastering Active Directory Hygiene: Automating Stale Computer Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-stale-computer-cleanup-with-cleanupmonster/) to help you get started.
+
 ### Cleaning Active Directory
 
 #### Report Only
