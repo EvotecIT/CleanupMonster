@@ -9,6 +9,15 @@
     that have not been logged on for a certain amount of time.
     It has many options to customize the cleanup process.
 
+    .PARAMETER Forest
+    Forest to use when connecting to Active Directory.
+
+    .PARAMETER IncludeDomains
+    List of domains to include in the process.
+
+    .PARAMETER ExcludeDomains
+    List of domains to exclude from the process.
+
     .PARAMETER Disable
     Enable the disable process, meaning the computers that meet the criteria will be disabled.
 
@@ -17,7 +26,7 @@
     This is useful if you want to disable computers first and then move them to a different OU right after.
     It's integral part of disabling process.
     If you want Move as a separate process, use Move settings.
-
+    
     .PARAMETER DisableAndMoveOrder
     Order of the Disable and Move process. Default is 'DisableAndMove'.
     If you want to move computers first and then disable them, use 'MoveAndDisable'.
