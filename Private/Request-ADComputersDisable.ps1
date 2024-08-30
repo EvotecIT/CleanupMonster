@@ -23,8 +23,8 @@
     if ($DisableAndMove -and $DisableMoveTargetOrganizationalUnit) {
         if ($DisableMoveTargetOrganizationalUnit -is [System.Collections.IDictionary]) {
             $OrganizationalUnit = $DisableMoveTargetOrganizationalUnit
-        } elseif ($TargetOrganizationalUnit -is [string]) {
-            $DomainCN = ConvertFrom-DistinguishedName -DistinguishedName $TargetOrganizationalUnit -ToDomainCN
+        } elseif ($DisableMoveTargetOrganizationalUnit -is [string]) {
+            $DomainCN = ConvertFrom-DistinguishedName -DistinguishedName $DisableMoveTargetOrganizationalUnit -ToDomainCN
             $OrganizationalUnit = [ordered] @{
                 $DomainCN = $DisableMoveTargetOrganizationalUnit
             }
