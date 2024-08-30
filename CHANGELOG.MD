@@ -1,4 +1,7 @@
-﻿### 2.8.3 - 2024.08.30
+﻿### 2.8.4 - 2024.08.30
+- Update HTML report with additional colors
+
+### 2.8.3 - 2024.08.30
 - Fix wrong usage of string in `DisableMoveTargetOrganizationalUnit`
 
 ### 2.8.2 - 2024.08.21
