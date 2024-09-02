@@ -1,4 +1,15 @@
-﻿### 2.8.5 - 2024.09.02
+﻿### 2.8.6 - 2024.09.02
+- Filter now takes string or hashtable so it can be configured per domain
+- SearchBase was added. It can take string or hashtable so it can be configured per domain. If you use a string remember that it will only target a single domain and rest of the domains have to be excluded - closes [#13](https://github.com/EvotecIT/CleanupMonster/issues/13)
+
+```powershell
+SearchBase                          = @{
+    'ad.evotec.xyz' = 'DC=ad,DC=evotec,DC=xyz'
+    'ad.evotec.pl'  = 'DC=ad,DC=evotec,DC=pl'
+}
+```
+
+### 2.8.5 - 2024.09.02
 -Fixes for error in logging when using module interactively in console instead as a script
 
 ### 2.8.4 - 2024.08.30

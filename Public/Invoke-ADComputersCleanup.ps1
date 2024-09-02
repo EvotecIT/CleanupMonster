@@ -26,7 +26,7 @@
     This is useful if you want to disable computers first and then move them to a different OU right after.
     It's integral part of disabling process.
     If you want Move as a separate process, use Move settings.
-    
+
     .PARAMETER DisableAndMoveOrder
     Order of the Disable and Move process. Default is 'DisableAndMove'.
     If you want to move computers first and then disable them, use 'MoveAndDisable'.
@@ -306,6 +306,11 @@
     Filter to use when searching for computers in Get-ADComputer cmdlet.
     Default is '*'
 
+    .PARAMETER SearchBase
+    SearchBase to use when searching for computers in Get-ADComputer cmdlet.
+    Default is not set. It will search the whole domain.
+    You can provide a string or hashtable of domains with their SearchBase.
+
     .PARAMETER DataStorePath
     Path to the XML file that will be used to store the list of processed computers, current run, and history data.
     Default is $PSScriptRoot\ProcessedComputers.xml
@@ -535,7 +540,8 @@
         ),
         [switch] $DisableModifyDescription,
         [alias('DisableAdminModifyDescription')][switch] $DisableModifyAdminDescription,
-        [string] $Filter = '*',
+        [object] $Filter = '*',
+        [object] $SearchBase,
         [string] $DataStorePath,
         [switch] $ReportOnly,
         [int] $ReportMaximum,
@@ -726,6 +732,7 @@
         Report                = $Report
         ForestInformation     = $ForestInformation
         Filter                = $Filter
+        SearchBase            = $SearchBase
         Properties            = $Properties
         Disable               = $Disable
         Delete                = $Delete

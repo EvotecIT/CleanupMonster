@@ -3,7 +3,8 @@
     param(
         [System.Collections.IDictionary] $Report,
         [System.Collections.IDictionary] $ForestInformation,
-        [string] $Filter,
+        [object] $Filter,
+        [object] $SearchBase,
         [string[]] $Properties,
         [bool] $Disable,
         [bool] $Delete,
@@ -69,7 +70,53 @@
         $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
         $Report["$Domain"]['Server'] = $Server
         Write-Color "[i] Getting all computers for domain ", $Domain, " [", $CountDomains, "/", $ForestInformation.Domains.Count, "]" -Color Yellow, Magenta, Yellow
-        [Array] $Computers = Get-ADComputer -Filter $Filter -Server $Server -Properties $Properties
+
+        if ($Filter) {
+            if ($Filter -is [string]) {
+                $FilterToUse = $Filter
+            } elseif ($Filter -is [System.Collections.IDictionary]) {
+                $FilterToUse = $Filter[$Domain]
+            } else {
+                Write-Color "[e] ", "Filter must be a string or a hashtable/ordereddictionary" -Color Yellow, Red
+                return $false
+            }
+        } else {
+            $FilterToUse = "*"
+        }
+
+        if ($SearchBase) {
+            if ($SearchBase -is [string]) {
+                $SearchBaseToUse = $SearchBase
+            } elseif ($SearchBase -is [System.Collections.IDictionary]) {
+                $SearchBaseToUse = $SearchBase[$Domain]
+            } else {
+                Write-Color "[e] ", "SearchBase must be a string or a hashtable/ordereddictionary" -Color Yellow, Red
+                return $false
+            }
+        } else {
+            $SearchBaseToUse = $DomainInformation.DistinguishedName
+        }
+
+        $getADComputerSplat = @{
+            Filter      = $FilterToUse
+            Server      = $Server
+            Properties  = $Properties
+            ErrorAction = 'Stop'
+        }
+        if ($SearchBaseToUse) {
+            $getADComputerSplat.SearchBase = $SearchBaseToUse
+        }
+        try {
+            [Array] $Computers = Get-ADComputer @getADComputerSplat
+        } catch {
+            if ($_.Exception.Message -like "*distinguishedName must belong to one of the following partition*") {
+                Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
+                Write-Color "[e] ", "Please check if the distinguishedName for SearchBase is correct for the domain. If you have multiple domains please use Hashtable/Dictionary to provide relevant data or using IncludeDomains/ExcludeDomains functionality" -Color Yellow, Red
+            } else {
+                Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
+            }
+            return $false
+        }
         foreach ($Computer in $Computers) {
             # we will be using it later to just check if computer exists in AD
             $DomainName = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
