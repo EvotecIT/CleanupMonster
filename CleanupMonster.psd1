@@ -8,7 +8,7 @@
     Description          = 'This module provides an easy way to cleanup Active Directory from dead/old objects based on various criteria. It can also disable, move or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them.'
     FunctionsToExport    = 'Invoke-ADComputersCleanup'
     GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
-    ModuleVersion        = '2.8.4'
+    ModuleVersion        = '2.8.5'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
@@ -33,7 +33,7 @@
         }, @{
             Guid          = '5df72a79-cdf6-4add-b38d-bcacf26fb7bc'
             ModuleName    = 'PSEventViewer'
-            ModuleVersion = '2.0.0'
+            ModuleVersion = '2.1.0'
         }, 'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management', 'Microsoft.WSMan.Management', 'NetTCPIP')
     RootModule           = 'CleanupMonster.psm1'
 }

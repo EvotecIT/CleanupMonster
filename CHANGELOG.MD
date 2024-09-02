@@ -1,4 +1,7 @@
-﻿### 2.8.4 - 2024.08.30
+﻿### 2.8.5 - 2024.09.02
+-Fixes for error in logging when using module interactively in console instead as a script
+
+### 2.8.4 - 2024.08.30
 - Update HTML report with additional colors
 
 ### 2.8.3 - 2024.08.30
