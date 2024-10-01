@@ -661,6 +661,11 @@
     # lets create report path, reporting is enabled by default
     Set-ReportingCapabilities -ReportPath $ReportPath -ReportMaximum $ReportMaximum
 
+    $Success = Assert-InitialSettings -DisableOnlyIf $DisableOnlyIf -MoveOnlyIf $MoveOnlyIf -DeleteOnlyIf $DeleteOnlyIf
+    if ($Success -contains $false) {
+        return
+    }
+
     $Today = Get-Date
     $Properties = 'DistinguishedName', 'DNSHostName', 'SamAccountName', 'Enabled', 'OperatingSystem', 'OperatingSystemVersion', 'LastLogonDate', 'PasswordLastSet', 'PasswordExpired', 'servicePrincipalName', 'logonCount', 'ManagedBy', 'Description', 'WhenCreated', 'WhenChanged', 'ProtectedFromAccidentalDeletion'
 
