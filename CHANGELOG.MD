@@ -1,5 +1,6 @@
-﻿### 2.8.7
+﻿### 2.8.7 - 2024.10.21
 - Do verification for missing modules PowerJamf, GraphEssentials when using AzureAD, Intune, Jamf Pro
+- Add TargetServers to be able to manually choose servers to target
 
 ### 2.8.6 - 2024.09.02
 - Filter now takes string or hashtable so it can be configured per domain
