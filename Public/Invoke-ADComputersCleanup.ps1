@@ -386,6 +386,13 @@
     By default the function will write to the event log making sure the cleanup process is logged.
     This parameter will prevent the function from writing to the event log.
 
+    .PARAMETER TargetServers
+    Target servers to use when connecting to Active Directory.
+    It can take a string with server name, or hashtable with key being the domain, and value being the server name.
+    If you have a forest with multiple domains and want to use different servers for different domains, you can use hashtable.
+    It will use the default server if no server is provided for a domain, which is default approach.
+    This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
+
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
     $Output
@@ -560,7 +567,8 @@
         [nullable[int]] $SafetyAzureADLimit,
         [nullable[int]] $SafetyIntuneLimit,
         [nullable[int]] $SafetyJamfLimit,
-        [switch] $DontWriteToEventLog
+        [switch] $DontWriteToEventLog,
+        [Object] $TargetServers
     )
     # we will use it to check for intune/azuread/jamf functionality
     $Script:CleanupOptions = [ordered] @{}
@@ -750,6 +758,7 @@
         SafetyADLimit         = $SafetyADLimit
         AzureInformationCache = $AzureInformationCache
         JamfInformationCache  = $JamfInformationCache
+        TargetServers         = $TargetServers
     }
 
     $AllComputers = Get-InitialADComputers @SplatADComputers

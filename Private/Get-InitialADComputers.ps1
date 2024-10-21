@@ -16,7 +16,8 @@
         [System.Collections.IDictionary] $ProcessedComputers,
         [nullable[int]] $SafetyADLimit,
         [System.Collections.IDictionary] $AzureInformationCache,
-        [System.Collections.IDictionary] $JamfInformationCache
+        [System.Collections.IDictionary] $JamfInformationCache,
+        [object] $TargetServers
     )
     $AllComputers = [ordered] @{}
 
@@ -58,6 +59,18 @@
         }
     }
 
+    if ($TargetServers) {
+        # User provided target servers/server. If there is only one we assume user wants to use it for all domains (hopefully just one domain)
+        # If there are multiple we assume user wants to use different servers for different domains using hashtable/dictionary
+        # If there is no server for a domain we will use the default server, as detected
+        if ($TargetServers -is [string]) {
+            $TargetServer = $TargetServers
+        }
+        if ($TargetServers -is [System.Collections.IDictionary]) {
+            $TargetServerDictionary = $TargetServers[$Domain]
+        }
+    }
+
     $CountDomains = 0
     foreach ($Domain in $ForestInformation.Domains) {
         $CountDomains++
@@ -67,9 +80,18 @@
             Write-Color "[e] ", "No server found for domain $Domain" -Color Yellow, Red
             continue
         }
+        if ($TargetServer) {
+            Write-Color -Text "Overwritting target server for domain ", $Domain, ": ", $TargetServer -Color Yellow, Magenta
+            $Server = $TargetServer
+        } elseif ($TargetServerDictionary) {
+            if ($TargetServerDictionary[$Domain]) {
+                Write-Color -Text "Overwritting target server for domain ", $Domain, ": ", $TargetServerDictionary[$Domain] -Color Yellow, Magenta
+                $Server = $TargetServerDictionary[$Domain]
+            }
+        }
         $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
         $Report["$Domain"]['Server'] = $Server
-        Write-Color "[i] Getting all computers for domain ", $Domain, " [", $CountDomains, "/", $ForestInformation.Domains.Count, "]" -Color Yellow, Magenta, Yellow
+        Write-Color "[i] Getting all computers for domain ", $Domain, " [", $CountDomains, "/", $ForestInformation.Domains.Count, "]", " from ", $Server -Color Yellow, Magenta, Yellow, Magenta, Yellow, Magenta, Yellow, Yellow, Magenta
 
         if ($Filter) {
             if ($Filter -is [string]) {
