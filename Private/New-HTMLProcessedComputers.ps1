@@ -296,7 +296,7 @@
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedByFilter' -BackgroundColor LightBlue
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedBySetting' -BackgroundColor LightPink
                 New-HTMLTableCondition -Name 'ProtectedFromAccidentalDeletion' -ComparisonType string -Value $false -BackgroundColor LightBlue -FailBackgroundColor Salmon
-            } -WarningAction SilentlyContinue
+            } -WarningAction SilentlyContinue -ExcludeProperty 'TimeOnPendingList', 'TimeToLeavePendingList', 'DistinguishedNameAfterMove'
         }
         try {
             if ($LogFile -and (Test-Path -LiteralPath $LogFile -ErrorAction Stop)) {
