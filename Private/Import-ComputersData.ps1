@@ -6,7 +6,7 @@
     )
 
     $ProcessedComputers = [ordered] @{ }
-
+    $Today = Get-Date
     try {
         if ($DataStorePath -and (Test-Path -LiteralPath $DataStorePath -ErrorAction Stop)) {
             $FileImport = Import-Clixml -LiteralPath $DataStorePath -ErrorAction Stop
@@ -26,6 +26,26 @@
                 }
             }
             $ProcessedComputers = $FileImport.PendingDeletion
+            foreach ($ComputerFullName in $ProcessedComputers.Keys) {
+                $Computer = $ProcessedComputers[$ComputerFullName]
+                if ($Computer.PSObject.Properties.Name -notcontains 'TimeOnPendingList') {
+                    $TimeOnPendingList = if ($Computer.ActionDate) {
+                        - $($Computer.ActionDate - $Today).Days
+                    } else {
+                        $null
+                    }
+                    # We need to add this property to the object, as it may not exist on the old exports
+                    Add-Member -MemberType NoteProperty -Name 'TimeOnPendingList' -Value $TimeOnPendingList -Force -InputObject $Computer
+                    Add-Member -MemberType NoteProperty -Name 'TimeToLeavePendingList' -Value $null -Force -InputObject $Computer
+                } else {
+                    $TimeOnPendingList = if ($Computer.ActionDate) {
+                        - $($Computer.ActionDate - $Today).Days
+                    } else {
+                        $null
+                    }
+                    $Computer.TimeOnPendingList = $TimeOnPendingList
+                }
+            }
             $Export['History'] = $FileImport.History
         }
         if (-not $ProcessedComputers) {
@@ -35,6 +55,5 @@
         Write-Color -Text "[e] ", "Couldn't read the list or wrong format. Error: $($_.Exception.Message)" -Color Yellow, Red
         return $false
     }
-
     $ProcessedComputers
 }

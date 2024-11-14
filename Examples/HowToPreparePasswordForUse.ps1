@@ -1,0 +1,1 @@
+﻿ConvertTo-SecureString -String 'PasswordToProtect' -AsPlainText -Force | ConvertFrom-SecureString | Set-Clipboard

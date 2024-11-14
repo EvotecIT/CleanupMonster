@@ -11,7 +11,7 @@ $Configuration = @{
         # 'Windows Server*'
     )
     DisableIncludeSystems          = @()
-    DisableLimit                   = 2 # 0 means unlimited, ignored for reports
+    DisableLimit                   = 1 # 0 means unlimited, ignored for reports
     DisableModifyDescription       = $false
     DisableModifyAdminDescription  = $true
 
@@ -27,7 +27,7 @@ $Configuration = @{
     DeleteIncludeSystems           = @(
 
     )
-    DeleteLimit                    = 2 # 0 means unlimited, ignored for reports
+    DeleteLimit                    = 1 # 0 means unlimited, ignored for reports
 
     Exclusions                     = @(
         '*OU=Domain Controllers*'

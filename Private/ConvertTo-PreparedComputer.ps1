@@ -82,6 +82,8 @@
             'WhenChanged'                = $Computer.WhenChanged
             'ServicePrincipalName'       = $Computer.servicePrincipalName #-join [System.Environment]::NewLine
             'DistinguishedNameAfterMove' = $null
+            'TimeOnPendingList'          = $null
+            'TimeToLeavePendingList'     = $null
         }
         if ($IncludeAzureAD -and $IncludeIntune -and $IncludeJamf) {
             $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd

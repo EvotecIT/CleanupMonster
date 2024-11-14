@@ -56,6 +56,8 @@
                     if ($FoundComputer) {
                         if ($FoundComputer.ActionDate -is [DateTime]) {
                             $TimeSpan = New-TimeSpan -Start $FoundComputer.ActionDate -End $Today
+                            # Lets calculate how many days it's been on the list
+                            $ProcessedComputers[$FullComputerName].TimeToLeavePendingList = $ActionIf.ListProcessedMoreThan - $TimeSpan.Days
                             if ($TimeSpan.Days -gt $ActionIf.ListProcessedMoreThan) {
 
                             } else {

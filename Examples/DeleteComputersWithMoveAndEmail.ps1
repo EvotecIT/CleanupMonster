@@ -13,14 +13,14 @@ $invokeADComputersCleanupSplat = @{
     # disable settings
     Disable                             = $true
     DisableAndMove                      = $true
-    DisableAndMoveOrder                 = 'DisableAndMove' # DisableAndMove, MoveAndDisable
+    DisableAndMoveOrder                 = 'MoveAndDisable' # DisableAndMove, MoveAndDisable
     #DisableIsEnabled                    = $true
     DisableLimit                        = 1
     DisableLastLogonDateMoreThan        = 90
-    DisablePasswordLastSetMoreThan      = 90
+    DisablePasswordLastSetMoreThan      = 2280
     #DisableLastSeenAzureMoreThan        = 90
-
-    DisablePasswordLastSetOlderThan     = Get-Date -Year 2023 -Month 1 -Day 1
+    DisableRequireWhenCreatedMoreThan   = 90
+    #DisablePasswordLastSetOlderThan     = Get-Date -Year 2023 -Month 1 -Day 1
     #DisableLastSyncAzureMoreThan   = 90
     #DisableLastContactJamfMoreThan = 90
     #DisableLastSeenIntuneMoreThan       = 90
@@ -28,7 +28,10 @@ $invokeADComputersCleanupSplat = @{
         'ad.evotec.xyz' = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=xyz'
         'ad.evotec.pl'  = 'OU=Disabled,OU=Computers,OU=Devices,OU=Production,DC=ad,DC=evotec,DC=pl'
     }
-
+    SearchBase                          = @{
+        'ad.evotec.xyz' = 'DC=ad,DC=evotec,DC=xyz'
+        'ad.evotec.pl'  = 'DC=ad,DC=evotec,DC=pl'
+    }
     # move settings
     Move                                = $false
     MoveLimit                           = 1
@@ -112,6 +115,6 @@ $EmailBody = EmailBody -EmailBody {
     EmailText -Text "Regards,"
     EmailText -Text "Automations Team" -FontWeight bold
 }
-
+#Save-Html -HTML $EmailBody -ShowHTML
 # send email using Mailozaurr
-Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated Computer Cleanup Report" -Body $EmailBody -Priority Low -Verbose -WhatIf
+#Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated Computer Cleanup Report" -Body $EmailBody -Priority Low -Verbose -WhatIf

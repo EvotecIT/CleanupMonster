@@ -1,4 +1,8 @@
-﻿### 2.8.7 - 2024.10.21
+﻿### 2.8.8
+- Added `TimeOnPendingList` to HTML report and passthru object
+- Added `TimeToLeavePendingList` to HTML report and passthru object
+
+### 2.8.7 - 2024.10.21
 - Do verification for missing modules PowerJamf, GraphEssentials when using AzureAD, Intune, Jamf Pro
 - Add TargetServers to be able to manually choose servers to target
 
