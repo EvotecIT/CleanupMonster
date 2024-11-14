@@ -90,6 +90,8 @@
                 # please use -DoNotAddToPendingList if you don't want to add computer to pending list
                 if (-not $DoNotAddToPendingList) {
                     $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
+                    # Lets add computer to pending list, and lets set time how long it's there so it can be easily visible in reports
+                    $Computer.TimeOnPendingList = 0
                     $ProcessedComputers[$FullComputerName] = $Computer
                 }
 
