@@ -667,7 +667,7 @@
     }
 
     # lets create report path, reporting is enabled by default
-    Set-ReportingCapabilities -ReportPath $ReportPath -ReportMaximum $ReportMaximum
+    Set-ReportingCapabilities -ReportPath $ReportPath -ReportMaximum $ReportMaximum -ScriptPath $MyInvocation.ScriptName
 
     $Success = Assert-InitialSettings -DisableOnlyIf $DisableOnlyIf -MoveOnlyIf $MoveOnlyIf -DeleteOnlyIf $DeleteOnlyIf
     if ($Success -contains $false) {

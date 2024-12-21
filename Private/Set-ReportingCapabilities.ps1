@@ -1,7 +1,8 @@
 ﻿function Set-ReportingCapabilities {
     [CmdletBinding()]
     param(
-        [string] $ReportPath,
+        [alias('Path', 'LiteralPath')][string] $ReportPath,
+        [string] $ScriptPath,
         [int] $ReportMaximum
     )
     if ($ReportPath) {
@@ -11,10 +12,26 @@
                 $null = New-Item -Path $FolderPath -ItemType Directory -Force -WhatIf:$false -ErrorAction Stop
             }
             if ($ReportMaximum -gt 0) {
-                $CurrentLogs = Get-ChildItem -LiteralPath $FolderPath -ErrorAction Stop | Sort-Object -Property CreationTime -Descending | Select-Object -Skip $ReportMaximum
-                if ($CurrentLogs) {
+                if ($ScriptPath) {
+                    $ScriptPathFolder = [io.path]::GetDirectoryName($ScriptPath)
+                    if ($ScriptPathFolder -eq $FolderPath) {
+                        Write-Color -Text '[i] ', "ReportMaximum is set to ", $ReportMaximum, " but report files are in the same folder as the script. Cleanup disabled." -Color Yellow, White, DarkCyan, White
+                        return
+                    }
+                }
+                # Get the extension of the report file
+                $ReportPathExtension = [io.path]::GetExtension($ReportPath)
+                # Get the report files, sort them by creation time, and skip the first $ReportMaximum
+                if ($ReportPathExtension) {
+                    # If the report file has an extension, filter the files by that extension to prevent deleting other files
+                    $CurrentReports = Get-ChildItem -LiteralPath $FolderPath -Filter "*$ReportPathExtension" -ErrorAction Stop | Sort-Object -Property CreationTime -Descending | Select-Object -Skip $ReportMaximum
+                } else {
+                    $CurrentReports = $null
+                    Write-Color -Text '[i] ', "Report file has no extension (?!). Cleanup disabled." -Color Yellow, White, DarkCyan, White
+                }
+                if ($CurrentReports) {
                     Write-Color -Text '[i] ', "Reporting directory has more than ", $ReportMaximum, " report files. Cleanup required..." -Color Yellow, DarkCyan, Red, DarkCyan
-                    foreach ($Report in $CurrentLogs) {
+                    foreach ($Report in $CurrentReports) {
                         try {
                             Remove-Item -LiteralPath $Report.FullName -Confirm:$false -WhatIf:$false
                             Write-Color -Text '[+] ', "Deleted ", "$($Report.FullName)" -Color Yellow, White, Green

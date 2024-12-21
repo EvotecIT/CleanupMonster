@@ -1,4 +1,7 @@
-﻿### 2.8.8
+﻿### 2.8.9
+- Fix deletion of log files/reports to specific extensions only [#24](https://github.com/EvotecIT/PasswordSolution/issues/24)
+
+### 2.8.8
 - Added `TimeOnPendingList` to HTML report and passthru object
 - Added `TimeToLeavePendingList` to HTML report and passthru object
 
