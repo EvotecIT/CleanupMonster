@@ -7,7 +7,7 @@ $invokeADSIDHistoryCleanupSplat = @{
     IncludeSIDHistoryDomain = @(
         'S-1-5-21-3661168273-3802070955-2987026695'
     )
-    IncludeInternalOnly     = $true
+    IncludeType             = 'External'
     RemoveLimit             = 2
 }
 
