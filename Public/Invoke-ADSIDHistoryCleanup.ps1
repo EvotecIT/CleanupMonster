@@ -108,14 +108,17 @@
     Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
 
     $Export = [ordered] @{
+        Date       = Get-Date
         Version    = Get-GitHubVersion -Cmdlet 'Invoke-ADComputersCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupMonster'
         CurrentRun = $null
-        History    = $null
+        History    = [System.Collections.Generic.List[PSCustomObject]]::new()
     }
 
     Write-Color '[i] ', "[CleanupMonster] ", 'Version', ' [Informative] ', $Export['Version'] -Color Yellow, DarkGray, Yellow, DarkGray, Magenta
     Write-Color -Text "[i] ", "Started process of cleaning up SID History for AD Objects" -Color Yellow, White
     Write-Color -Text "[i] ", "Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Yellow, White, Green, White
+
+    $Export = Import-SIDHistory -DataStorePath $DataStorePath -Export $Export
 
     # Initialize counters for tracking changes
     $GlobalLimitSID = 0
@@ -290,27 +293,13 @@
         }
     }
 
-    # $ReportData = foreach ($Item in $ObjectsToProcess) {
-    #     $Object = $Item.Object
-    #     [PSCustomObject]@{
-    #         Name               = $Object.Name
-    #         Domain             = $Object.Domain
-    #         ObjectClass        = $Object.ObjectClass
-    #         Enabled            = $Object.Enabled
-    #         SIDHistoryCount    = $Object.SIDHistory.Count
-    #         SIDHistory         = $Object.SIDHistory -join ", "
-    #         OrganizationalUnit = $Object.OrganizationalUnit
-    #         LastLogon          = $Object.LastLogon
-    #         WhenChanged        = $Object.WhenChanged
-    #         DomainType         = $Item.DomainType
-    #     }
-    # }
+    $Export['CurrentRun'] = $ObjectsToProcess
 
     New-HTMLProcessedSIDHistory -Export $Export -FilePath $ReportPath -Output $Output -ForestInformation $ForestInformation -Online:$Online.IsPresent -HideHTML:(-not $ShowHTML.IsPresent)
 
-
     # Return summary information
     if (-not $Suppress) {
+        $Export.EmailBody = New-EmailBodySIDHistory -Export $Export
         $Export
     }
 }
