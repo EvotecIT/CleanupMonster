@@ -685,8 +685,8 @@
     }
 
     Write-Color '[i] ', "[CleanupMonster] ", 'Version', ' [Informative] ', $Export['Version'] -Color Yellow, DarkGray, Yellow, DarkGray, Magenta
-    Write-Color -Text "[i] Started process of cleaning up stale computers" -Color Green
-    Write-Color -Text "[i] Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Green
+    Write-Color -Text "[i] ", "Started process of cleaning up stale computers" -Color Yellow, White
+    Write-Color -Text "[i] ", "Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Yellow, White, Green, White
 
     try {
         $ForestInformation = Get-WinADForestDetails -PreferWritable -Forest $Forest -Extended -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains
