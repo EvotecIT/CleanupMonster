@@ -4,6 +4,8 @@
         [Array] $CurrentRun
     )
 
+    Write-Color -Text "[i] ", "Generating email body" -Color Yellow, White
+
     [Array] $DisabledObjects = $CurrentRun | Where-Object { $_.Action -eq 'Disable' }
     [Array] $DeletedObjects = $CurrentRun | Where-Object { $_.Action -eq 'Delete' }
 
@@ -37,5 +39,8 @@
         EmailText -Text "Regards,"
         EmailText -Text "Automations Team" -FontWeight bold
     }
+
+    Write-Color -Text "[i] ", "Email body generated" -Color Yellow, White
+
     $EmailBody
 }
