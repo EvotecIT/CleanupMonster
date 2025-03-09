@@ -953,6 +953,7 @@
     Write-Color -Text "[i] Finished process of cleaning up stale computers" -Color Green
 
     if (-not $Suppress) {
+        $Export.EmailBody = New-EmailBodyComputers -CurrentRun $Export.CurrentRun
         $Export
     }
 }
