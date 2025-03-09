@@ -45,16 +45,24 @@
     }
 
     if ($AzureRequired -or $IntuneRequired) {
-        $ModuleAvailable = Get-Module -Name GraphEssentials -ListAvailable
+        $ModuleAvailable = Get-Module -Name GraphEssentials -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
         if (-not $ModuleAvailable) {
-            Write-Color -Text "[e] ", "GraphEssentials module is required but not available. Terminating." -Color Yellow, Red
+            Write-Color -Text "[e] ", "'GraphEssentials' module is required but not available. Terminating." -Color Yellow, Red
+            return $false
+        }
+        if ($ModuleAvailable.Version -lt [version]'0.0.43') {
+            Write-Color -Text "[e] ", "'GraphEssentials' module is outdated. Please update to the latest version minimum '0.0.43'. Terminating." -Color Yellow, Red
             return $false
         }
     }
     if ($JamfRequired) {
-        $ModuleAvailable = Get-Module -Name PowerJamf -ListAvailable
+        $ModuleAvailable = Get-Module -Name PowerJamf -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
         if (-not $ModuleAvailable) {
-            Write-Color -Text "[e] ", "PowerJamf module is required but not available. Terminating." -Color Yellow, Red
+            Write-Color -Text "[e] ", "'PowerJamf' module is required but not available. Terminating." -Color Yellow, Red
+            return $false
+        }
+        if ($ModuleAvailable.Version -lt [version]'0.3.0') {
+            Write-Color -Text "[e] ", "'PowerJamf' module is outdated. Please update to the latest version minimum '0.0.3'. Terminating." -Color Yellow, Red
             return $false
         }
     }
