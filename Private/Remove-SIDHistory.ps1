@@ -4,6 +4,11 @@
         [Array] $ObjectsToProcess,
         [System.Collections.IDictionary] $Export
     )
+    Write-Color -Text "[i] ", "Removing SID History entries from ", $ObjectsToProcess.Count, " objects" -Color Yellow, White, Green
+
+    $ProcessedSIDs = 0
+    $ProcessedObjects = 0
+
     foreach ($Item in $ObjectsToProcess) {
         $Object = $Item.Object
         $QueryServer = $Item.QueryServer
@@ -107,4 +112,8 @@
             }
         }
     }
+    $Export['ProcessedObjects'] = $ProcessedObjects
+    $Export['ProcessedSIDs'] = $ProcessedSIDs
+
+    Write-Color -Text "[i] ", "Processed ", $ProcessedObjects, " objects and ", $ProcessedSIDs, " SID History entries" -Color Yellow, White, Green
 }
