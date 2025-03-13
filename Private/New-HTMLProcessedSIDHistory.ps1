@@ -102,7 +102,8 @@
             }
 
             New-HTMLTable -DataTable $ReportData -Filtering {
-
+                New-HTMLTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon
+                New-HTMLTableCondition -Name 'SIDHistoryCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral
             } -ScrollX
         }
         New-HTMLTab -Name 'History' {
@@ -112,7 +113,12 @@
                 }
             }
             New-HTMLTable -DataTable $Export.History -Filtering {
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackgroundColor LightGreen
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
 
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightCoral
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
             } -ScrollX
         }
         New-HTMLTab -Name 'Overview' {
@@ -188,6 +194,4 @@
             }
         }
     } -FilePath $FilePath -ShowHTML:(-not $HideHTML) -Online:$Online.IsPresent
-
-
 }
