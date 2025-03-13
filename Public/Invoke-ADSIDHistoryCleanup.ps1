@@ -42,6 +42,15 @@
     .PARAMETER ExcludeType
     Specifies which types of SID history to exclude: 'Internal', 'External', or 'Unknown'.
 
+    .PARAMETER DisabledOnly
+    Only processes objects that are disabled.
+
+    .PARAMETER DataStorePath
+    Path to the XML file used to store processed SID history entries.
+
+    .PARAMETER ReportOnly
+    If specified, only generates a report without making any changes.
+
     .PARAMETER Report
     Generates a report of affected objects without making any changes.
 
@@ -89,7 +98,7 @@
         [switch] $Suppress,
         [switch] $ShowHTML,
         [switch] $Online,
-
+        [switch] $DisabledOnly,
         [nullable[int]] $SafetyADLimit,
         [switch] $DontWriteToEventLog
     )
@@ -100,9 +109,6 @@
     if (-not $ReportPath) {
         $ReportPath = $($MyInvocation.PSScriptRoot) + '\ProcessedSIDHistory.html'
     }
-
-    $ProcessedSIDs = 0
-    $ProcessedObjects = 0
 
     # lets enable global logging
     Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
@@ -215,6 +221,13 @@
         foreach ($Object in $Objects) {
             $QueryServer = $ForestInformation['QueryServers'][$Object.Domain].HostName[0]
 
+            if ($DisabledOnly){
+                if ($Object.Enabled) {
+                    Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as it is enabled and DisabledOnly filter is set." -Color Yellow, White, Red, White
+                    continue
+                }
+            }
+
             # Check if we need to filter by OU
             if ($IncludeOrganizationalUnit -and $IncludeOrganizationalUnit -notcontains $Object.OrganizationalUnit) {
                 continue
@@ -251,8 +264,6 @@
         Remove-SIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export
     }
 
-    $Export['ProcessedObjects'] = $ProcessedObjects
-    $Export['ProcessedSIDs'] = $ProcessedSIDs
     $Export['TotalObjectsFound'] = $ObjectsToProcess.Count
     $Export['TotalSIDsFound'] = ($ObjectsToProcess | ForEach-Object { $_.Object.SIDHistory.Count } | Measure-Object -Sum).Sum
 
