@@ -1,7 +1,7 @@
 ﻿function New-EmailBodySidHistory {
     [CmdletBinding()]
     param(
-
+        $Export
     )
 
     $EmailBody = EmailBody -EmailBody {
