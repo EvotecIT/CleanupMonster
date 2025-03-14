@@ -114,10 +114,11 @@
     Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
 
     $Export = [ordered] @{
-        Date       = Get-Date
-        Version    = Get-GitHubVersion -Cmdlet 'Invoke-ADComputersCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupMonster'
-        CurrentRun = $null
-        History    = [System.Collections.Generic.List[PSCustomObject]]::new()
+        Date             = Get-Date
+        Version          = Get-GitHubVersion -Cmdlet 'Invoke-ADComputersCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupMonster'
+        ObjectsToProcess = $null
+        CurrentRun       = $null
+        History          = [System.Collections.Generic.List[PSCustomObject]]::new()
     }
 
     Write-Color '[i] ', "[CleanupMonster] ", 'Version', ' [Informative] ', $Export['Version'] -Color Yellow, DarkGray, Yellow, DarkGray, Magenta
@@ -125,10 +126,6 @@
     Write-Color -Text "[i] ", "Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Yellow, White, Green, White
 
     $Export = Import-SIDHistory -DataStorePath $DataStorePath -Export $Export
-
-    # Initialize counters for tracking changes
-    $GlobalLimitSID = 0
-    $GlobalLimitObject = 0
 
     # Determine if we're using limits
     if ($Null -eq $RemoveLimit -and $null -eq $RemoveLimitObject) {
@@ -167,97 +164,24 @@
         $Key
     }
 
-    # Process each domain SID
-    :TopLoop foreach ($Domain in $DomainNames) {
-        [Array] $Objects = $Output[$Domain]
-
-        # Skip if we've already hit our object limit
-        if ($LimitPerObject -and $GlobalLimitObject -ge $RemoveLimitObject) {
-            Write-Color -Text "[i] ", "Reached object limit of ", $RemoveLimitObject, ". Stopping processing." -Color Yellow, White, Green, White
-            break TopLoop
-        }
-
-        # Check if this domain SID matches our type filters
-        $DomainInfo = $Output.DomainSIDs[$Domain]
-
-        if (-not $DomainInfo) {
-            $DomainType = "Unknown"
-        } else {
-            $DomainType = $DomainInfo.Type
-            if ($DomainType -eq 'Domain') {
-                $DomainType = "Internal"
-            } elseif ($DomainType -eq 'Trust') {
-                $DomainType = "External"
-            }
-        }
-
-        # Apply type filters
-        if ($ExcludeType.Count -gt 0 -and $ExcludeType -contains $DomainType) {
-            Write-Color -Text "[s] ", "Skipping ", $Domain, " as it's type ", $DomainType, " is excluded." -Color Yellow, White, Red, White, Red, White
-            continue
-        }
-
-        if ($IncludeType.Count -gt 0 -and $IncludeType -notcontains $DomainType) {
-            Write-Color -Text "[s] ", "Skipping ", $Domain, " as it's type ", $DomainType, " is not included." -Color Yellow, White, Red, White, Red, White
-            continue
-        }
-
-        # Apply SID domain filters
-        if ($IncludeSIDHistoryDomain -and $IncludeSIDHistoryDomain -notcontains $Domain) {
-            Write-Color -Text "[s] ", "Skipping ", $Domain, " as it's not in the included SID history domains." -Color Yellow, White, Red, White
-            continue
-        }
-
-        if ($ExcludeSIDHistoryDomain -and $ExcludeSIDHistoryDomain -contains $Domain) {
-            Write-Color -Text "[s] ", "Skipping ", $Domain, " as it's in the excluded SID history domains." -Color Yellow, White, Red, White
-            continue
-        }
-
-        # Display which domain we're processing
-        $DomainDisplayName = if ($DomainInfo) { $DomainInfo.Domain } else { "Unknown" }
-        Write-Color -Text "[i] ", "Processing domain SID ", $Domain, " (", $DomainDisplayName, " - ", $DomainType, ")" -Color Yellow, White, Green, White, Green, White, Green
-
-        # Process each object in this domain
-        foreach ($Object in $Objects) {
-            $QueryServer = $ForestInformation['QueryServers'][$Object.Domain].HostName[0]
-
-            if ($DisabledOnly){
-                if ($Object.Enabled) {
-                    Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as it is enabled and DisabledOnly filter is set." -Color Yellow, White, Red, White
-                    continue
-                }
-            }
-
-            # Check if we need to filter by OU
-            if ($IncludeOrganizationalUnit -and $IncludeOrganizationalUnit -notcontains $Object.OrganizationalUnit) {
-                continue
-            }
-
-            if ($ExcludeOrganizationalUnit -and $ExcludeOrganizationalUnit -contains $Object.OrganizationalUnit) {
-                continue
-            }
-
-            Write-Color -Text "[i] ", "Processing ", $Object.Name, " (", $Object.ObjectClass, " in ", $Object.Domain, ", SID History Count: ", $Object.SIDHistory.Count, ")" -Color Yellow, White, Green, White, Green, White, Green, White, Green
-
-            # Add to our collection of objects to process
-            $ObjectsToProcess.Add(
-                [PSCustomObject]@{
-                    Object      = $Object
-                    QueryServer = $QueryServer
-                    Domain      = $Domain
-                    DomainInfo  = $DomainInfo
-                    DomainType  = $DomainType
-                }
-            )
-
-            # Increment counter and check limits
-            $GlobalLimitObject++
-            if ($LimitPerObject -and $GlobalLimitObject -ge $RemoveLimitObject) {
-                Write-Color -Text "[i] ", "Reached object limit of ", $RemoveLimitObject, ". Stopping object collection." -Color Yellow, White, Green, White
-                break TopLoop
-            }
-        }
+    $requestADSIDHistorySplat = @{
+        DomainNames             = $DomainNames
+        Output                  = $Output
+        Export                  = $Export
+        IncludeSIDHistoryDomain = $IncludeSIDHistoryDomain
+        ExcludeSIDHistoryDomain = $ExcludeSIDHistoryDomain
+        IncludeType             = $IncludeType
+        ExcludeType             = $ExcludeType
+        RemoveLimit             = $RemoveLimit
+        RemoveLimitObject       = $RemoveLimitObject
+        LimitPerObject          = $LimitPerObject
+        LimitPerSID             = $LimitPerSID
+        ObjectsToProcess        = $ObjectsToProcess
+        DisabledOnly            = $DisabledOnly
+        ForestInformation       = $ForestInformation
     }
+
+    Request-ADSIDHistory @requestADSIDHistorySplat
 
     if (-not $ReportOnly) {
         # Process the collected objects for SID removal
@@ -274,8 +198,7 @@
             Write-Color -Text "[-] Exporting Processed List failed. Error: $($_.Exception.Message)" -Color Yellow, Red
         }
     }
-
-    $Export['CurrentRun'] = $ObjectsToProcess
+    $Export['ObjectsToProcess'] = $ObjectsToProcess
 
     New-HTMLProcessedSIDHistory -Export $Export -FilePath $ReportPath -Output $Output -ForestInformation $ForestInformation -Online:$Online.IsPresent -HideHTML:(-not $ShowHTML.IsPresent)
 
