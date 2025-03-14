@@ -6,20 +6,34 @@
     )
     Write-Color -Text "[i] ", "Removing SID History entries from ", $ObjectsToProcess.Count, " objects" -Color Yellow, White, Green
 
+    $GlobalLimitSID = 0
     $ProcessedSIDs = 0
     $ProcessedObjects = 0
+
+    $Export['CurrentRun'] = [System.Collections.Generic.List[PSCustomObject]]::new()
 
     foreach ($Item in $ObjectsToProcess) {
         $Object = $Item.Object
         $QueryServer = $Item.QueryServer
 
+        $CurrentRunObject = [PSCustomObject] @{
+            ObjectDN       = $Object.DistinguishedName
+            ObjectName     = $Object.Name
+            ObjectDomain   = $Object.Domain
+            SIDBefore      = $Object.SIDHistory -join ", "
+            SIDBeforeCount = $Object.SIDHistory.Count
+            Action         = $null
+            ActionDate     = $null
+            ActionStatus   = $null
+            SIDRemoved     = @()
+            SIDAfter       = @()
+            SIDAfterCount  = 0
+        }
+
         if ($LimitPerSID) {
             # Process individual SIDs for this object
             foreach ($SID in $Object.SIDHistory) {
-                if ($GlobalLimitSID -ge $RemoveLimit) {
-                    Write-Color -Text "[i] ", "Reached SID limit of ", $RemoveLimit, ". Stopping processing." -Color Yellow, White, Green, White
-                    break
-                }
+                $CurrentDate = Get-Date
                 if ($PSCmdlet.ShouldProcess("$($Object.Name) ($($Object.Domain))", "Remove SID History entry $SID")) {
                     Write-Color -Text "[i] ", "Removing SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
                     try {
@@ -30,10 +44,13 @@
                             ObjectDomain = $Object.Domain
                             SID          = $SID
                             Action       = 'RemovePerSID'
-                            ActionDate   = Get-Date
+                            ActionDate   = $CurrentDate
                             ActionStatus = 'Success'
                         }
-                        $Export.History.Add($Result)
+                        $CurrentRunObject.Action = 'RemovePerSID'
+                        $CurrentRunObject.ActionDate = $CurrentDate
+                        $CurrentRunObject.ActionStatus = 'Success'
+                        $CurrentRunObject.SIDRemoved += $SID
                     } catch {
                         Write-Color -Text "[!] ", "Failed to remove SID History entry $SID from ", $Object.Name -Color Yellow, White, Red
                         $Result = [PSCustomObject]@{
@@ -42,15 +59,13 @@
                             ObjectDomain = $Object.Domain
                             SID          = $SID
                             Action       = 'RemovePerSID'
-                            ActionDate   = Get-Date
+                            ActionDate   = $CurrentDate
                             ActionStatus = 'Failed'
                         }
-                        $Export.History.Add($Result)
-                        continue
+                        $CurrentRunObject.Action = 'RemovePerSID'
+                        $CurrentRunObject.ActionDate = $CurrentDate
+                        $CurrentRunObject.ActionStatus = 'Failed'
                     }
-                    Set-ADObject -Identity $Object.DistinguishedName -Remove @{ SIDHistory = $SID } -Server $QueryServer
-                    $GlobalLimitSID++
-                    $ProcessedSIDs++
                 } else {
                     Write-Color -Text "[i] ", "Would have removed SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
                     $Result = [PSCustomObject]@{
@@ -62,10 +77,37 @@
                         ActionDate   = Get-Date
                         ActionStatus = 'WhatIf'
                     }
-                    $Export.History.Add($Result)
+                    $CurrentRunObject.SIDRemoved += $SID
+                    $CurrentRunObject.Action = 'RemovePerSID'
+                    $CurrentRunObject.ActionDate = $CurrentDate
+                    $CurrentRunObject.ActionStatus = 'WhatIf'
+                }
+                $null = $Export.History.Add($Result)
+
+                try {
+                    $RefreshedObject = Get-ADObject -Identity $Object.DistinguishedName -Properties SIDHistory -Server $QueryServer -ErrorAction Stop
+                } catch {
+                    Write-Color -Text "[!] ", "Failed to refresh object ", $Object.Name, " exception: ", $_.Exception.Message -Color Yellow, White, Red, Red
+                    $RefreshedObject = $null
+                }
+                if ($RefreshedObject -and $RefreshedObject.SIDHistory) {
+                    $CurrentRunObject.SIDAfter = $RefreshedObject.SIDHistory -join ", "
+                } else {
+                    $CurrentRunObject.SIDAfter = $null
+                }
+
+                $CurrentRunObject.SIDAfterCount = $RefreshedObject.SIDHistory.Count
+                $Export.CurrentRun.Add($CurrentRunObject)
+                $GlobalLimitSID++
+                $ProcessedSIDs++
+
+                if ($GlobalLimitSID -ge $RemoveLimit) {
+                    Write-Color -Text "[i] ", "Reached SID limit of ", $RemoveLimit, ". Stopping processing." -Color Yellow, White, Green, White
+                    break
                 }
             }
         } else {
+            $CurrentDate = Get-Date
             # Process all SIDs for this object at once
             if ($PSCmdlet.ShouldProcess("$($Object.Name) ($($Object.Domain))", "Remove all SID History entries")) {
                 Write-Color -Text "[i] ", "Removing all SID History entries from ", $Object.Name -Color Yellow, White, Green
@@ -77,10 +119,10 @@
                         ObjectDomain = $Object.Domain
                         SID          = $Object.SIDHistory -join ", "
                         Action       = 'RemoveAll'
-                        ActionDate   = Get-Date
+                        ActionDate   = $CurrentDate
                         ActionStatus = 'Success'
                     }
-                    $Export.History.Add($Result)
+                    $CurrentRunObject.ActionStatus = 'Success'
                 } catch {
                     Write-Color -Text "[!] ", "Failed to remove SID History entries from ", $Object.Name -Color Yellow, White, Red
                     $Result = [PSCustomObject]@{
@@ -89,14 +131,11 @@
                         ObjectDomain = $Object.Domain
                         SID          = $Object.SIDHistory -join ", "
                         Action       = 'RemoveAll'
-                        ActionDate   = Get-Date
+                        ActionDate   = $CurrentDate
                         ActionStatus = 'Failed'
                     }
-                    $Export.History.Add($Result)
-                    continue
+                    $CurrentRunObject.ActionStatus = 'Failed'
                 }
-                $ProcessedSIDs += $Object.SIDHistory.Count
-                $ProcessedObjects++
             } else {
                 Write-Color -Text "[i] ", "Would have removed all SID History entries from ", $Object.Name -Color Yellow, White, Green
                 $Result = [PSCustomObject]@{
@@ -105,11 +144,33 @@
                     ObjectDomain = $Object.Domain
                     SID          = $Object.SIDHistory -join ", "
                     Action       = 'RemoveAll'
-                    ActionDate   = Get-Date
+                    ActionDate   = $CurrentDate
                     ActionStatus = 'WhatIf'
                 }
-                $Export.History.Add($Result)
+                $CurrentRunObject.ActionStatus = 'WhatIf'
             }
+            $CurrentRunObject.SIDRemoved += $Object.SIDHistory
+            $CurrentRunObject.Action = 'RemoveAll'
+            $CurrentRunObject.ActionDate = $CurrentDate
+
+            $null = $Export.History.Add($Result)
+
+            try {
+                $RefreshedObject = Get-ADObject -Identity $Object.DistinguishedName -Properties SIDHistory -Server $QueryServer -ErrorAction Stop
+            } catch {
+                Write-Color -Text "[!] ", "Failed to refresh object ", $Object.Name, " exception: ", $_.Exception.Message -Color Yellow, White, Red, Red
+                $RefreshedObject = $null
+            }
+            if ($RefreshedObject -and $RefreshedObject.SIDHistory) {
+                $CurrentRunObject.SIDAfter = $RefreshedObject.SIDHistory -join ", "
+            } else {
+                $CurrentRunObject.SIDAfter = $null
+            }
+
+            $CurrentRunObject.SIDAfterCount = $RefreshedObject.SIDHistory.Count
+            $Export.CurrentRun.Add($CurrentRunObject)
+            $ProcessedSIDs += $Object.SIDHistory.Count
+            $ProcessedObjects++
         }
     }
     $Export['ProcessedObjects'] = $ProcessedObjects
