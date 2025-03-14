@@ -85,23 +85,23 @@
                 }
             }
 
-            [Array] $ReportData = foreach ($Item in $Export.CurrentRun) {
-                $Object = $Item.Object
-                [PSCustomObject]@{
-                    Name               = $Object.Name
-                    Domain             = $Object.Domain
-                    ObjectClass        = $Object.ObjectClass
-                    Enabled            = $Object.Enabled
-                    SIDHistoryCount    = $Object.SIDHistory.Count
-                    SIDHistory         = $Object.SIDHistory -join ", "
-                    OrganizationalUnit = $Object.OrganizationalUnit
-                    LastLogon          = $Object.LastLogon
-                    WhenChanged        = $Object.WhenChanged
-                    DomainType         = $Item.DomainType
-                }
-            }
+            # [Array] $ReportData = foreach ($Item in $Export.CurrentRun) {
+            #     $Object = $Item.Object
+            #     [PSCustomObject]@{
+            #         Name               = $Object.Name
+            #         Domain             = $Object.Domain
+            #         ObjectClass        = $Object.ObjectClass
+            #         Enabled            = $Object.Enabled
+            #         SIDHistoryCount    = $Object.SIDHistory.Count
+            #         SIDHistory         = $Object.SIDHistory -join ", "
+            #         OrganizationalUnit = $Object.OrganizationalUnit
+            #         LastLogon          = $Object.LastLogon
+            #         WhenChanged        = $Object.WhenChanged
+            #         DomainType         = $Item.DomainType
+            #     }
+            # }
 
-            New-HTMLTable -DataTable $ReportData -Filtering {
+            New-HTMLTable -DataTable $Export.CurrentRun -Filtering {
                 New-HTMLTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon
                 New-HTMLTableCondition -Name 'SIDHistoryCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral
             } -ScrollX
