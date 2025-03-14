@@ -6,7 +6,8 @@
         [System.Collections.IDictionary] $Output,
         [string] $FilePath,
         [switch] $HideHTML,
-        [switch] $Online
+        [switch] $Online,
+        [string] $LogPath
     )
     New-HTML {
         New-HTMLSectionStyle -BorderRadius 0px -HeaderBackGroundColor Grey -RemoveShadow
@@ -25,14 +26,23 @@
                 }
             }
 
-            New-HTMLText -Text "Overview of SID History in the forest ", $($ForestInformation.Forest) -Color None, None -FontSize 14pt -FontWeight normal, bold -Alignment center
+            New-HTMLText -Text "Overview of cleanup process for the SID History in the forest ", $($ForestInformation.Forest) -Color None, None -FontSize 14pt -FontWeight normal, bold -Alignment center
 
             New-HTMLSection -HeaderText "SID History Report for $($ForestInformation.Forest)" {
                 New-HTMLPanel {
                     New-HTMLText -Text @(
-                        "The following table lists all objects in the forest that have SID history values. ",
-                        "The table is grouped by domain and shows the number of objects in each domain that have SID history values."
+                        "This report provides an overview of the SID history in the forest along with the current and history deletion status of SID history values as configured in the script. ",
+                        "The report is divided into three tabs: Overview, Current Deletion Status, and History Deletion Status. ",
+                        "The following report shows 3 tabs:"
                     ) -FontSize 10pt
+
+                    New-HTMLList {
+                        New-HTMLListItem -Text "Overview", " - ", "provides an overview of the SID history in the forest" -FontWeight bold, normal, normal
+                        New-HTMLListItem -Text "Current Deletion Status", " - ", "shows the current deletion status of SID history values for given day (this report only)" -FontWeight bold, normal, normal
+                        New-HTMLListItem -Text "History Deletion Status", " - ", "shows the history deletion status of SID history values over time" -FontWeight bold, normal, normal
+                    } -FontSize 10pt
+
+                    New-HTMLText -Text "The following statistics provide insights into the SID history in the forest:" -FontSize 10pt
 
                     New-HTMLList {
                         New-HTMLListItem -Text "$($Output.All.Count)", " objects with SID history values" -Color BlueViolet, None -FontWeight bold, normal
@@ -44,10 +54,6 @@
                         New-HTMLListItem -Text "$($Output.Keys.Count - 2)", "  different domains with SID history values" -Color BlueViolet, None -FontWeight bold, normal
                     } -LineBreak -FontSize 10pt
 
-                    New-HTMLText -Text @(
-                        "The following table lists all trusts in the forest and their respective trust type.",
-                        "The trust type can be either external or forest trust."
-                    ) -FontSize 10pt
 
                     New-HTMLText -Text "The following statistics provide insights into the SID history categories:" -FontSize 10pt
 
@@ -59,7 +65,7 @@
                     } -FontSize 10pt
                 }
                 New-HTMLPanel {
-                    New-HTMLText -Text "The following table lists all domains in the forest and their respective domain SID values." -FontSize 10pt
+                    New-HTMLText -Text "The following table lists all domains in the forest and active trusts, and their respective domain SID values, along with their types." -FontSize 10pt
                     New-HTMLList {
                         foreach ($SID in $Output.DomainSIDs.Keys) {
                             $DomainSID = $Output.DomainSIDs[$SID]
@@ -77,50 +83,6 @@
             $Key
         }
 
-
-        New-HTMLTab -Name 'Current Run' {
-            New-HTMLSection -HeaderText "SID History Report" {
-                New-HTMLPanel {
-                    New-HTMLText -Text "The following table lists all objects in the forest that have SID history values." -FontSize 10pt
-                }
-            }
-
-            # [Array] $ReportData = foreach ($Item in $Export.CurrentRun) {
-            #     $Object = $Item.Object
-            #     [PSCustomObject]@{
-            #         Name               = $Object.Name
-            #         Domain             = $Object.Domain
-            #         ObjectClass        = $Object.ObjectClass
-            #         Enabled            = $Object.Enabled
-            #         SIDHistoryCount    = $Object.SIDHistory.Count
-            #         SIDHistory         = $Object.SIDHistory -join ", "
-            #         OrganizationalUnit = $Object.OrganizationalUnit
-            #         LastLogon          = $Object.LastLogon
-            #         WhenChanged        = $Object.WhenChanged
-            #         DomainType         = $Item.DomainType
-            #     }
-            # }
-
-            New-HTMLTable -DataTable $Export.CurrentRun -Filtering {
-                New-HTMLTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon
-                New-HTMLTableCondition -Name 'SIDHistoryCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral
-            } -ScrollX
-        }
-        New-HTMLTab -Name 'History' {
-            New-HTMLSection -HeaderText "SID History Report" {
-                New-HTMLPanel {
-                    New-HTMLText -Text "The following table lists all objects in the forest that have SID history values." -FontSize 10pt
-                }
-            }
-            New-HTMLTable -DataTable $Export.History -Filtering {
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackgroundColor LightGreen
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
-
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightCoral
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
-            } -ScrollX
-        }
         New-HTMLTab -Name 'Overview' {
             foreach ($Domain in $DomainNames) {
                 [Array] $Objects = $Output[$Domain]
@@ -134,8 +96,6 @@
                 } else {
                     if ($Output.DomainSIDs[$Domain]) {
                         $DomainName = $Output.DomainSIDs[$Domain].Domain
-                        $DomainType = $Output.DomainSIDs[$Domain].Type
-                        #$Name = "$Domain [$DomainName] ($($Objects.Count))"
                         $Name = "$DomainName ($($Objects.Count))"
                     } else {
                         $Name = "$Domain ($($Objects.Count))"
@@ -191,6 +151,50 @@
                         New-HTMLTableCondition -Name 'UnknownCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor Crimson
                     } -ScrollX
                 } -TextTransform uppercase
+            }
+        }
+        New-HTMLTab -Name 'Current Deletion Status' {
+            New-HTMLSection -HeaderText "SID History Report" {
+                New-HTMLPanel {
+                    New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History" -FontSize 10pt
+
+                    $Enabled = $Export.CurrentRun | Where-Object { $_.Enabled }
+                    $Disabled = $Export.CurrentRun | Where-Object { -not $_.Enabled }
+
+                    New-HTMLText -Text "The following statistics provide insights into the SID history in the forest:" -FontSize 10pt
+
+                    New-HTMLList {
+                        New-HTMLListItem -Text "$($Enabled.Count) enabled objects" -FontWeight bold
+                        New-HTMLListItem -Text "$($Disabled.Count) disabled objects" -FontWeight bold
+                    } -FontSize 10pt
+                }
+            }
+            New-HTMLTable -DataTable $Export.CurrentRun -Filtering {
+                New-HTMLTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon
+                New-HTMLTableCondition -Name 'SIDHistoryCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral
+            } -ScrollX
+        }
+        New-HTMLTab -Name 'History Deletion Status' {
+            New-HTMLSection -HeaderText "SID History Report" {
+                New-HTMLPanel {
+                    New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History over time." -FontSize 10pt
+                }
+            }
+            New-HTMLTable -DataTable $Export.History -Filtering {
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackgroundColor LightGreen
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
+
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightCoral
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
+            } -ScrollX
+        }
+        if ($LogPath) {
+            $LogsContent = Get-Content -Path $LogPath -Raw -ErrorAction SilentlyContinue
+            if ($LogsContent) {
+                New-HTMLTab -Name 'Logs' {
+                    New-HTMLCodeBlock -Code $LogsContent -Style generic
+                }
             }
         }
     } -FilePath $FilePath -ShowHTML:(-not $HideHTML) -Online:$Online.IsPresent
