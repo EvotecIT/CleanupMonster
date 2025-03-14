@@ -7,7 +7,8 @@
         [string] $FilePath,
         [switch] $HideHTML,
         [switch] $Online,
-        [string] $LogPath
+        [string] $LogPath,
+        [System.Collections.IDictionary] $Configuration
     )
     New-HTML {
         New-HTMLSectionStyle -BorderRadius 0px -HeaderBackGroundColor Grey -RemoveShadow
@@ -155,7 +156,7 @@
         }
         New-HTMLTab -Name 'Current Deletion Status' {
             New-HTMLSection -HeaderText "SID History Report" {
-                New-HTMLPanel {
+                New-HTMLPanel -Invisible {
                     New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History. The following statistics provide insights into processed SID history in the forest:" -FontSize 10pt
 
                     $Enabled = $Export.CurrentRun | Where-Object { $_.Enabled }
@@ -179,7 +180,7 @@
         }
         New-HTMLTab -Name 'History Deletion Status' {
             New-HTMLSection -HeaderText "SID History Report" {
-                New-HTMLPanel {
+                New-HTMLPanel -Invisible {
                     New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History over time." -FontSize 10pt
                 }
             }
@@ -191,6 +192,14 @@
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightCoral
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
             } -ScrollX
+        }
+        New-HTMLTab -Name "Configuration" {
+            New-HTMLSection -HeaderText "Configuration" {
+                New-HTMLPanel -Invisible {
+                    New-HTMLText -Text "The following table lists all configuration settings used in the script." -FontSize 10pt
+                }
+            }
+            New-HTMLTable -DataTable $Configuration -ScrollX
         }
         if ($LogPath) {
             $LogsContent = Get-Content -Path $LogPath -Raw -ErrorAction SilentlyContinue
