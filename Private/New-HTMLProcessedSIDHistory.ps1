@@ -156,17 +156,20 @@
         New-HTMLTab -Name 'Current Deletion Status' {
             New-HTMLSection -HeaderText "SID History Report" {
                 New-HTMLPanel {
-                    New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History" -FontSize 10pt
+                    New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History. The following statistics provide insights into processed SID history in the forest:" -FontSize 10pt
 
                     $Enabled = $Export.CurrentRun | Where-Object { $_.Enabled }
                     $Disabled = $Export.CurrentRun | Where-Object { -not $_.Enabled }
 
-                    New-HTMLText -Text "The following statistics provide insights into the SID history in the forest:" -FontSize 10pt
-
                     New-HTMLList {
-                        New-HTMLListItem -Text "$($Enabled.Count) enabled objects" -FontWeight bold
-                        New-HTMLListItem -Text "$($Disabled.Count) disabled objects" -FontWeight bold
+                        New-HTMLListItem -Text "$($Enabled.Count)", " enabled objects" -FontWeight normal, bold
+                        New-HTMLListItem -Text "$($Disabled.Count)", " disabled objects" -FontWeight normal, bold
+                        New-HTMLListItem -Text "Processed ", $($Export.ProcessedObjects), " total objects" -FontWeight normal, bold, normal
+                        New-HTMLListItem -Text "Processed ", $($Export.ProcessedSIDs), " total SID history values" -FontWeight normal, bold, normal
                     } -FontSize 10pt
+
+
+                    New-HTMLText -Text "The following table lists all objects with SID history values and their current deletion status." -FontSize 10pt
                 }
             }
             New-HTMLTable -DataTable $Export.CurrentRun -Filtering {
