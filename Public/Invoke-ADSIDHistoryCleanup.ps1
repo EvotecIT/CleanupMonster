@@ -200,7 +200,7 @@
     }
     $Export['ObjectsToProcess'] = $ObjectsToProcess
 
-    New-HTMLProcessedSIDHistory -Export $Export -FilePath $ReportPath -Output $Output -ForestInformation $ForestInformation -Online:$Online.IsPresent -HideHTML:(-not $ShowHTML.IsPresent)
+    New-HTMLProcessedSIDHistory -Export $Export -FilePath $ReportPath -Output $Output -ForestInformation $ForestInformation -Online:$Online.IsPresent -HideHTML:(-not $ShowHTML.IsPresent) -LogPath $LogPath
 
     # Return summary information
     if (-not $Suppress) {
