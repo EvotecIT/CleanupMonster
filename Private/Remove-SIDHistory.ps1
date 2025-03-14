@@ -20,11 +20,13 @@
             ObjectDN       = $Object.DistinguishedName
             ObjectName     = $Object.Name
             ObjectDomain   = $Object.Domain
+            Enabled        = $Object.Enabled
             SIDBefore      = $Object.SIDHistory -join ", "
             SIDBeforeCount = $Object.SIDHistory.Count
             Action         = $null
             ActionDate     = $null
             ActionStatus   = $null
+            ActionError    = ''
             SIDRemoved     = @()
             SIDAfter       = @()
             SIDAfterCount  = 0
@@ -42,14 +44,17 @@
                             ObjectDN     = $Object.DistinguishedName
                             ObjectName   = $Object.Name
                             ObjectDomain = $Object.Domain
+                            Enabled      = $Object.Enabled
                             SID          = $SID
                             Action       = 'RemovePerSID'
                             ActionDate   = $CurrentDate
                             ActionStatus = 'Success'
+                            ActionError  = ''
                         }
                         $CurrentRunObject.Action = 'RemovePerSID'
                         $CurrentRunObject.ActionDate = $CurrentDate
                         $CurrentRunObject.ActionStatus = 'Success'
+                        $CurrentRunObject.ActionError = ''
                         $CurrentRunObject.SIDRemoved += $SID
                     } catch {
                         Write-Color -Text "[!] ", "Failed to remove SID History entry $SID from ", $Object.Name -Color Yellow, White, Red
@@ -61,10 +66,12 @@
                             Action       = 'RemovePerSID'
                             ActionDate   = $CurrentDate
                             ActionStatus = 'Failed'
+                            ActionError  = $_.Exception.Message
                         }
                         $CurrentRunObject.Action = 'RemovePerSID'
                         $CurrentRunObject.ActionDate = $CurrentDate
                         $CurrentRunObject.ActionStatus = 'Failed'
+                        $CurrentRunObject.ActionError = $_.Exception.Message
                     }
                 } else {
                     Write-Color -Text "[i] ", "Would have removed SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
@@ -76,11 +83,13 @@
                         Action       = 'RemovePerSID'
                         ActionDate   = Get-Date
                         ActionStatus = 'WhatIf'
+                        ActionError  = ''
                     }
                     $CurrentRunObject.SIDRemoved += $SID
                     $CurrentRunObject.Action = 'RemovePerSID'
                     $CurrentRunObject.ActionDate = $CurrentDate
                     $CurrentRunObject.ActionStatus = 'WhatIf'
+                    $CurrentRunObject.ActionError = ''
                 }
                 $null = $Export.History.Add($Result)
 
@@ -106,6 +115,7 @@
                     break
                 }
             }
+            $ProcessedObjects++
         } else {
             $CurrentDate = Get-Date
             # Process all SIDs for this object at once
@@ -121,8 +131,10 @@
                         Action       = 'RemoveAll'
                         ActionDate   = $CurrentDate
                         ActionStatus = 'Success'
+                        ActionError  = ''
                     }
                     $CurrentRunObject.ActionStatus = 'Success'
+                    $CurrentRunObject.ActionError = ''
                 } catch {
                     Write-Color -Text "[!] ", "Failed to remove SID History entries from ", $Object.Name -Color Yellow, White, Red
                     $Result = [PSCustomObject]@{
@@ -133,8 +145,10 @@
                         Action       = 'RemoveAll'
                         ActionDate   = $CurrentDate
                         ActionStatus = 'Failed'
+                        ActionError  = $_.Exception.Message
                     }
                     $CurrentRunObject.ActionStatus = 'Failed'
+                    $CurrentRunObject.ActionError = $_.Exception.Message
                 }
             } else {
                 Write-Color -Text "[i] ", "Would have removed all SID History entries from ", $Object.Name -Color Yellow, White, Green
@@ -146,12 +160,15 @@
                     Action       = 'RemoveAll'
                     ActionDate   = $CurrentDate
                     ActionStatus = 'WhatIf'
+                    ActionError  = ''
                 }
                 $CurrentRunObject.ActionStatus = 'WhatIf'
+                $CurrentRunObject.ActionError = ''
             }
             $CurrentRunObject.SIDRemoved += $Object.SIDHistory
             $CurrentRunObject.Action = 'RemoveAll'
             $CurrentRunObject.ActionDate = $CurrentDate
+            $CurrentRunObject.ActionError = ''
 
             $null = $Export.History.Add($Result)
 
@@ -176,5 +193,5 @@
     $Export['ProcessedObjects'] = $ProcessedObjects
     $Export['ProcessedSIDs'] = $ProcessedSIDs
 
-    Write-Color -Text "[i] ", "Processed ", $ProcessedObjects, " objects and ", $ProcessedSIDs, " SID History entries" -Color Yellow, White, Green
+    Write-Color -Text "[i] ", "Processed ", $ProcessedObjects, " objects and ", $ProcessedSIDs, " SID History entries" -Color Yellow, White, Green, White, Green, White
 }
