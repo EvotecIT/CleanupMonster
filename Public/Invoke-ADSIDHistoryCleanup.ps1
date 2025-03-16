@@ -170,7 +170,7 @@
     $ObjectsToProcess = [System.Collections.Generic.List[PSCustomObject]]::new()
 
     # Get forest details using existing function
-    $ForestInformation = Get-WinADForestDetails -Forest $Forest -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains
+    $ForestInformation = Get-WinADForestDetails -Forest $Forest -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains -PreferWritable
 
     # Get SID history information
     $Output = Get-WinADSIDHistory -Forest $Forest -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains -All
@@ -208,7 +208,7 @@
 
     if (-not $ReportOnly) {
         # Process the collected objects for SID removal
-        Remove-ADSIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export
+        Remove-ADSIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export -RemoveLimitSID $RemoveLimitSID
     }
 
     $Export['TotalObjectsFound'] = $ObjectsToProcess.Count
