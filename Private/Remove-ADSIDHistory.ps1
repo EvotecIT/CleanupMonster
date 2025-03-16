@@ -1,4 +1,4 @@
-﻿function Remove-SIDHistory {
+﻿function Remove-ADSIDHistory {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Array] $ObjectsToProcess,
