@@ -1,7 +1,7 @@
 ﻿function New-EmailBodySidHistory {
     [CmdletBinding()]
     param(
-        $Export
+        [System.Collections.IDictionary] $Export
     )
 
     $EmailBody = EmailBody -EmailBody {
@@ -13,21 +13,32 @@
 
         EmailText -LineBreak
 
-        # EmailText -Text "Following is a summary for the computer object cleanup:" -FontWeight bold
-        # EmailList {
-        #     EmailListItem -Text "Objects actioned: ", $Output.CurrentRun.Count -Color None, Green -FontWeight normal, bold
-        #     EmailListItem -Text "Objects deleted: ", $DeletedObjects.Count -Color None, Salmon -FontWeight normal, bold
-        #     EmailListItem -Text "Objects disabled: ", $DisabledObjects.Count -Color None, Orange -FontWeight normal, bold
-        # }
+        New-HTMLText -Text "The following table lists all actions that were taken on given objects while removing SID History. The following statistics provide insights into processed SID history in the forest:" -FontSize 10pt
 
-        # EmailText -Text "Following objects were actioned:" -LineBreak -FontWeight bold -Color Salmon
-        # EmailTable -DataTable $Output.CurrentRun -HideFooter {
-        #     New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackGroundColor PinkLace -Inline
-        #     New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackGroundColor EnergyYellow -Inline
-        #     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackGroundColor LightGreen -Inline
-        #     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackGroundColor Salmon -Inline
-        #     New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackGroundColor LightBlue -Inline
-        # }
+        $Enabled = $Export.CurrentRun | Where-Object { $_.Enabled }
+        $Disabled = $Export.CurrentRun | Where-Object { -not $_.Enabled }
+
+        EmailList {
+            EmailListItem -Text "$($Enabled.Count)", " enabled objects" -FontWeight normal, bold
+            EmailListItem -Text "$($Disabled.Count)", " disabled objects" -FontWeight normal, bold
+            EmailListItem -Text "Processed ", $($Export.ProcessedObjects), " total objects" -FontWeight normal, bold, normal
+            EmailListItem -Text "Processed ", $($Export.ProcessedSIDs), " total SID history values" -FontWeight normal, bold, normal
+        } -FontSize 10pt
+
+        EmailText -Text "Following objects were actioned:" -LineBreak -FontWeight bold -Color Salmon
+
+        EmailTable -DataTable $Export.CurrentRun {
+            EmailTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackGroundColor MintGreen -FailBackgroundColor Salmon -Inline
+            EmailTableCondition -Name 'SIDBeforeCount' -ComparisonType number -Operator gt -Value 0 -BackGroundColor LightCoral -FailBackgroundColor LightGreen -Inline
+            EmailTableCondition -Name 'SIDAfterCount' -ComparisonType number -Operator eq -Value 0 -BackGroundColor LightGreen -FailBackgroundColor Salmon -Inline
+
+            EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackGroundColor LightPink -Inline
+            EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackGroundColor LightCoral -Inline
+
+            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackGroundColor LightGreen -Inline
+            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackGroundColor Salmon -Inline
+            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackGroundColor LightBlue -Inline
+        } -HideFooter -PrettifyObject
 
         EmailText -LineBreak
 
