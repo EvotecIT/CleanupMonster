@@ -176,6 +176,13 @@
             New-HTMLTable -DataTable $Export.CurrentRun -Filtering {
                 New-HTMLTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon
                 New-HTMLTableCondition -Name 'SIDHistoryCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral
+
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightPink
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
+
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackgroundColor LightGreen
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
+                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
             } -ScrollX
         }
         New-HTMLTab -Name 'History Deletion Status' {
@@ -189,7 +196,7 @@
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
 
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightCoral
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightPink
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
             } -ScrollX
         }
