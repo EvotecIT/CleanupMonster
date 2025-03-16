@@ -175,7 +175,8 @@
             }
             New-HTMLTable -DataTable $Export.CurrentRun -Filtering {
                 New-HTMLTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon
-                New-HTMLTableCondition -Name 'SIDHistoryCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral
+                New-HTMLTableCondition -Name 'SIDBeforeCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral -FailBackgroundColor LightGreen
+                New-HTMLTableCondition -Name 'SIDAfterCount' -ComparisonType number -Operator eq -Value 0 -BackgroundColor LightGreen -FailBackgroundColor Salmon
 
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightPink
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
