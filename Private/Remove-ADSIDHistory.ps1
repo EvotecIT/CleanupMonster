@@ -18,7 +18,6 @@
         $QueryServer = $Item.QueryServer
 
         $CurrentRunObject = [PSCustomObject] @{
-            ObjectDN       = $Object.DistinguishedName
             ObjectName     = $Object.Name
             ObjectDomain   = $Object.Domain
             Enabled        = $Object.Enabled
@@ -31,6 +30,7 @@
             SIDRemoved     = @()
             SIDAfter       = @()
             SIDAfterCount  = 0
+            ObjectDN       = $Object.DistinguishedName
         }
 
         $ProcessedObjects++
@@ -44,7 +44,6 @@
                     try {
                         Set-ADObject -Identity $Object.DistinguishedName -Remove @{ SIDHistory = $SID } -Server $QueryServer -ErrorAction Stop
                         $Result = [PSCustomObject]@{
-                            ObjectDN     = $Object.DistinguishedName
                             ObjectName   = $Object.Name
                             ObjectDomain = $Object.Domain
                             Enabled      = $Object.Enabled
@@ -53,6 +52,7 @@
                             ActionDate   = $CurrentDate
                             ActionStatus = 'Success'
                             ActionError  = ''
+                            ObjectDN     = $Object.DistinguishedName
                         }
                         $CurrentRunObject.Action = 'RemovePerSID'
                         $CurrentRunObject.ActionDate = $CurrentDate
@@ -63,7 +63,6 @@
                     } catch {
                         Write-Color -Text "[!] ", "Failed to remove SID History entry $SID from ", $Object.Name, " exception: ", $_.Exception.Message -Color Yellow, White, Red
                         $Result = [PSCustomObject]@{
-                            ObjectDN     = $Object.DistinguishedName
                             ObjectName   = $Object.Name
                             ObjectDomain = $Object.Domain
                             SID          = $SID
@@ -71,6 +70,7 @@
                             ActionDate   = $CurrentDate
                             ActionStatus = 'Failed'
                             ActionError  = $_.Exception.Message
+                            ObjectDN     = $Object.DistinguishedName
                         }
                         $CurrentRunObject.Action = 'RemovePerSID'
                         $CurrentRunObject.ActionDate = $CurrentDate
@@ -80,7 +80,6 @@
                 } else {
                     Write-Color -Text "[i] ", "Would have removed SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
                     $Result = [PSCustomObject]@{
-                        ObjectDN     = $Object.DistinguishedName
                         ObjectName   = $Object.Name
                         ObjectDomain = $Object.Domain
                         SID          = $SID
@@ -88,6 +87,7 @@
                         ActionDate   = Get-Date
                         ActionStatus = 'WhatIf'
                         ActionError  = ''
+                        ObjectDN     = $Object.DistinguishedName
                     }
                     $CurrentRunObject.SIDRemoved += $SID
                     $CurrentRunObject.Action = 'RemovePerSID'
@@ -127,7 +127,6 @@
                 try {
                     Set-ADObject -Identity $Object.DistinguishedName -Clear SIDHistory -Server $QueryServer -ErrorAction Stop
                     $Result = [PSCustomObject]@{
-                        ObjectDN     = $Object.DistinguishedName
                         ObjectName   = $Object.Name
                         ObjectDomain = $Object.Domain
                         SID          = $Object.SIDHistory -join ", "
@@ -135,6 +134,7 @@
                         ActionDate   = $CurrentDate
                         ActionStatus = 'Success'
                         ActionError  = ''
+                        ObjectDN     = $Object.DistinguishedName
                     }
                     $CurrentRunObject.ActionStatus = 'Success'
                     $CurrentRunObject.ActionError = ''
@@ -142,7 +142,6 @@
                 } catch {
                     Write-Color -Text "[!] ", "Failed to remove SID History entries from ", $Object.Name, " exception: ", $_.Exception.Message -Color Yellow, White, Red
                     $Result = [PSCustomObject]@{
-                        ObjectDN     = $Object.DistinguishedName
                         ObjectName   = $Object.Name
                         ObjectDomain = $Object.Domain
                         SID          = $Object.SIDHistory -join ", "
@@ -150,6 +149,7 @@
                         ActionDate   = $CurrentDate
                         ActionStatus = 'Failed'
                         ActionError  = $_.Exception.Message
+                        ObjectDN     = $Object.DistinguishedName
                     }
                     $CurrentRunObject.ActionStatus = 'Failed'
                     $CurrentRunObject.ActionError = $_.Exception.Message
@@ -157,7 +157,6 @@
             } else {
                 Write-Color -Text "[i] ", "Would have removed all SID History entries from ", $Object.Name -Color Yellow, White, Green
                 $Result = [PSCustomObject]@{
-                    ObjectDN     = $Object.DistinguishedName
                     ObjectName   = $Object.Name
                     ObjectDomain = $Object.Domain
                     SID          = $Object.SIDHistory -join ", "
@@ -165,6 +164,7 @@
                     ActionDate   = $CurrentDate
                     ActionStatus = 'WhatIf'
                     ActionError  = ''
+                    ObjectDN     = $Object.DistinguishedName
                 }
                 $CurrentRunObject.ActionStatus = 'WhatIf'
                 $CurrentRunObject.ActionError = ''
