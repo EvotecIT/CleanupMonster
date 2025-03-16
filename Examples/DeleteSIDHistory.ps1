@@ -1,21 +1,33 @@
 ﻿Import-Module .\CleanupMonster.psd1 -Force
 
-# Run the script
+# Prepare splat
 $invokeADSIDHistoryCleanupSplat = @{
     Verbose                 = $true
     WhatIf                  = $true
     IncludeSIDHistoryDomain = @(
-        'S-1-5-21-3661168273-3802070955-2987026695'
+        #'S-1-5-21-3661168273-3802070955-2987026695'
+        'S-1-5-21-853615985-2870445339-3163598659'
     )
-    IncludeType             = 'External'
-    RemoveLimit             = 2
+    #IncludeType             = 'External'
+    RemoveLimitSID          = 1
+    RemoveLimitObject       = 2
+
+    SafetyADLimit           = 1
+    ShowHTML                = $true
+    Online                  = $true
+    #DisabledOnly            = $true
+    #ReportOnly              = $true
+    LogPath                 = "C:\Temp\ProcessedSIDHistory.log"
+    ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"
+    DataStorePath           = "$PSScriptRoot\ProcessedSIDHistory.xml"
 }
 
+# Run the script
 $Output = Invoke-ADSIDHistoryCleanup @invokeADSIDHistoryCleanupSplat
-$Output
+$Output | Format-Table -AutoSize
 
-<#
-S-1-5-21-3661168273-3802070955-2987026695
-S-1-5-21-853615985-2870445339-3163598659
-S-1-5-21-1928204107-2710010574-1926425344
-#>
+# Lets send an email
+$EmailBody = $Output.EmailBody
+
+Connect-MgGraph -Scopes 'Mail.Send' -NoWelcome
+Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated SID Cleanup Report" -Body $EmailBody -Priority Low -Verbose
