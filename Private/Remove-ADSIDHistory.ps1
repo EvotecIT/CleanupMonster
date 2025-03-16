@@ -2,9 +2,10 @@
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Array] $ObjectsToProcess,
-        [System.Collections.IDictionary] $Export
+        [System.Collections.IDictionary] $Export,
+        [int] $RemoveLimitSID
     )
-    Write-Color -Text "[i] ", "Removing SID History entries from ", $ObjectsToProcess.Count, " objects" -Color Yellow, White, Green
+    Write-Color -Text "[i] ", "Starting process of removing SID History entries from ", $ObjectsToProcess.Count, " objects" -Color Yellow, White, Green
 
     $GlobalLimitSID = 0
     $ProcessedSIDs = 0
@@ -12,7 +13,7 @@
 
     $Export['CurrentRun'] = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-    foreach ($Item in $ObjectsToProcess) {
+    :TopLoop foreach ($Item in $ObjectsToProcess) {
         $Object = $Item.Object
         $QueryServer = $Item.QueryServer
 
@@ -31,6 +32,8 @@
             SIDAfter       = @()
             SIDAfterCount  = 0
         }
+
+        $ProcessedObjects++
 
         if ($LimitPerSID) {
             # Process individual SIDs for this object
@@ -56,8 +59,9 @@
                         $CurrentRunObject.ActionStatus = 'Success'
                         $CurrentRunObject.ActionError = ''
                         $CurrentRunObject.SIDRemoved += $SID
+                        Write-Color -Text "[+] ", "Removed SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
                     } catch {
-                        Write-Color -Text "[!] ", "Failed to remove SID History entry $SID from ", $Object.Name -Color Yellow, White, Red
+                        Write-Color -Text "[!] ", "Failed to remove SID History entry $SID from ", $Object.Name, " exception: ", $_.Exception.Message -Color Yellow, White, Red
                         $Result = [PSCustomObject]@{
                             ObjectDN     = $Object.DistinguishedName
                             ObjectName   = $Object.Name
@@ -110,12 +114,11 @@
                 $GlobalLimitSID++
                 $ProcessedSIDs++
 
-                if ($GlobalLimitSID -ge $RemoveLimit) {
-                    Write-Color -Text "[i] ", "Reached SID limit of ", $RemoveLimit, ". Stopping processing." -Color Yellow, White, Green, White
-                    break
+                if ($GlobalLimitSID -ge $RemoveLimitSID) {
+                    Write-Color -Text "[i] ", "Reached SID limit of ", $RemoveLimitSID, ". Stopping processing." -Color Yellow, White, Green, White
+                    break TopLoop
                 }
             }
-            $ProcessedObjects++
         } else {
             $CurrentDate = Get-Date
             # Process all SIDs for this object at once
@@ -135,8 +138,9 @@
                     }
                     $CurrentRunObject.ActionStatus = 'Success'
                     $CurrentRunObject.ActionError = ''
+                    Write-Color -Text "[+] ", "Removed all SID History entries from ", $Object.Name -Color Yellow, White, Green
                 } catch {
-                    Write-Color -Text "[!] ", "Failed to remove SID History entries from ", $Object.Name -Color Yellow, White, Red
+                    Write-Color -Text "[!] ", "Failed to remove SID History entries from ", $Object.Name, " exception: ", $_.Exception.Message -Color Yellow, White, Red
                     $Result = [PSCustomObject]@{
                         ObjectDN     = $Object.DistinguishedName
                         ObjectName   = $Object.Name
@@ -187,11 +191,10 @@
             $CurrentRunObject.SIDAfterCount = $RefreshedObject.SIDHistory.Count
             $Export.CurrentRun.Add($CurrentRunObject)
             $ProcessedSIDs += $Object.SIDHistory.Count
-            $ProcessedObjects++
         }
     }
     $Export['ProcessedObjects'] = $ProcessedObjects
     $Export['ProcessedSIDs'] = $ProcessedSIDs
 
-    Write-Color -Text "[i] ", "Processed ", $ProcessedObjects, " objects and ", $ProcessedSIDs, " SID History entries" -Color Yellow, White, Green, White, Green, White
+    Write-Color -Text "[i] ", "Processed ", $ProcessedObjects, " objects out of ", $ObjectsToProcess.Count, " and removed ", $ProcessedSIDs, " SID History entries" -Color Yellow, White, Green, White, Green, White, Green, White
 }
