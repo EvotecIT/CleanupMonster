@@ -5,17 +5,17 @@ $invokeADSIDHistoryCleanupSplat = @{
     Verbose                 = $true
     WhatIf                  = $true
     IncludeSIDHistoryDomain = @(
-        #'S-1-5-21-3661168273-3802070955-2987026695'
+        'S-1-5-21-3661168273-3802070955-2987026695'
         'S-1-5-21-853615985-2870445339-3163598659'
     )
-    #IncludeType             = 'External'
+    IncludeType             = 'External'
     RemoveLimitSID          = 1
     RemoveLimitObject       = 2
 
     SafetyADLimit           = 1
     ShowHTML                = $true
     Online                  = $true
-    #DisabledOnly            = $true
+    DisabledOnly            = $true
     #ReportOnly              = $true
     LogPath                 = "C:\Temp\ProcessedSIDHistory.log"
     ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"

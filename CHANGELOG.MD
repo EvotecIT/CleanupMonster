@@ -1,4 +1,15 @@
-﻿### 2.8.8 - 2025.03.09
+﻿### 3.0.2 - 2025.03.16
+- Improvement to `Invoke-ADSIDHistoryCleanup`
+
+### 3.0.1 - 2025.03.16
+- Improvement to `Invoke-ADSIDHistoryCleanup`
+
+### 3.0.0 - 2025.03.16
+- Added `Invoke-ADSIDHistoryCleanup` to cleanup SIDHistory. Please [read blog post about it](https://evotec.xyz/mastering-active-directory-hygiene-automating-sidhistory-cleanup-with-cleanupmonster/) before trying to use it.
+
+THIS IS DANGEROUS COMMAND. USE WITH CAUTION. IT WILL REMOVE SIDHISTORY FROM ALL USERS IN THE DOMAIN IF CONFIGURED TO DO SO.
+
+### 2.8.8 - 2025.03.09
 - Fix deletion of log files/reports to specific extensions only [#24](https://github.com/EvotecIT/PasswordSolution/issues/24)
 - Added `TimeOnPendingList` to HTML report and passthru object
 - Added `TimeToLeavePendingList` to HTML report and passthru object
