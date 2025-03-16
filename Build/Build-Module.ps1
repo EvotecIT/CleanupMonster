@@ -3,7 +3,7 @@
 Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '2.8.X'
+        ModuleVersion        = '3.0.X'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
@@ -18,12 +18,12 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     }
     New-ConfigurationManifest @Manifest
 
-    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSWriteColor', 'PSEventViewer' -Guid Auto -Version Latest
+    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSWriteColor', 'PSEventViewer', 'ADEssentials' -Guid Auto -Version Latest
     New-ConfigurationModule -Type ExternalModule -Name @(
         'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
         'Microsoft.WSMan.Management', 'NetTCPIP'
     )
-    New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule'
+    New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'ADEssentialss'
     New-ConfigurationModuleSkip -IgnoreModuleName 'PowerJamf', 'GraphEssentials' -IgnoreFunctionName @(
         'Get-JamfDevice', 'Get-MyDevice', 'Get-MyDeviceIntune'
     )
