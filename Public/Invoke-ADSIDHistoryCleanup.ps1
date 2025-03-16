@@ -85,19 +85,52 @@
     Shows what would happen if the function runs. The SID history entries aren't actually removed.
 
     .EXAMPLE
-    Invoke-ADSIDHistoryCleanup -Forest "contoso.com" -IncludeType "External" -Report -ReportPath "C:\Temp\SIDHistoryReport.html"
+    Invoke-ADSIDHistoryCleanup -Forest "contoso.com" -IncludeType "External" -ReportOnly -ReportPath "C:\Temp\SIDHistoryReport.html" -WhatIf
 
     Generates a report of external SID history entries in the contoso.com forest without making any changes.
 
     .EXAMPLE
-    Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimitSID 100
+    Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimitSID 2 -WhatIf
 
-    Removes up to 100 internal SID history entries from objects in domain1.local.
+    Removes up to 2 internal SID history entries from objects in domain1.local.
 
     .EXAMPLE
-    Invoke-ADSIDHistoryCleanup -ExcludeSIDHistoryDomain "S-1-5-21-1234567890-1234567890-1234567890" -WhatIf
+    Invoke-ADSIDHistoryCleanup -ExcludeSIDHistoryDomain "S-1-5-21-1234567890-1234567890-1234567890" -WhatIf -RemoveLimitObject 2
 
-    Shows what SID history entries would be removed while excluding entries from the specified domain SID.
+    Shows what SID history entries would be removed while excluding entries from the specified domain SID. Limits the number of objects to process to 2.
+
+    .EXAMPLE
+    # Prepare splat
+    $invokeADSIDHistoryCleanupSplat = @{
+        Verbose                 = $true
+        WhatIf                  = $true
+        IncludeSIDHistoryDomain = @(
+            'S-1-5-21-3661168273-3802070955-2987026695'
+            'S-1-5-21-853615985-2870445339-3163598659'
+        )
+        IncludeType             = 'External'
+        RemoveLimitSID          = 1
+        RemoveLimitObject       = 2
+
+        SafetyADLimit           = 1
+        ShowHTML                = $true
+        Online                  = $true
+        DisabledOnly            = $true
+        #ReportOnly              = $true
+        LogPath                 = "C:\Temp\ProcessedSIDHistory.log"
+        ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"
+        DataStorePath           = "$PSScriptRoot\ProcessedSIDHistory.xml"
+    }
+
+    # Run the script
+    $Output = Invoke-ADSIDHistoryCleanup @invokeADSIDHistoryCleanupSplat
+    $Output | Format-Table -AutoSize
+
+    # Lets send an email
+    $EmailBody = $Output.EmailBody
+
+    Connect-MgGraph -Scopes 'Mail.Send' -NoWelcome
+    Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated SID Cleanup Report" -Body $EmailBody -Priority Low -Verbose
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param (
