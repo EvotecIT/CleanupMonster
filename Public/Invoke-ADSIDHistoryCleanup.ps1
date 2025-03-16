@@ -208,7 +208,7 @@
 
     if (-not $ReportOnly) {
         # Process the collected objects for SID removal
-        Remove-SIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export
+        Remove-ADSIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export
     }
 
     $Export['TotalObjectsFound'] = $ObjectsToProcess.Count
