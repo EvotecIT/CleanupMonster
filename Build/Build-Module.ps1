@@ -1,5 +1,4 @@
 ﻿Clear-Host
-Import-Module "C:\Support\GitHub\PSPublishModule\PSPublishModule.psd1" -Force
 
 Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module

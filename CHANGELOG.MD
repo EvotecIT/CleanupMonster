@@ -1,9 +1,9 @@
-﻿### 2.8.9
+﻿### 2.8.8 - 2025.03.09
 - Fix deletion of log files/reports to specific extensions only [#24](https://github.com/EvotecIT/PasswordSolution/issues/24)
-
-### 2.8.8
 - Added `TimeOnPendingList` to HTML report and passthru object
 - Added `TimeToLeavePendingList` to HTML report and passthru object
+- Improve detection of 'PowerJamf' and 'GraphEssentials' requiring minimum specific versions
+- Bump versions of other modules that are integral part of this module
 
 ### 2.8.7 - 2024.10.21
 - Do verification for missing modules PowerJamf, GraphEssentials when using AzureAD, Intune, Jamf Pro
