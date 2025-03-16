@@ -33,7 +33,7 @@
     Limits the total number of SID history entries to remove.
 
     .PARAMETER RemoveLimitObject
-    Limits the total number of objects to process for SID history removal.
+    Limits the total number of objects to process for SID history removal. Defaults to 1 to prevent accidental mass deletions.
 
     .PARAMETER IncludeType
     Specifies which types of SID history to include: 'Internal', 'External', or 'Unknown'.
@@ -109,7 +109,7 @@
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
         [nullable[int]] $RemoveLimitSID,
-        [nullable[int]] $RemoveLimitObject,
+        [nullable[int]] $RemoveLimitObject = 1,
         [ValidateSet('Internal', 'External', 'Unknown')][string[]] $IncludeType = @('Internal', 'External', 'Unknown'),
         [ValidateSet('Internal', 'External', 'Unknown')][string[]] $ExcludeType = @(),
         [string] $ReportPath,
