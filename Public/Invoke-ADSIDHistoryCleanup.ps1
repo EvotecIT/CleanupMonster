@@ -29,7 +29,7 @@
     .PARAMETER ExcludeSIDHistoryDomain
     An array of domain SIDs to exclude when cleaning up SID history.
 
-    .PARAMETER RemoveLimit
+    .PARAMETER RemoveLimitSID
     Limits the total number of SID history entries to remove.
 
     .PARAMETER RemoveLimitObject
@@ -66,7 +66,7 @@
     Generates a report of external SID history entries in the contoso.com forest without making any changes.
 
     .EXAMPLE
-    Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimit 100
+    Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimitSID 100
 
     Removes up to 100 internal SID history entries from objects in domain1.local.
 
@@ -84,7 +84,7 @@
         [string[]] $ExcludeOrganizationalUnit,
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
-        [nullable[int]] $RemoveLimit,
+        [nullable[int]] $RemoveLimitSID,
         [nullable[int]] $RemoveLimitObject,
         [ValidateSet('Internal', 'External', 'Unknown')][string[]] $IncludeType = @('Internal', 'External', 'Unknown'),
         [ValidateSet('Internal', 'External', 'Unknown')][string[]] $ExcludeType = @(),
@@ -128,10 +128,10 @@
     $Export = Import-SIDHistory -DataStorePath $DataStorePath -Export $Export
 
     # Determine if we're using limits
-    if ($Null -eq $RemoveLimit -and $null -eq $RemoveLimitObject) {
+    if ($Null -eq $RemoveLimitSID -and $null -eq $RemoveLimitObject) {
         $LimitPerObject = $false
         $LimitPerSID = $false
-    } elseif ($Null -eq $RemoveLimit) {
+    } elseif ($Null -eq $RemoveLimitSID) {
         $LimitPerObject = $true
         $LimitPerSID = $false
     } elseif ($Null -eq $RemoveLimitObject) {
@@ -141,6 +141,30 @@
         $LimitPerObject = $true
         $LimitPerSID = $true
     }
+
+    $Configuration = [ordered] @{
+        Forest                    = $Forest
+        IncludeDomains            = $IncludeDomains
+        ExcludeDomains            = $ExcludeDomains
+        IncludeOrganizationalUnit = $IncludeOrganizationalUnit
+        ExcludeOrganizationalUnit = $ExcludeOrganizationalUnit
+        IncludeSIDHistoryDomain   = $IncludeSIDHistoryDomain
+        ExcludeSIDHistoryDomain   = $ExcludeSIDHistoryDomain
+        RemoveLimitSID            = $RemoveLimitSID
+        RemoveLimitObject         = $RemoveLimitObject
+        IncludeType               = $IncludeType
+        ExcludeType               = $ExcludeType
+        LimitPerObject            = $LimitPerObject
+        LimitPerSID               = $LimitPerSID
+        SafetyADLimit             = $SafetyADLimit
+        DisabledOnly              = $DisabledOnly
+        LogPath                   = $LogPath
+        LogMaximum                = $LogMaximum
+        LogShowTime               = $LogShowTime
+        LogTimeFormat             = $LogTimeFormat
+        DontWriteToEventLog       = $DontWriteToEventLog
+    }
+
 
     # Initialize collections to store objects for processing or reporting
     $ObjectsToProcess = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -172,7 +196,6 @@
         ExcludeSIDHistoryDomain = $ExcludeSIDHistoryDomain
         IncludeType             = $IncludeType
         ExcludeType             = $ExcludeType
-        RemoveLimit             = $RemoveLimit
         RemoveLimitObject       = $RemoveLimitObject
         LimitPerObject          = $LimitPerObject
         LimitPerSID             = $LimitPerSID
@@ -200,7 +223,7 @@
     }
     $Export['ObjectsToProcess'] = $ObjectsToProcess
 
-    New-HTMLProcessedSIDHistory -Export $Export -FilePath $ReportPath -Output $Output -ForestInformation $ForestInformation -Online:$Online.IsPresent -HideHTML:(-not $ShowHTML.IsPresent) -LogPath $LogPath
+    New-HTMLProcessedSIDHistory -Export $Export -FilePath $ReportPath -Output $Output -ForestInformation $ForestInformation -Online:$Online.IsPresent -HideHTML:(-not $ShowHTML.IsPresent) -LogPath $LogPath -Configuration $Configuration
 
     # Return summary information
     if (-not $Suppress) {

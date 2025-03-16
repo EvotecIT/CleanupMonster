@@ -9,7 +9,6 @@
         [string[]] $ExcludeOrganizationalUnit,
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
-        [nullable[int]] $RemoveLimit,
         [nullable[int]] $RemoveLimitObject,
         [ValidateSet('Internal', 'External', 'Unknown')][string[]] $IncludeType,
         [ValidateSet('Internal', 'External', 'Unknown')][string[]] $ExcludeType,
