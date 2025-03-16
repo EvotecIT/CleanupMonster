@@ -45,6 +45,30 @@
     .PARAMETER DisabledOnly
     Only processes objects that are disabled.
 
+    .PARAMETER SafetyADLimit
+    Stops processing if the number of objects with SID history in AD is less than the specified limit.
+
+    .PARAMETER LogPath
+    The path to the log file to write.
+
+    .PARAMETER LogMaximum
+    The maximum number of log files to keep.
+
+    .PARAMETER LogShowTime
+    If specified, includes the time in the log entries.
+
+    .PARAMETER LogTimeFormat
+    The format to use for the time in the log entries.
+
+    .PARAMETER Suppress
+    Suppresses the output of the function and only returns the summary information.
+
+    .PARAMETER ShowHTML
+    If specified, shows the HTML report in the default browser.
+
+    .PARAMETER Online
+    If specified, uses online resources in HTML report (CSS/JS is loaded from CDN). Otherwise local resources are used (bigger HTML file).
+
     .PARAMETER DataStorePath
     Path to the XML file used to store processed SID history entries.
 
