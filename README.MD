@@ -21,9 +21,21 @@
 </p>
 
 `CleanupMonster` is a PowerShell module to that helps you clean up **Active Directory**.
-It's a complete solution that allows you to remove stale Computer (Users will be added in future) objects from **Active Directory**.
-It's a very advanced module with many options and you can easily customize it to your needs.
-Please make sure to run this module with proper permissions or you may get wrong results.
+
+It has multiple functionalities currently & planned:
+- [x] Cleanup stale Computer objects from Active Directory
+- [x] Cleanup SID History from Active Directory
+- [ ] Cleanup stale User objects from Active Directory
+- [ ] Cleanup stale Group objects from Active Directory
+- [ ] Cleanup GMSA/MSA objects from Active Directory
+
+There are 2 blog posts that explain how to use the module:
+- [Mastering Active Directory Hygiene: Automating Stale Computer Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-stale-computer-cleanup-with-cleanupmonster/)
+- [Mastering Active Directory Hygiene: Automating SID History Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-sidhistory-cleanup-with-cleanupmonster/)
+
+The solution is really thought through and has many options to customize it to your needs.
+It's a complete solution for cleaning up Active Directory.
+**Please make sure to run this module with proper permissions or you may get wrong results.**
 By default Active Directory domain allows a standard user to read LastLogonDate and LastPasswordSet attributes.
 If you have changed those settings you may need to run the module with elevated permissions even for reporting needs.
 
@@ -50,17 +62,15 @@ Your company's support can help us continue to maintain and improve this project
 
 Thank you for considering supporting this project!
 
-## Installation
+# Installation
 
 ```powershell
 Install-Module -Name CleanupMonster -Force -Verbose
 ```
 
-## Using the module
+## Cleaning Active Directory
 
-Here's a short blog post about the module: [Mastering Active Directory Hygiene: Automating Stale Computer Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-stale-computer-cleanup-with-cleanupmonster/) to help you get started.
-
-### Cleaning Active Directory
+### Cleaning Computers
 
 #### Report Only
 
@@ -234,4 +244,50 @@ $invokeADComputersCleanupSplat = @{
 
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
 $Output
+```
+
+### Cleaning SID History
+
+#### Report Only
+
+The first thing you should do is to run the module in a report only mode.
+It will show you how many SID History entries are there to remove.
+
+```powershell
+$Output = Invoke-ADSIDHistoryCleanup -WhatIf -ReportOnly
+```
+
+####
+Cleanup of specific SID History entries along with report with email
+
+```powershell
+$invokeADSIDHistoryCleanupSplat = @{
+    Verbose                 = $true
+    WhatIf                  = $true
+    IncludeSIDHistoryDomain = @(
+        'S-1-5-21-3661168273-3802070955-2987026695'
+        'S-1-5-21-853615985-2870445339-3163598659'
+    )
+    #IncludeType             = 'External'
+    RemoveLimitSID          = 2
+    RemoveLimitObject       = 2
+    SafetyADLimit           = 1
+    ShowHTML                = $true
+    Online                  = $true
+    DisabledOnly            = $false
+    LogPath                 = "$PSScriptROot\ProcessedSIDHistory.log"
+    ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"
+    DataStorePath           = "$PSScriptRoot\ProcessedSIDHistory.xml"
+}
+
+# Run the script
+$Output = Invoke-ADSIDHistoryCleanup @invokeADSIDHistoryCleanupSplat
+$Output | Format-Table -AutoSize
+
+# Lets send an email
+$EmailBody = $Output.EmailBody
+
+# Send an email with the report
+Connect-MgGraph -Scopes 'Mail.Send' -NoWelcome
+Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated SID Cleanup Report" -Body $EmailBody -Priority Low -Verbose
 ```
