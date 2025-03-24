@@ -50,8 +50,9 @@
             Write-Color -Text "[e] ", "'GraphEssentials' module is required but not available. Terminating." -Color Yellow, Red
             return $false
         }
-        if ($ModuleAvailable.Version -lt [version]'0.0.43') {
-            Write-Color -Text "[e] ", "'GraphEssentials' module is outdated. Please update to the latest version minimum '0.0.43'. Terminating." -Color Yellow, Red
+        $ModuleVersion = [version]'0.0.44'
+        if ($ModuleAvailable.Version -lt $ModuleVersion) {
+            Write-Color -Text "[e] ", "'GraphEssentials' module is outdated. Please update to the latest version minimum '$ModuleVersion'. Terminating." -Color Yellow, Red
             return $false
         }
     }
@@ -61,8 +62,9 @@
             Write-Color -Text "[e] ", "'PowerJamf' module is required but not available. Terminating." -Color Yellow, Red
             return $false
         }
-        if ($ModuleAvailable.Version -lt [version]'0.3.0') {
-            Write-Color -Text "[e] ", "'PowerJamf' module is outdated. Please update to the latest version minimum '0.0.3'. Terminating." -Color Yellow, Red
+        $ModuleVersion = [version]'0.3.1'
+        if ($ModuleAvailable.Version -lt $ModuleVersion) {
+            Write-Color -Text "[e] ", "'PowerJamf' module is outdated. Please update to the latest version minimum '$ModuleVersion'. Terminating." -Color Yellow, Red
             return $false
         }
     }
