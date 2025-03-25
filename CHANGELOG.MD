@@ -1,4 +1,7 @@
-﻿### 3.0.3 - 2025.03.24
+﻿### 3.0.4 - 2025.03.25
+- Bump dependencies to `GraphEssentials`
+
+### 3.0.3 - 2025.03.24
 - Bump dependencies to `GraphEssentials`
 
 ### 3.0.2 - 2025.03.16
