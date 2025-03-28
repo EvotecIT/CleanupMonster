@@ -1,4 +1,7 @@
-﻿### 3.0.4 - 2025.03.25
+﻿### 3.0.5 - 2025.03.28
+- Remove `ADEssentials` dependency (in PSGallery only, development still requires it), as it was included by mistake
+
+### 3.0.4 - 2025.03.25
 - Bump dependencies to `GraphEssentials`
 
 ### 3.0.3 - 2025.03.24

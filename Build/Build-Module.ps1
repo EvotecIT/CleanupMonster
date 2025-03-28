@@ -21,9 +21,9 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSWriteColor', 'PSEventViewer', 'ADEssentials' -Guid Auto -Version Latest
     New-ConfigurationModule -Type ExternalModule -Name @(
         'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
-        'Microsoft.WSMan.Management', 'NetTCPIP'
+        'Microsoft.WSMan.Management', 'NetTCPIP', 'CimCmdlets'
     )
-    New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'ADEssentialss'
+    New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'ADEssentials'
     New-ConfigurationModuleSkip -IgnoreModuleName 'PowerJamf', 'GraphEssentials' -IgnoreFunctionName @(
         'Get-JamfDevice', 'Get-MyDevice', 'Get-MyDeviceIntune'
     )
