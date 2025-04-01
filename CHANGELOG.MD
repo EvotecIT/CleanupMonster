@@ -1,4 +1,13 @@
-﻿### 3.0.5 - 2025.03.28
+﻿### 3.1.0 - 2025.04.01
+
+#### What's Changed
+* Add protected from accidental deletion removal by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/25
+* feat(Build): ✨ update `ModuleVersion` to `3.1.0` by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/26
+
+
+**Full Changelog**: https://github.com/EvotecIT/CleanupMonster/compare/v3.0.5...v3.1.0
+
+### 3.0.5 - 2025.03.28
 - Remove `ADEssentials` dependency (in PSGallery only, development still requires it), as it was included by mistake
 
 ### 3.0.4 - 2025.03.25
