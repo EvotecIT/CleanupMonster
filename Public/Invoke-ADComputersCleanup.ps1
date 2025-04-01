@@ -393,6 +393,10 @@
     It will use the default server if no server is provided for a domain, which is default approach.
     This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
 
+    .PARAMETER RemoveProtectedFromAccidentalDeletionFlag
+    Remove the ProtectedFromAccidentalDeletion flag from the computer object before deleting it.
+    By default it will not remove the flag, and require it to be removed manually.
+
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
     $Output
@@ -568,7 +572,8 @@
         [nullable[int]] $SafetyIntuneLimit,
         [nullable[int]] $SafetyJamfLimit,
         [switch] $DontWriteToEventLog,
-        [Object] $TargetServers
+        [Object] $TargetServers,
+        [switch] $RemoveProtectedFromAccidentalDeletionFlag
     )
     # we will use it to check for intune/azuread/jamf functionality
     $Script:CleanupOptions = [ordered] @{}
@@ -800,55 +805,56 @@
         $requestADComputersDisableSplat = @{
             # those 2 are added only to make sure we don't add to processing list
             # if there is no process later on
-            Delete                              = $Delete
-            Move                                = $Move
+            Delete                                    = $Delete
+            Move                                      = $Move
             # we can disable and move on one go
-            DisableAndMove                      = $DisableAndMove
-            Report                              = $Report
-            WhatIfDisable                       = $WhatIfDisable
-            WhatIf                              = $WhatIfPreference
-            DisableModifyDescription            = $DisableModifyDescription.IsPresent
-            DisableModifyAdminDescription       = $DisableModifyAdminDescription.IsPresent
-            DisableLimit                        = $DisableLimit
-            ReportOnly                          = $ReportOnly
-            Today                               = $Today
-            DontWriteToEventLog                 = $DontWriteToEventLog
-            DisableMoveTargetOrganizationalUnit = $DisableMoveTargetOrganizationalUnit
-
-            DoNotAddToPendingList               = $DisableDoNotAddToPendingList
-            DisableAndMoveOrder                 = $DisableAndMoveOrder
+            DisableAndMove                            = $DisableAndMove
+            Report                                    = $Report
+            WhatIfDisable                             = $WhatIfDisable
+            WhatIf                                    = $WhatIfPreference
+            DisableModifyDescription                  = $DisableModifyDescription.IsPresent
+            DisableModifyAdminDescription             = $DisableModifyAdminDescription.IsPresent
+            DisableLimit                              = $DisableLimit
+            ReportOnly                                = $ReportOnly
+            Today                                     = $Today
+            DontWriteToEventLog                       = $DontWriteToEventLog
+            DisableMoveTargetOrganizationalUnit       = $DisableMoveTargetOrganizationalUnit
+            DoNotAddToPendingList                     = $DisableDoNotAddToPendingList
+            DisableAndMoveOrder                       = $DisableAndMoveOrder
+            RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
     }
 
     if ($Move) {
         $requestADComputersMoveSplat = @{
-            Report                   = $Report
-            WhatIfMove               = $WhatIfMove
-            WhatIf                   = $WhatIfPreference
-            MoveLimit                = $MoveLimit
-            ReportOnly               = $ReportOnly
-            Today                    = $Today
-            ProcessedComputers       = $ProcessedComputers
-            TargetOrganizationalUnit = $MoveTargetOrganizationalUnit
-            DontWriteToEventLog      = $DontWriteToEventLog
-            Delete                   = $Delete
-
-            DoNotAddToPendingList    = $MoveDoNotAddToPendingList
+            Report                                    = $Report
+            WhatIfMove                                = $WhatIfMove
+            WhatIf                                    = $WhatIfPreference
+            MoveLimit                                 = $MoveLimit
+            ReportOnly                                = $ReportOnly
+            Today                                     = $Today
+            ProcessedComputers                        = $ProcessedComputers
+            TargetOrganizationalUnit                  = $MoveTargetOrganizationalUnit
+            DontWriteToEventLog                       = $DontWriteToEventLog
+            Delete                                    = $Delete
+            DoNotAddToPendingList                     = $MoveDoNotAddToPendingList
+            RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportMoved = Request-ADComputersMove @requestADComputersMoveSplat
     }
 
     if ($Delete) {
         $requestADComputersDeleteSplat = @{
-            Report              = $Report
-            WhatIfDelete        = $WhatIfDelete
-            WhatIf              = $WhatIfPreference
-            DeleteLimit         = $DeleteLimit
-            ReportOnly          = $ReportOnly
-            Today               = $Today
-            ProcessedComputers  = $ProcessedComputers
-            DontWriteToEventLog = $DontWriteToEventLog
+            Report                                    = $Report
+            WhatIfDelete                              = $WhatIfDelete
+            WhatIf                                    = $WhatIfPreference
+            DeleteLimit                               = $DeleteLimit
+            ReportOnly                                = $ReportOnly
+            Today                                     = $Today
+            ProcessedComputers                        = $ProcessedComputers
+            DontWriteToEventLog                       = $DontWriteToEventLog
+            RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
     }
