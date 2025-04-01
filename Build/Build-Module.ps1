@@ -3,7 +3,7 @@
 Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '3.0.X'
+        ModuleVersion        = '3.1.X'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
