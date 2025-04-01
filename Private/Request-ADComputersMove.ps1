@@ -10,7 +10,8 @@
         [DateTime] $Today,
         [Object] $TargetOrganizationalUnit,
         [switch] $DontWriteToEventLog,
-        [switch] $DoNotAddToPendingList
+        [switch] $DoNotAddToPendingList,
+        [switch] $RemoveProtectedFromAccidentalDeletionFlag
     )
 
     if ($TargetOrganizationalUnit -is [System.Collections.IDictionary]) {
@@ -40,36 +41,68 @@
                     if ($Computer.OrganizationalUnit -eq $OrganizationalUnit[$Domain]) {
                         # this shouldn't really happen as we should have filtered it out earlier
                     } else {
-                        Write-Color -Text "[i] Moving computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
-                        try {
-                            $MovedObject = Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfMove -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $OrganizationalUnit[$Domain] -PassThru
-                            $Computer.DistinguishedNameAfterMove = $MovedObject.DistinguishedName
-                            Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) successful." -Color Yellow, Green, Yellow
-                            if (-not $DontWriteToEventLog) {
-                                Write-Event -ID 11 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) successful." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove) -WarningAction SilentlyContinue -WarningVariable warnings
-                            }
-                            foreach ($W in $Warnings) {
-                                Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                            }
-                            if (-not $Delete) {
-                                # lets remove computer from $ProcessedComputers
-                                # we only remove it if Delete is not part of the removal process and move is the last step
-                                if (-not $DoNotAddToPendingList) {
-                                    $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
-                                    $ProcessedComputers.Remove("$ComputerOnTheList")
+                        if ($Computer.ProtectedFromAccidentalDeletion) {
+                            if ($RemoveProtectedFromAccidentalDeletionFlag) {
+                                try {
+                                    Write-Color -Text "[i] Removing protected from accidental move flag for computer ", $Computer.DistinguishedName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
+                                    Set-ADObject -ProtectedFromAccidentalDeletion $false -Identity $Computer.DistinguishedName -Server $Server -ErrorAction Stop -Confirm:$false -WhatIf:$WhatIfMove
+                                    if (-not $DontWriteToEventLog) {
+                                        Write-Event -ID 15 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Removing protected from accidental move flag for computer $($Computer.SamAccountName) successful." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove) -WarningAction SilentlyContinue -WarningVariable warnings
+                                    }
+                                    $Success = $true
+                                } catch {
+                                    $Success = $false
+                                    Write-Color -Text "[-] Removing protected from accidental move flag for computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
+                                    if (-not $DontWriteToEventLog) {
+                                        Write-Event -ID 15 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Removing protected from accidental move flag for computer $($Computer.SamAccountName) failed." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
+                                    }
+                                    foreach ($W in $Warnings) {
+                                        Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
+                                    }
                                 }
+                            } else {
+                                Write-Color -Text "[i] Computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' is protected from accidental move. Move skipped.' -Color Yellow, Green, Yellow
+                                if (-not $DontWriteToEventLog) {
+                                    Write-Event -ID 15 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Computer $($Computer.SamAccountName) is protected from accidental move. Move skipped." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove) -WarningAction SilentlyContinue -WarningVariable warnings
+                                }
+                                $Success = $false
                             }
+                        } else {
                             $Success = $true
-                        } catch {
+                        }
+                        if ($Success) {
                             $Success = $false
-                            Write-Color -Text "[-] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
-                            if (-not $DontWriteToEventLog) {
-                                Write-Event -ID 11 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) failed." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
+                            Write-Color -Text "[i] Moving computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
+                            try {
+                                $MovedObject = Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfMove -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $OrganizationalUnit[$Domain] -PassThru
+                                $Computer.DistinguishedNameAfterMove = $MovedObject.DistinguishedName
+                                Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) successful." -Color Yellow, Green, Yellow
+                                if (-not $DontWriteToEventLog) {
+                                    Write-Event -ID 11 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) successful." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove) -WarningAction SilentlyContinue -WarningVariable warnings
+                                }
+                                foreach ($W in $Warnings) {
+                                    Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
+                                }
+                                if (-not $Delete) {
+                                    # lets remove computer from $ProcessedComputers
+                                    # we only remove it if Delete is not part of the removal process and move is the last step
+                                    if (-not $DoNotAddToPendingList) {
+                                        $ComputerOnTheList = -join ($Computer.SamAccountName, "@", $Domain)
+                                        $ProcessedComputers.Remove("$ComputerOnTheList")
+                                    }
+                                }
+                                $Success = $true
+                            } catch {
+                                $Success = $false
+                                Write-Color -Text "[-] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
+                                if (-not $DontWriteToEventLog) {
+                                    Write-Event -ID 11 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) failed." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfMove, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
+                                }
+                                foreach ($W in $Warnings) {
+                                    Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
+                                }
+                                $Computer.ActionComment = $_.Exception.Message
                             }
-                            foreach ($W in $Warnings) {
-                                Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
-                            }
-                            $Computer.ActionComment = $_.Exception.Message
                         }
                         $Computer.ActionDate = $Today
                         if ($WhatIfMove.IsPresent) {
