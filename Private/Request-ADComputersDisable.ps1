@@ -17,7 +17,8 @@
         [ValidateSet(
             'DisableAndMove',
             'MoveAndDisable'
-        )][string] $DisableAndMoveOrder = 'DisableAndMove'
+        )][string] $DisableAndMoveOrder = 'DisableAndMove',
+        [switch] $RemoveProtectedFromAccidentalDeletionFlag
     )
 
     if ($DisableAndMove -and $DisableMoveTargetOrganizationalUnit) {
@@ -49,9 +50,9 @@
                 $Success = $true
                 if ($DisableAndMoveOrder -eq 'DisableAndMove') {
                     $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
-                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server
+                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                 } else {
-                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server
+                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                     $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
                 }
                 if ($Success) {
