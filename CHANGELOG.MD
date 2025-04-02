@@ -1,9 +1,15 @@
-﻿### 3.1.0 - 2025.04.01
+﻿
+### 3.1.1 - 2025.04.01
+#### What's Changed
+* Improve SIDHistory Cleanup by removing not working code by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/27
+
+**Full Changelog**: https://github.com/EvotecIT/CleanupMonster/compare/v3.1.0...v3.1.1
+
+### 3.1.0 - 2025.04.01
 
 #### What's Changed
 * Add protected from accidental deletion removal by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/25
 * feat(Build): ✨ update `ModuleVersion` to `3.1.0` by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/26
-
 
 **Full Changelog**: https://github.com/EvotecIT/CleanupMonster/compare/v3.0.5...v3.1.0
 
