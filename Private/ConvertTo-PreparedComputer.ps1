@@ -1,4 +1,4 @@
-﻿function ConvertTo-PreparedComputer {
+function ConvertTo-PreparedComputer {
     [CmdletBinding()]
     param(
         [Microsoft.ActiveDirectory.Management.ADComputer[]] $Computers,
@@ -6,7 +6,8 @@
         [System.Collections.IDictionary] $JamfInformationCache,
         [switch] $IncludeAzureAD,
         [switch] $IncludeIntune,
-        [switch] $IncludeJamf
+        [switch] $IncludeJamf,
+        [DateTime] $Today = (Get-Date)
     )
 
     foreach ($Computer in $Computers) {
