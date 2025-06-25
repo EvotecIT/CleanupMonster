@@ -246,19 +246,22 @@
     }
 
     $requestADSIDHistorySplat = @{
-        DomainNames             = $DomainNames
-        Output                  = $Output
-        Export                  = $Export
-        IncludeSIDHistoryDomain = $IncludeSIDHistoryDomain
-        ExcludeSIDHistoryDomain = $ExcludeSIDHistoryDomain
-        IncludeType             = $IncludeType
-        ExcludeType             = $ExcludeType
-        RemoveLimitObject       = $RemoveLimitObject
-        LimitPerObject          = $LimitPerObject
-        LimitPerSID             = $LimitPerSID
-        ObjectsToProcess        = $ObjectsToProcess
-        DisabledOnly            = $DisabledOnly
-        ForestInformation       = $ForestInformation
+        DomainNames               = $DomainNames
+        Output                    = $Output
+        Export                    = $Export
+        IncludeSIDHistoryDomain   = $IncludeSIDHistoryDomain
+        ExcludeSIDHistoryDomain   = $ExcludeSIDHistoryDomain
+        IncludeType               = $IncludeType
+        ExcludeType               = $ExcludeType
+        RemoveLimitObject         = $RemoveLimitObject
+        LimitPerObject            = $LimitPerObject
+        LimitPerSID               = $LimitPerSID
+        ObjectsToProcess          = $ObjectsToProcess
+        DisabledOnly              = $DisabledOnly
+        ForestInformation         = $ForestInformation
+        IncludeOrganizationalUnit = $IncludeOrganizationalUnit
+        ExcludeOrganizationalUnit = $ExcludeOrganizationalUnit
+        DontWriteToEventLog       = $DontWriteToEventLog
     }
 
     Request-ADSIDHistory @requestADSIDHistorySplat
