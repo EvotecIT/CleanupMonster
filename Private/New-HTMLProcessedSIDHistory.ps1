@@ -184,7 +184,7 @@
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackgroundColor LightGreen
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
-            } -ScrollX
+            } -ScrollX -WarningAction SilentlyContinue
         }
         New-HTMLTab -Name 'History Deletion Status' {
             New-HTMLSection -HeaderText "SID History Report" {
@@ -199,7 +199,7 @@
 
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightPink
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral
-            } -ScrollX
+            } -ScrollX -WarningAction SilentlyContinue
         }
         New-HTMLTab -Name "Configuration" {
             New-HTMLSection -HeaderText "Configuration" {
@@ -207,7 +207,7 @@
                     New-HTMLText -Text "The following table lists all configuration settings used in the script." -FontSize 10pt
                 }
             }
-            New-HTMLTable -DataTable $Configuration -ScrollX
+            New-HTMLTable -DataTable $Configuration -ScrollX -WarningAction SilentlyContinue
         }
         if ($LogPath) {
             $LogsContent = Get-Content -Path $LogPath -Raw -ErrorAction SilentlyContinue
