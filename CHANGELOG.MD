@@ -1,4 +1,10 @@
-﻿### 3.1.2 - 2025.06.25
+﻿### 3.1.0 - 2025.06.25
+#### What's new
+- Improve IncludeOU/ExcludeOU allowing wildcards
+
+**Full Changelog**: https://github.com/EvotecIT/CleanupMonster/compare/v3.1.2...v3.1.3
+
+### 3.1.2 - 2025.06.25
 #### What's Changed
 * Fix missing Today parameter in ConvertTo-PreparedComputer by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/28
 * Fixes lack of IncludeOU/ExcludeOU for `Invoke-ADSIDHistoryCleanup`
