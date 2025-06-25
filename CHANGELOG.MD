@@ -1,4 +1,10 @@
-﻿
+﻿### 3.1.2 - 2025.06.25
+#### What's Changed
+* Fix missing Today parameter in ConvertTo-PreparedComputer by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/28
+* Fixes lack of IncludeOU/ExcludeOU for `Invoke-ADSIDHistoryCleanup`
+
+**Full Changelog**: https://github.com/EvotecIT/CleanupMonster/compare/v3.1.1...v3.1.2
+
 ### 3.1.1 - 2025.04.01
 #### What's Changed
 * Improve SIDHistory Cleanup by removing not working code by @PrzemyslawKlys in https://github.com/EvotecIT/CleanupMonster/pull/27
