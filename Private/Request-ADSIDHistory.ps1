@@ -82,12 +82,30 @@
             }
 
             # Check if we need to filter by OU
-            if ($IncludeOrganizationalUnit -and $IncludeOrganizationalUnit -notcontains $Object.OrganizationalUnit) {
-                continue
+            if ($IncludeOrganizationalUnit) {
+                $IncludeMatch = $false
+                foreach ($IncludePattern in $IncludeOrganizationalUnit) {
+                    if ($Object.OrganizationalUnit -like $IncludePattern) {
+                        $IncludeMatch = $true
+                        break
+                    }
+                }
+                if (-not $IncludeMatch) {
+                    continue
+                }
             }
 
-            if ($ExcludeOrganizationalUnit -and $ExcludeOrganizationalUnit -contains $Object.OrganizationalUnit) {
-                continue
+            if ($ExcludeOrganizationalUnit) {
+                $ExcludeMatch = $false
+                foreach ($ExcludePattern in $ExcludeOrganizationalUnit) {
+                    if ($Object.OrganizationalUnit -like $ExcludePattern) {
+                        $ExcludeMatch = $true
+                        break
+                    }
+                }
+                if ($ExcludeMatch) {
+                    continue
+                }
             }
 
             Write-Color -Text "[i] ", "Processing ", $Object.Name, " (", $Object.ObjectClass, " in ", $Object.Domain, ", SID History Count: ", $Object.SIDHistory.Count, ")" -Color Yellow, White, Green, White, Green, White, Green, White, Green
