@@ -38,7 +38,7 @@
             EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackGroundColor LightGreen -Inline
             EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackGroundColor Salmon -Inline
             EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackGroundColor LightBlue -Inline
-        } -HideFooter -PrettifyObject
+        } -HideFooter -PrettifyObject -WarningAction SilentlyContinue
 
         EmailText -LineBreak
 
