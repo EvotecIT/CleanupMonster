@@ -19,9 +19,11 @@
 
     .PARAMETER IncludeOrganizationalUnit
     An array of organizational units to include in the cleanup process.
+    Supports wildcards using the -like operator. For example: "*OU=Accounts,OU=Production*"
 
     .PARAMETER ExcludeOrganizationalUnit
     An array of organizational units to exclude from the cleanup process.
+    Supports wildcards using the -like operator. For example: "*OU=Test*"
 
     .PARAMETER IncludeSIDHistoryDomain
     An array of domain SIDs to include when cleaning up SID history.
