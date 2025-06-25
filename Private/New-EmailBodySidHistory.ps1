@@ -28,16 +28,16 @@
         EmailText -Text "Following objects were actioned:" -LineBreak -FontWeight bold -Color Salmon
 
         EmailTable -DataTable $Export.CurrentRun {
-            EmailTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackGroundColor MintGreen -FailBackgroundColor Salmon -Inline
-            EmailTableCondition -Name 'SIDBeforeCount' -ComparisonType number -Operator gt -Value 0 -BackGroundColor LightCoral -FailBackgroundColor LightGreen -Inline
-            EmailTableCondition -Name 'SIDAfterCount' -ComparisonType number -Operator eq -Value 0 -BackGroundColor LightGreen -FailBackgroundColor Salmon -Inline
+            EmailTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon -Inline
+            EmailTableCondition -Name 'SIDBeforeCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral -FailBackgroundColor LightGreen -Inline
+            EmailTableCondition -Name 'SIDAfterCount' -ComparisonType number -Operator eq -Value 0 -BackgroundColor LightGreen -FailBackgroundColor Salmon -Inline
 
-            EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackGroundColor LightPink -Inline
-            EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackGroundColor LightCoral -Inline
+            EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightPink -Inline
+            EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral -Inline
 
-            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackGroundColor LightGreen -Inline
-            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackGroundColor Salmon -Inline
-            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackGroundColor LightBlue -Inline
+            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Success' -BackgroundColor LightGreen -Inline
+            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon -Inline
+            EmailTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue -Inline
         } -HideFooter -PrettifyObject -WarningAction SilentlyContinue
 
         EmailText -LineBreak
