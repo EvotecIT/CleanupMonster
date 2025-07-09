@@ -62,7 +62,7 @@
             Write-Color -Text "[e] ", "'PowerJamf' module is required but not available. Terminating." -Color Yellow, Red
             return $false
         }
-        $ModuleVersion = [version]'0.3.1'
+        $ModuleVersion = [version]'0.3.0'
         if ($ModuleAvailable.Version -lt $ModuleVersion) {
             Write-Color -Text "[e] ", "'PowerJamf' module is outdated. Please update to the latest version minimum '$ModuleVersion'. Terminating." -Color Yellow, Red
             return $false
