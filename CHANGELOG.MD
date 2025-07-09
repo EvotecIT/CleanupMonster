@@ -1,5 +1,9 @@
 ﻿### 3.1.0 - 2025.06.25
 #### What's new
+- Downgrade requirement for PowerJamf
+
+### 3.1.0 - 2025.06.25
+#### What's new
 - Improve IncludeOU/ExcludeOU allowing wildcards
 
 **Full Changelog**: https://github.com/EvotecIT/CleanupMonster/compare/v3.1.2...v3.1.3
