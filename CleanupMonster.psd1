@@ -8,7 +8,7 @@
     Description          = 'This module provides an easy way to cleanup Active Directory from dead/old objects based on various criteria. It can also disable, move or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them.'
     FunctionsToExport    = @('Invoke-ADComputersCleanup', 'Invoke-ADSIDHistoryCleanup')
     GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
-    ModuleVersion        = '3.1.3'
+    ModuleVersion        = '3.1.4'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
@@ -21,11 +21,11 @@
     RequiredModules      = @(@{
             Guid          = 'ee272aa8-baaa-4edf-9f45-b6d6f7d844fe'
             ModuleName    = 'PSSharedGoods'
-            ModuleVersion = '0.0.309'
+            ModuleVersion = '0.0.310'
         }, @{
             Guid          = 'a7bdf640-f5cb-4acf-9de0-365b322d245c'
             ModuleName    = 'PSWriteHTML'
-            ModuleVersion = '1.36.0'
+            ModuleVersion = '1.38.0'
         }, @{
             Guid          = '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f'
             ModuleName    = 'PSWriteColor'
@@ -37,7 +37,7 @@
         }, @{
             Guid          = '9fc9fd61-7f11-4f4b-a527-084086f1905f'
             ModuleName    = 'ADEssentials'
-            ModuleVersion = '0.0.240'
+            ModuleVersion = '0.0.247'
         }, 'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management', 'Microsoft.WSMan.Management', 'NetTCPIP', 'CimCmdlets')
     RootModule           = 'CleanupMonster.psm1'
 }
