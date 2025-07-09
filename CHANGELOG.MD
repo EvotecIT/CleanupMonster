@@ -1,4 +1,4 @@
-﻿### 3.1.0 - 2025.06.25
+﻿### 3.1.4 - 2025.06.25
 #### What's new
 - Downgrade requirement for PowerJamf
 
