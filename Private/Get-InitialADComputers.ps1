@@ -17,7 +17,10 @@
         [nullable[int]] $SafetyADLimit,
         [System.Collections.IDictionary] $AzureInformationCache,
         [System.Collections.IDictionary] $JamfInformationCache,
-        [object] $TargetServers
+        [object] $TargetServers,
+        [int] $ADQueryMaxRetries = 3,
+        [int] $ADQueryRetryDelay = 5,
+        [int] $ADQueryPageSize = 1000
     )
     $AllComputers = [ordered] @{}
 
@@ -67,7 +70,7 @@
             $TargetServer = $TargetServers
         }
         if ($TargetServers -is [System.Collections.IDictionary]) {
-            $TargetServerDictionary = $TargetServers[$Domain]
+            $TargetServerDictionary = $TargetServers
         }
     }
 
@@ -120,25 +123,73 @@
         }
 
         $getADComputerSplat = @{
-            Filter      = $FilterToUse
-            Server      = $Server
-            Properties  = $Properties
-            ErrorAction = 'Stop'
+            Filter         = $FilterToUse
+            Server         = $Server
+            Properties     = $Properties
+            ErrorAction    = 'Stop'
+            # Use ADQueryPageSize for consistent paging behavior
+            ResultPageSize = $ADQueryPageSize
+            ResultSetSize  = $null
         }
         if ($SearchBaseToUse) {
             $getADComputerSplat.SearchBase = $SearchBaseToUse
         }
-        try {
-            [Array] $Computers = Get-ADComputer @getADComputerSplat
-        } catch {
-            if ($_.Exception.Message -like "*distinguishedName must belong to one of the following partition*") {
-                Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
-                Write-Color "[e] ", "Please check if the distinguishedName for SearchBase is correct for the domain. If you have multiple domains please use Hashtable/Dictionary to provide relevant data or using IncludeDomains/ExcludeDomains functionality" -Color Yellow, Red
-            } else {
-                Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
+
+        # Implement retry logic for handling enumeration context errors
+        $MaxRetries = $ADQueryMaxRetries
+        $RetryDelay = $ADQueryRetryDelay
+        $Computers = @()
+        $Success = $false
+
+        for ($RetryCount = 1; $RetryCount -le $MaxRetries; $RetryCount++) {
+            try {
+                Write-Color "[i] ", "Attempting to get computers (attempt $RetryCount of $MaxRetries)..." -Color Yellow, Cyan
+                [Array] $Computers = Get-ADComputer @getADComputerSplat
+                $Success = $true
+                break
+            } catch {
+                $ErrorMessage = $_.Exception.Message
+                if ($ErrorMessage -like "*invalid enumeration context*" -or $ErrorMessage -like "*timeout*" -or $ErrorMessage -like "*server is not operational*") {
+                    Write-Color "[w] ", "Enumeration error on attempt $RetryCount`: $ErrorMessage" -Color Yellow, DarkYellow
+                    if ($RetryCount -lt $MaxRetries) {
+                        Write-Color "[i] ", "Waiting $RetryDelay seconds before retry..." -Color Yellow, Cyan
+                        Start-Sleep -Seconds $RetryDelay
+                        # Increase delay for next retry
+                        $RetryDelay = $RetryDelay * 2
+                    }
+                } elseif ($ErrorMessage -like "*distinguishedName must belong to one of the following partition*") {
+                    Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $ErrorMessage -Color Yellow, Red
+                    Write-Color "[e] ", "Please check if the distinguishedName for SearchBase is correct for the domain. If you have multiple domains please use Hashtable/Dictionary to provide relevant data or using IncludeDomains/ExcludeDomains functionality" -Color Yellow, Red
+                    return $false
+                } else {
+                    Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $ErrorMessage -Color Yellow, Red
+                    # For non-retry-able errors, break the loop
+                    break
+                }
             }
+        }
+
+        # If all retries failed, try alternative approach with smaller page size
+        if (-not $Success) {
+            Write-Color "[w] ", "Standard query failed after $MaxRetries attempts. Trying alternative approach with smaller page size..." -Color Yellow, DarkYellow
+            try {
+                # Use a smaller page size to handle large result sets
+                $getADComputerSplat.ResultPageSize = [math]::Min($ADQueryPageSize, 500)
+                $getADComputerSplat.ResultSetSize = $null
+                [Array] $Computers = Get-ADComputer @getADComputerSplat
+                $Success = $true
+                Write-Color "[+] ", "Alternative query with smaller page size succeeded!" -Color Yellow, Green
+            } catch {
+                Write-Color "[e] ", "All query attempts failed for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
+                return $false
+            }
+        }
+
+        if (-not $Success) {
+            Write-Color "[e] ", "Failed to retrieve computers for domain $($Domain) after all attempts." -Color Yellow, Red
             return $false
         }
+
         foreach ($Computer in $Computers) {
             # we will be using it later to just check if computer exists in AD
             $DomainName = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN

@@ -397,6 +397,15 @@
     Remove the ProtectedFromAccidentalDeletion flag from the computer object before deleting it.
     By default it will not remove the flag, and require it to be removed manually.
 
+    .PARAMETER ADQueryMaxRetries
+    Maximum number of retries for AD query operations. Default is 3.
+
+    .PARAMETER ADQueryRetryDelay
+    Delay in seconds between retries for AD query operations. Default is 5.
+
+    .PARAMETER ADQueryPageSize
+    Page size for AD query operations. Default is 1000.
+
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
     $Output
@@ -420,6 +429,23 @@
     # this is a fresh run and it will try to delete computers according to it's defaults
     # read documentation to understand what it does
     $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
+    $Output
+
+    .EXAMPLE
+    # Configure retry parameters for large AD environments with enumeration context errors
+    $Configuration = @{
+        Delete                = $true
+        DeleteIsEnabled       = $false
+        DeleteListProcessedMoreThan = 90
+        ADQueryMaxRetries     = 5      # Increase retries for unreliable environments
+        ADQueryRetryDelay     = 10     # Increase delay between retries
+        ADQueryPageSize       = 500    # Smaller page size for large environments
+        WhatIfDelete          = $true
+        ShowHTML             = $true
+        LogPath              = "$PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log"
+        ReportPath           = "$PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+    }
+    $Output = Invoke-ADComputersCleanup @Configuration
     $Output
 
     .EXAMPLE
@@ -573,7 +599,11 @@
         [nullable[int]] $SafetyJamfLimit,
         [switch] $DontWriteToEventLog,
         [Object] $TargetServers,
-        [switch] $RemoveProtectedFromAccidentalDeletionFlag
+        [switch] $RemoveProtectedFromAccidentalDeletionFlag,
+        # AD Query retry parameters
+        [int] $ADQueryMaxRetries = 3,
+        [int] $ADQueryRetryDelay = 5,
+        [int] $ADQueryPageSize = 1000
     )
     # we will use it to check for intune/azuread/jamf functionality
     $Script:CleanupOptions = [ordered] @{}
@@ -764,6 +794,9 @@
         AzureInformationCache = $AzureInformationCache
         JamfInformationCache  = $JamfInformationCache
         TargetServers         = $TargetServers
+        ADQueryMaxRetries     = $ADQueryMaxRetries
+        ADQueryRetryDelay     = $ADQueryRetryDelay
+        ADQueryPageSize       = $ADQueryPageSize
     }
 
     $AllComputers = Get-InitialADComputers @SplatADComputers
