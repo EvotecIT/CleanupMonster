@@ -603,6 +603,7 @@
         # AD Query retry parameters
         [ValidateRange(1, [int]::MaxValue)]
         [int] $ADQueryMaxRetries = 3,
+        [ValidateRange(0, [int]::MaxValue)]
         [int] $ADQueryRetryDelay = 5,
         [ValidateRange(1, 10000)]
         [int] $ADQueryPageSize = 1000
