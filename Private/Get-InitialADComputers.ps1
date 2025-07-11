@@ -17,7 +17,10 @@
         [nullable[int]] $SafetyADLimit,
         [System.Collections.IDictionary] $AzureInformationCache,
         [System.Collections.IDictionary] $JamfInformationCache,
-        [object] $TargetServers
+        [object] $TargetServers,
+        [int] $ADQueryMaxRetries = 3,
+        [int] $ADQueryRetryDelay = 5,
+        [int] $ADQueryPageSize = 1000
     )
     $AllComputers = [ordered] @{}
 
@@ -63,11 +66,29 @@
         # User provided target servers/server. If there is only one we assume user wants to use it for all domains (hopefully just one domain)
         # If there are multiple we assume user wants to use different servers for different domains using hashtable/dictionary
         # If there is no server for a domain we will use the default server, as detected
+        #
+        # Examples that work:
+        # String: -TargetServers "DC01.domain.com"
+        # Hashtable: -TargetServers @{ "domain1.com" = "DC01.domain1.com"; "domain2.com" = "DC02.domain2.com" }
+        # OrderedDictionary: -TargetServers ([ordered] @{ "domain1.com" = "DC01.domain1.com"; "domain2.com" = "DC02.domain2.com" })
+        #
         if ($TargetServers -is [string]) {
             $TargetServer = $TargetServers
-        }
-        if ($TargetServers -is [System.Collections.IDictionary]) {
-            $TargetServerDictionary = $TargetServers[$Domain]
+            Write-Color -Text "[i] Target server configured for all domains: ", $TargetServer -Color Yellow, Cyan
+        } elseif ($TargetServers -is [System.Collections.IDictionary]) {
+            $TargetServerDictionary = $TargetServers
+            if ($TargetServerDictionary.Count -eq 0) {
+                Write-Color -Text "[w] Target servers dictionary is empty. Using auto-detected servers." -Color Yellow, DarkYellow
+            } else {
+                Write-Color -Text "[i] Target servers configured per domain:" -Color Yellow, Cyan
+                foreach ($Entry in $TargetServerDictionary.GetEnumerator()) {
+                    $DomainKey = if ($Entry.Key) { $Entry.Key } else { "<null>" }
+                    $ServerValue = if ($Entry.Value) { $Entry.Value } else { "<null>" }
+                    Write-Color -Text "    ", $DomainKey, " -> ", $ServerValue -Color Yellow, Cyan, Yellow, Green
+                }
+            }
+        } else {
+            Write-Color -Text "[w] TargetServers parameter is not a string or hashtable/dictionary. Ignoring and using auto-detected servers." -Color Yellow, DarkYellow
         }
     }
 
@@ -81,12 +102,22 @@
             continue
         }
         if ($TargetServer) {
-            Write-Color -Text "Overwritting target server for domain ", $Domain, ": ", $TargetServer -Color Yellow, Magenta
+            Write-Color -Text "[i] Overwriting target server for domain ", $Domain, ": ", $TargetServer -Color Yellow, Magenta
             $Server = $TargetServer
         } elseif ($TargetServerDictionary) {
+            # Try exact match first
             if ($TargetServerDictionary[$Domain]) {
-                Write-Color -Text "Overwritting target server for domain ", $Domain, ": ", $TargetServerDictionary[$Domain] -Color Yellow, Magenta
+                Write-Color -Text "[i] Overwriting target server for domain ", $Domain, ": ", $TargetServerDictionary[$Domain] -Color Yellow, Magenta
                 $Server = $TargetServerDictionary[$Domain]
+            } else {
+                # Try case-insensitive match
+                $MatchedKey = $TargetServerDictionary.Keys | Where-Object { $_ -ieq $Domain }
+                if ($MatchedKey) {
+                    Write-Color -Text "[i] Overwriting target server for domain ", $Domain, " (case-insensitive match): ", $TargetServerDictionary[$MatchedKey] -Color Yellow, Magenta
+                    $Server = $TargetServerDictionary[$MatchedKey]
+                } else {
+                    Write-Color -Text "[i] No target server specified for domain ", $Domain, ", using auto-detected server: ", $Server -Color Yellow, Cyan
+                }
             }
         }
         $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
@@ -120,25 +151,73 @@
         }
 
         $getADComputerSplat = @{
-            Filter      = $FilterToUse
-            Server      = $Server
-            Properties  = $Properties
-            ErrorAction = 'Stop'
+            Filter         = $FilterToUse
+            Server         = $Server
+            Properties     = $Properties
+            ErrorAction    = 'Stop'
+            # Use ADQueryPageSize for consistent paging behavior
+            ResultPageSize = $ADQueryPageSize
+            ResultSetSize  = $null
         }
         if ($SearchBaseToUse) {
             $getADComputerSplat.SearchBase = $SearchBaseToUse
         }
-        try {
-            [Array] $Computers = Get-ADComputer @getADComputerSplat
-        } catch {
-            if ($_.Exception.Message -like "*distinguishedName must belong to one of the following partition*") {
-                Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
-                Write-Color "[e] ", "Please check if the distinguishedName for SearchBase is correct for the domain. If you have multiple domains please use Hashtable/Dictionary to provide relevant data or using IncludeDomains/ExcludeDomains functionality" -Color Yellow, Red
-            } else {
-                Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
+
+        # Implement retry logic for handling enumeration context errors
+        $MaxRetries = $ADQueryMaxRetries
+        $RetryDelay = $ADQueryRetryDelay
+        $Computers = @()
+        $Success = $false
+
+        for ($RetryCount = 1; $RetryCount -le $MaxRetries; $RetryCount++) {
+            try {
+                Write-Color -Text "[i] ", "Attempting to get computers (attempt $RetryCount of $MaxRetries)..." -Color Yellow, Cyan
+                [Array] $Computers = Get-ADComputer @getADComputerSplat
+                $Success = $true
+                break
+            } catch {
+                $ErrorMessage = $_.Exception.Message
+                if ($ErrorMessage -like "*invalid enumeration context*" -or $ErrorMessage -like "*timeout*" -or $ErrorMessage -like "*server is not operational*") {
+                    Write-Color "[w] ", "Enumeration error on attempt $RetryCount`: $ErrorMessage" -Color Yellow, DarkYellow
+                    if ($RetryCount -lt $MaxRetries) {
+                        Write-Color "[i] ", "Waiting $RetryDelay seconds before retry..." -Color Yellow, Cyan
+                        Start-Sleep -Seconds $RetryDelay
+                        # Increase delay for next retry
+                        $RetryDelay = $RetryDelay * 2
+                    }
+                } elseif ($ErrorMessage -like "*distinguishedName must belong to one of the following partition*") {
+                    Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $ErrorMessage -Color Yellow, Red
+                    Write-Color "[e] ", "Please check if the distinguishedName for SearchBase is correct for the domain. If you have multiple domains please use Hashtable/Dictionary to provide relevant data or using IncludeDomains/ExcludeDomains functionality" -Color Yellow, Red
+                    return $false
+                } else {
+                    Write-Color "[e] ", "Error getting computers for domain $($Domain): ", $ErrorMessage -Color Yellow, Red
+                    # For non-retry-able errors, break the loop
+                    break
+                }
             }
+        }
+
+        # If all retries failed, try alternative approach with smaller page size
+        if (-not $Success) {
+            Write-Color "[w] ", "Standard query failed after $MaxRetries attempts. Trying alternative approach with smaller page size..." -Color Yellow, DarkYellow
+            try {
+                # Use a smaller page size to handle large result sets
+                $getADComputerSplat.ResultPageSize = [math]::Min($ADQueryPageSize, 500)
+                $getADComputerSplat.ResultSetSize = $null
+                [Array] $Computers = Get-ADComputer @getADComputerSplat
+                $Success = $true
+                Write-Color "[+] ", "Alternative query with smaller page size succeeded!" -Color Yellow, Green
+            } catch {
+                Write-Color "[e] ", "All query attempts failed for domain $($Domain): ", $_.Exception.Message -Color Yellow, Red
+                return $false
+            }
+        }
+
+        if (-not $Success) {
+            Write-Color "[e] ", "Failed to retrieve computers for domain $($Domain) after all attempts." -Color Yellow, Red
             return $false
         }
+
         foreach ($Computer in $Computers) {
             # we will be using it later to just check if computer exists in AD
             $DomainName = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
