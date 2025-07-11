@@ -66,11 +66,29 @@
         # User provided target servers/server. If there is only one we assume user wants to use it for all domains (hopefully just one domain)
         # If there are multiple we assume user wants to use different servers for different domains using hashtable/dictionary
         # If there is no server for a domain we will use the default server, as detected
+        #
+        # Examples that work:
+        # String: -TargetServers "DC01.domain.com"
+        # Hashtable: -TargetServers @{ "domain1.com" = "DC01.domain1.com"; "domain2.com" = "DC02.domain2.com" }
+        # OrderedDictionary: -TargetServers ([ordered] @{ "domain1.com" = "DC01.domain1.com"; "domain2.com" = "DC02.domain2.com" })
+        #
         if ($TargetServers -is [string]) {
             $TargetServer = $TargetServers
-        }
-        if ($TargetServers -is [System.Collections.IDictionary]) {
+            Write-Color -Text "[i] Target server configured for all domains: ", $TargetServer -Color Yellow, Cyan
+        } elseif ($TargetServers -is [System.Collections.IDictionary]) {
             $TargetServerDictionary = $TargetServers
+            if ($TargetServerDictionary.Count -eq 0) {
+                Write-Color -Text "[w] Target servers dictionary is empty. Using auto-detected servers." -Color Yellow, DarkYellow
+            } else {
+                Write-Color -Text "[i] Target servers configured per domain:" -Color Yellow, Cyan
+                foreach ($Entry in $TargetServerDictionary.GetEnumerator()) {
+                    $DomainKey = if ($Entry.Key) { $Entry.Key } else { "<null>" }
+                    $ServerValue = if ($Entry.Value) { $Entry.Value } else { "<null>" }
+                    Write-Color -Text "    ", $DomainKey, " -> ", $ServerValue -Color Yellow, Cyan, Yellow, Green
+                }
+            }
+        } else {
+            Write-Color -Text "[w] TargetServers parameter is not a string or hashtable/dictionary. Ignoring and using auto-detected servers." -Color Yellow, DarkYellow
         }
     }
 
@@ -84,12 +102,22 @@
             continue
         }
         if ($TargetServer) {
-            Write-Color -Text "Overwritting target server for domain ", $Domain, ": ", $TargetServer -Color Yellow, Magenta
+            Write-Color -Text "[i] Overwriting target server for domain ", $Domain, ": ", $TargetServer -Color Yellow, Magenta
             $Server = $TargetServer
         } elseif ($TargetServerDictionary) {
+            # Try exact match first
             if ($TargetServerDictionary[$Domain]) {
-                Write-Color -Text "Overwritting target server for domain ", $Domain, ": ", $TargetServerDictionary[$Domain] -Color Yellow, Magenta
+                Write-Color -Text "[i] Overwriting target server for domain ", $Domain, ": ", $TargetServerDictionary[$Domain] -Color Yellow, Magenta
                 $Server = $TargetServerDictionary[$Domain]
+            } else {
+                # Try case-insensitive match
+                $MatchedKey = $TargetServerDictionary.Keys | Where-Object { $_ -ieq $Domain }
+                if ($MatchedKey) {
+                    Write-Color -Text "[i] Overwriting target server for domain ", $Domain, " (case-insensitive match): ", $TargetServerDictionary[$MatchedKey] -Color Yellow, Magenta
+                    $Server = $TargetServerDictionary[$MatchedKey]
+                } else {
+                    Write-Color -Text "[i] No target server specified for domain ", $Domain, ", using auto-detected server: ", $Server -Color Yellow, Cyan
+                }
             }
         }
         $DomainInformation = $ForestInformation.DomainsExtended[$Domain]
