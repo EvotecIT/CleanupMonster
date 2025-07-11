@@ -601,6 +601,7 @@
         [Object] $TargetServers,
         [switch] $RemoveProtectedFromAccidentalDeletionFlag,
         # AD Query retry parameters
+        [ValidateRange(1, [int]::MaxValue)]
         [int] $ADQueryMaxRetries = 3,
         [int] $ADQueryRetryDelay = 5,
         [int] $ADQueryPageSize = 1000
