@@ -604,6 +604,7 @@
         [ValidateRange(1, [int]::MaxValue)]
         [int] $ADQueryMaxRetries = 3,
         [int] $ADQueryRetryDelay = 5,
+        [ValidateRange(1, 10000)]
         [int] $ADQueryPageSize = 1000
     )
     # we will use it to check for intune/azuread/jamf functionality
