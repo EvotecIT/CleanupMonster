@@ -171,7 +171,7 @@
 
         for ($RetryCount = 1; $RetryCount -le $MaxRetries; $RetryCount++) {
             try {
-                Write-Color "[i] ", "Attempting to get computers (attempt $RetryCount of $MaxRetries)..." -Color Yellow, Cyan
+                Write-Color -Text "[i] ", "Attempting to get computers (attempt $RetryCount of $MaxRetries)..." -Color Yellow, Cyan
                 [Array] $Computers = Get-ADComputer @getADComputerSplat
                 $Success = $true
                 break
