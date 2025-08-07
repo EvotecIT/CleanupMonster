@@ -394,7 +394,7 @@
     This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
 
     .PARAMETER RemoveProtectedFromAccidentalDeletionFlag
-    Remove the ProtectedFromAccidentalDeletion flag from the computer object before deleting it.
+    Remove the ProtectedFromAccidentalDeletion flag from the computer object before disabling, moving, or deleting it.
     By default it will not remove the flag, and require it to be removed manually.
 
     .PARAMETER ADQueryMaxRetries
