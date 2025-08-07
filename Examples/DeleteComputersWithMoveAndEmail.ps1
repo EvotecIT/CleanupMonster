@@ -75,7 +75,7 @@ $invokeADComputersCleanupSplat = @{
     WhatIfMove                          = $true
     WhatIfDelete                        = $true
     ShowHTML                            = $true
-
+    RemoveProtectedFromAccidentalDeletionFlag = $true
     DontWriteToEventLog                 = $true
 }
 
