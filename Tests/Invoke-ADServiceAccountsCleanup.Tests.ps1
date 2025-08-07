@@ -1,0 +1,28 @@
+BeforeAll {
+    $Public = Join-Path $PSScriptRoot '..' 'Public' 'Invoke-ADServiceAccountsCleanup.ps1'
+    $Private = Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'Private') -Filter '*ADServiceAccounts*.ps1'
+    . $Public
+    foreach ($P in $Private) { . $P.FullName }
+
+    function Write-Color { param([Parameter(ValueFromRemainingArguments=$true)]$Text,[object[]]$Color) }
+    function Set-LoggingCapabilities {}
+    function Get-GitHubVersion { param($Cmdlet,$RepositoryOwner,$RepositoryName) '0.0.0' }
+    function Get-WinADForestDetails { param([string]$Forest,[string[]]$IncludeDomains,[string[]]$ExcludeDomains) @{ Domains=@('domain.local'); QueryServers=@{ 'domain.local'=@{ HostName=@('localhost') } }; DomainsExtended=@{}; Forest='domain.local' } }
+    function Get-ADServiceAccount { param([string]$Filter,[string]$Server,[string[]]$Properties) @() }
+    function New-HTML { param([scriptblock]$Body,[string]$FilePath,[switch]$Online,[switch]$ShowHTML) & $Body }
+}
+
+Describe 'Invoke-ADServiceAccountsCleanup' {
+    It 'exports the function' {
+        Get-Command Invoke-ADServiceAccountsCleanup -ErrorAction Stop | Should -Not -BeNullOrEmpty
+    }
+    It 'filters service accounts by last logon date' {
+        $acc1 = [pscustomobject]@{ SamAccountName='gmsa1'; DistinguishedName='CN=gmsa1,DC=lab,DC=local'; LastLogonDate=(Get-Date).AddDays(-100); PasswordLastSet=(Get-Date).AddDays(-100); WhenCreated=(Get-Date).AddYears(-1) }
+        $acc2 = [pscustomobject]@{ SamAccountName='gmsa2'; DistinguishedName='CN=gmsa2,DC=lab,DC=local'; LastLogonDate=(Get-Date).AddDays(-5); PasswordLastSet=(Get-Date).AddDays(-5); WhenCreated=(Get-Date).AddDays(-10) }
+        $res = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts @($acc1,$acc2) -ActionIf @{ LastLogonDateMoreThan = 30 }
+        $res.SamAccountName | Should -Be @('gmsa1')
+    }
+    It 'supports WhatIf' {
+        { Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -WhatIfDisable } | Should -Not -Throw
+    }
+}
