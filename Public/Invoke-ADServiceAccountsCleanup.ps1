@@ -166,12 +166,34 @@ function Invoke-ADServiceAccountsCleanup {
     }
 
     $Export.CurrentRun = $Processed
-    $Export.History = $Processed
+    $Export.History    = $Processed
 
-    if ($ReportPath) {
-        New-HTML -Title 'Service Accounts Cleanup' -FilePath $ReportPath -Online:$Online.IsPresent -ShowHTML:$ShowHTML.IsPresent {
-            New-HTMLTable -DataTable $Export.CurrentRun -Filtering -ScrollX
+    foreach ($Domain in $Report.Keys) {
+        if ($Disable) {
+            Write-Color -Text "[i] ", "Accounts to be disabled for domain $Domain`: ", $Report[$Domain]['AccountsToBeDisabled'] -Color Yellow, Cyan, Green
         }
+        if ($Delete) {
+            Write-Color -Text "[i] ", "Accounts to be deleted for domain $Domain`: ", $Report[$Domain]['AccountsToBeDeleted'] -Color Yellow, Cyan, Green
+        }
+    }
+
+    if ($Export -and $ReportPath) {
+        [Array] $AccountsToProcess = foreach ($Domain in $Report.Keys) { $Report[$Domain]['Accounts'] }
+        $newHTMLProcessedServiceAccountsSplat = @{
+            Export            = $Export
+            FilePath          = $ReportPath
+            Online            = $Online.IsPresent
+            ShowHTML          = $ShowHTML.IsPresent
+            LogFile           = $LogPath
+            AccountsToProcess = $AccountsToProcess
+            DisableOnlyIf     = $DisableOnlyIf
+            DeleteOnlyIf      = $DeleteOnlyIf
+            Disable           = $Disable
+            Delete            = $Delete
+            ReportOnly        = $ReportOnly
+        }
+        Write-Color -Text "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
+        New-HTMLProcessedServiceAccounts @newHTMLProcessedServiceAccountsSplat
     }
 
     Write-Color -Text "[i] Finished process of cleaning up service accounts" -Color Green

@@ -1,6 +1,6 @@
 BeforeAll {
     $Public = Join-Path $PSScriptRoot '..' 'Public' 'Invoke-ADServiceAccountsCleanup.ps1'
-    $Private = Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'Private') -Filter '*ADServiceAccounts*.ps1'
+    $Private = Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'Private') -Filter '*ServiceAccounts*.ps1'
     . $Public
     foreach ($P in $Private) { . $P.FullName }
 
@@ -10,6 +10,7 @@ BeforeAll {
     function Get-WinADForestDetails { param([string]$Forest,[string[]]$IncludeDomains,[string[]]$ExcludeDomains) @{ Domains=@('domain.local'); QueryServers=@{ 'domain.local'=@{ HostName=@('localhost') } }; DomainsExtended=@{}; Forest='domain.local' } }
     function Get-ADServiceAccount { param([string]$Filter,[string]$Server,[string[]]$Properties) @() }
     function New-HTML { param([scriptblock]$Body,[string]$FilePath,[switch]$Online,[switch]$ShowHTML) & $Body }
+    function New-HTMLProcessedServiceAccounts {}
 }
 
 Describe 'Invoke-ADServiceAccountsCleanup' {
@@ -24,5 +25,10 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
     }
     It 'supports WhatIf' {
         { Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -WhatIfDisable } | Should -Not -Throw
+    }
+    It 'generates HTML report when ReportPath is specified' {
+        Mock -CommandName New-HTMLProcessedServiceAccounts
+        Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -ReportPath 'out.html'
+        Assert-MockCalled New-HTMLProcessedServiceAccounts -Times 1
     }
 }
