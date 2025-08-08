@@ -31,4 +31,16 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -ReportPath 'out.html'
         Assert-MockCalled New-HTMLProcessedServiceAccounts -Times 1
     }
+
+    It 'respects include and exclude account patterns' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{ SamAccountName='gmsa1'; DistinguishedName='CN=gmsa1,DC=lab,DC=local'; LastLogonDate=$null; PasswordLastSet=$null; WhenCreated=$null },
+                [pscustomobject]@{ SamAccountName='gmsa2'; DistinguishedName='CN=gmsa2,DC=lab,DC=local'; LastLogonDate=$null; PasswordLastSet=$null; WhenCreated=$null }
+            )
+        }
+        $forest = @{ Domains=@('lab.local'); QueryServers=@{ 'lab.local'=@{ HostName=@('dc1') } } }
+        $report = Get-InitialADServiceAccounts -ForestInformation $forest -IncludeAccounts @('gmsa*') -ExcludeAccounts @('gmsa2')
+        $report['lab.local'].Accounts.SamAccountName | Should -Be @('gmsa1')
+    }
 }

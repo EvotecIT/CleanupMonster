@@ -123,29 +123,7 @@ function Invoke-ADServiceAccountsCleanup {
         return
     }
 
-    $Report = [ordered]@{}
-    foreach ($Domain in $ForestInformation.Domains) {
-        $Server = $ForestInformation['QueryServers'][$Domain].HostName[0]
-        Write-Color -Text "[i] ", "Getting service accounts for domain ", $Domain, " from ", $Server -Color Yellow, Magenta, Yellow, Magenta
-        [Array]$Accounts = Get-ADServiceAccount -Filter * -Server $Server -Properties SamAccountName,Enabled,LastLogonDate,PasswordLastSet,WhenCreated,DistinguishedName,ObjectClass | Where-Object { $_.ObjectClass -in 'msDS-ManagedServiceAccount','msDS-GroupManagedServiceAccount' }
-        foreach ($Account in $Accounts) {
-            $Account | Add-Member -NotePropertyName DomainName -NotePropertyValue $Domain
-            $Account | Add-Member -NotePropertyName Server -NotePropertyValue $Server
-        }
-        if ($IncludeAccounts) {
-            $Accounts = foreach ($A in $Accounts) {
-                foreach ($Inc in $IncludeAccounts) { if ($A.SamAccountName -like $Inc) { $A; break } }
-            }
-        }
-        if ($ExcludeAccounts) {
-            $Accounts = foreach ($A in $Accounts) {
-                $Skip = $false
-                foreach ($Exc in $ExcludeAccounts) { if ($A.SamAccountName -like $Exc) { $Skip = $true; break } }
-                if (-not $Skip) { $A }
-            }
-        }
-        $Report[$Domain] = [ordered]@{ Server = $Server; Accounts = $Accounts }
-    }
+    $Report = Get-InitialADServiceAccounts -ForestInformation $ForestInformation -IncludeAccounts $IncludeAccounts -ExcludeAccounts $ExcludeAccounts
 
     $Today = Get-Date
     [Array]$Processed = @()
