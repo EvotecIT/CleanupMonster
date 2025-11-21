@@ -6,9 +6,9 @@
     CompatiblePSEditions = @('Desktop', 'Core')
     Copyright            = '(c) 2011 - 2025 Przemyslaw Klys @ Evotec. All rights reserved.'
     Description          = 'This module provides an easy way to cleanup Active Directory from dead/old objects based on various criteria. It can also disable, move or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them.'
-    FunctionsToExport    = @('Invoke-ADComputersCleanup', 'Invoke-ADSIDHistoryCleanup')
+    FunctionsToExport    = @('Invoke-ADComputersCleanup', 'Invoke-ADServiceAccountsCleanup', 'Invoke-ADSIDHistoryCleanup')
     GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
-    ModuleVersion        = '3.1.5'
+    ModuleVersion        = '3.1.6'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{

@@ -2,26 +2,28 @@
 
 # Prepare splat
 $invokeADSIDHistoryCleanupSplat = @{
-    Verbose                 = $true
-    WhatIf                  = $true
-    IncludeSIDHistoryDomain = @(
+    Verbose                   = $true
+    WhatIf                    = $true
+    IncludeSIDHistoryDomain   = @(
         'S-1-5-21-3661168273-3802070955-2987026695'
         'S-1-5-21-853615985-2870445339-3163598659'
     )
-    IncludeOrganizationalUnit = @(
-        "OU=ITR01,DC=ad,DC=evotec,DC=xyz"
-    )
+    # IncludeOrganizationalUnit = @(
+    #    #"OU=ITR01,DC=ad,DC=evotec,DC=xyz"
+    #    "OU=Users,OU=Accounts,OU=Production,DC=ad,DC=evotec,DC=pl"
+    # )
+    IncludeOrganizationalUnit = "*OU=Accounts,OU=Production,DC=ad,DC=evotec,DC=pl"
     #IncludeType             = 'External'
-    RemoveLimitSID          = 1
-    RemoveLimitObject       = 1
-    SafetyADLimit           = 1
-    ShowHTML                = $true
-    Online                  = $true
-    DisabledOnly            = $false
-    ReportOnly              = $false
-    LogPath                 = "C:\Temp\ProcessedSIDHistory.log"
-    ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"
-    DataStorePath           = "$PSScriptRoot\ProcessedSIDHistory.xml"
+    RemoveLimitSID            = 1
+    RemoveLimitObject         = 1
+    SafetyADLimit             = 1
+    ShowHTML                  = $true
+    Online                    = $true
+    DisabledOnly              = $false
+    ReportOnly                = $false
+    LogPath                   = "C:\Temp\ProcessedSIDHistory.log"
+    ReportPath                = "$PSScriptRoot\ProcessedSIDHistory.html"
+    DataStorePath             = "$PSScriptRoot\ProcessedSIDHistory.xml"
 }
 
 # Run the script
