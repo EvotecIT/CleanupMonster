@@ -25,6 +25,12 @@
     An array of organizational units to exclude from the cleanup process.
     Supports wildcards using the -like operator. For example: "*OU=Test*"
 
+    .PARAMETER IncludeObjectType
+    An array of object classes to include (for example: User, Group, Computer).
+
+    .PARAMETER ExcludeObjectType
+    An array of object classes to exclude (for example: User, Group, Computer).
+
     .PARAMETER IncludeSIDHistoryDomain
     An array of domain SIDs to include when cleaning up SID history.
 
@@ -141,6 +147,8 @@
         [string[]] $ExcludeDomains,
         [string[]] $IncludeOrganizationalUnit,
         [string[]] $ExcludeOrganizationalUnit,
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $IncludeObjectType,
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $ExcludeObjectType,
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
         [nullable[int]] $RemoveLimitSID,
@@ -207,6 +215,8 @@
         ExcludeDomains            = $ExcludeDomains
         IncludeOrganizationalUnit = $IncludeOrganizationalUnit
         ExcludeOrganizationalUnit = $ExcludeOrganizationalUnit
+        IncludeObjectType         = $IncludeObjectType
+        ExcludeObjectType         = $ExcludeObjectType
         IncludeSIDHistoryDomain   = $IncludeSIDHistoryDomain
         ExcludeSIDHistoryDomain   = $ExcludeSIDHistoryDomain
         RemoveLimitSID            = $RemoveLimitSID
@@ -263,6 +273,8 @@
         ForestInformation         = $ForestInformation
         IncludeOrganizationalUnit = $IncludeOrganizationalUnit
         ExcludeOrganizationalUnit = $ExcludeOrganizationalUnit
+        IncludeObjectType         = $IncludeObjectType
+        ExcludeObjectType         = $ExcludeObjectType
         DontWriteToEventLog       = $DontWriteToEventLog
     }
 
