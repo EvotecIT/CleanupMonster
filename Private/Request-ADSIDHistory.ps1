@@ -7,6 +7,8 @@
         [System.Collections.IDictionary] $ForestInformation,
         [string[]] $IncludeOrganizationalUnit,
         [string[]] $ExcludeOrganizationalUnit,
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $IncludeObjectType,
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $ExcludeObjectType,
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
         [nullable[int]] $RemoveLimitObject,
@@ -79,6 +81,17 @@
                     Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as it is enabled and DisabledOnly filter is set." -Color Yellow, White, Red, White
                     continue
                 }
+            }
+
+            # Apply object type filters
+            if ($IncludeObjectType -and $IncludeObjectType -notcontains $Object.ObjectClass) {
+                Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as its type ", $Object.ObjectClass, " is not in the included object types." -Color Yellow, White, Red, White, Red, White
+                continue
+            }
+
+            if ($ExcludeObjectType -and $ExcludeObjectType -contains $Object.ObjectClass) {
+                Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as its type ", $Object.ObjectClass, " is in the excluded object types." -Color Yellow, White, Red, White, Red, White
+                continue
             }
 
             # Check if we need to filter by OU
