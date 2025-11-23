@@ -268,6 +268,9 @@ $invokeADSIDHistoryCleanupSplat = @{
         'S-1-5-21-3661168273-3802070955-2987026695'
         'S-1-5-21-853615985-2870445339-3163598659'
     )
+    # Process only specific object classes
+    IncludeObjectType        = @('Computer', 'Group')
+    #ExcludeObjectType       = 'User'
     #IncludeType             = 'External'
     RemoveLimitSID          = 2
     RemoveLimitObject       = 2
