@@ -49,11 +49,11 @@
             } else {
                 $Success = $true
                 if ($DisableAndMoveOrder -eq 'DisableAndMove') {
-                    $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
+                    $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                     $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                 } else {
                     $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
-                    $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
+                    $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                 }
                 if ($Success) {
                     if ($DisableModifyDescription -eq $true) {
