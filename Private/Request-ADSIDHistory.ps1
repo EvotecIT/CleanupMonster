@@ -84,12 +84,12 @@
             }
 
             # Apply object type filters
-            if ($IncludeObjectType -and $IncludeObjectType -notcontains $Object.ObjectClass) {
+            if ($IncludeObjectType.Count -gt 0 -and $IncludeObjectType -notcontains $Object.ObjectClass) {
                 Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as its type ", $Object.ObjectClass, " is not in the included object types." -Color Yellow, White, Red, White, Red, White
                 continue
             }
 
-            if ($ExcludeObjectType -and $ExcludeObjectType -contains $Object.ObjectClass) {
+            if ($ExcludeObjectType.Count -gt 0 -and $ExcludeObjectType -contains $Object.ObjectClass) {
                 Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as its type ", $Object.ObjectClass, " is in the excluded object types." -Color Yellow, White, Red, White, Red, White
                 continue
             }
