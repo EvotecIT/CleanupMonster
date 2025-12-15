@@ -16,6 +16,11 @@
     :TopLoop foreach ($Item in $ObjectsToProcess) {
         $Object = $Item.Object
         $QueryServer = $Item.QueryServer
+        $SIDsToRemove = if ($Item.PSObject.Properties.Name -contains 'SIDHistoryToRemove' -and $Item.SIDHistoryToRemove) {
+            $Item.SIDHistoryToRemove
+        } else {
+            $Object.SIDHistory
+        }
 
         $CurrentRunObject = [PSCustomObject] @{
             ObjectName     = $Object.Name
@@ -36,7 +41,7 @@
         $ProcessedObjects++
 
         # Process individual SIDs for this object
-        foreach ($SID in $Object.SIDHistory) {
+        foreach ($SID in $SIDsToRemove) {
             $CurrentDate = Get-Date
             if ($PSCmdlet.ShouldProcess("$($Object.Name) ($($Object.Domain))", "Remove SID History entry $SID")) {
                 Write-Color -Text "[i] ", "Removing SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
