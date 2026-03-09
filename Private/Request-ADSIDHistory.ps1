@@ -7,8 +7,8 @@
         [System.Collections.IDictionary] $ForestInformation,
         [string[]] $IncludeOrganizationalUnit,
         [string[]] $ExcludeOrganizationalUnit,
-        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $IncludeObjectType,
-        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $ExcludeObjectType,
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $IncludeObjectType = @(),
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $ExcludeObjectType = @(),
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
         [nullable[int]] $RemoveLimitObject,
@@ -84,12 +84,12 @@
             }
 
             # Apply object type filters
-            if ($IncludeObjectType -and $IncludeObjectType -notcontains $Object.ObjectClass) {
+            if ($IncludeObjectType.Count -gt 0 -and $IncludeObjectType -notcontains $Object.ObjectClass) {
                 Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as its type ", $Object.ObjectClass, " is not in the included object types." -Color Yellow, White, Red, White, Red, White
                 continue
             }
 
-            if ($ExcludeObjectType -and $ExcludeObjectType -contains $Object.ObjectClass) {
+            if ($ExcludeObjectType.Count -gt 0 -and $ExcludeObjectType -contains $Object.ObjectClass) {
                 Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as its type ", $Object.ObjectClass, " is in the excluded object types." -Color Yellow, White, Red, White, Red, White
                 continue
             }
@@ -123,6 +123,19 @@
 
             Write-Color -Text "[i] ", "Processing ", $Object.Name, " (", $Object.ObjectClass, " in ", $Object.Domain, ", SID History Count: ", $Object.SIDHistory.Count, ")" -Color Yellow, White, Green, White, Green, White, Green, White, Green
 
+            # Filter SIDHistory values so we only remove entries belonging to the currently processed SID history domain.
+            # This prevents removing SIDHistory entries from other domains on the same object.
+            [Array] $SIDHistoryToRemove = foreach ($SID in $Object.SIDHistory) {
+                if ($SID -eq $Domain -or $SID -like "$Domain-*") {
+                    $SID
+                }
+            }
+
+            if (-not $SIDHistoryToRemove -or $SIDHistoryToRemove.Count -eq 0) {
+                Write-Color -Text "[s] ", "Skipping ", $Object.Name, " as it has no SID history entries matching domain SID ", $Domain -Color Yellow, White, Red, White, Red
+                continue
+            }
+
             # Add to our collection of objects to process
             $ObjectsToProcess.Add(
                 [PSCustomObject]@{
@@ -131,6 +144,7 @@
                     Domain      = $Domain
                     DomainInfo  = $DomainInfo
                     DomainType  = $DomainType
+                    SIDHistoryToRemove = $SIDHistoryToRemove
                 }
             )
 

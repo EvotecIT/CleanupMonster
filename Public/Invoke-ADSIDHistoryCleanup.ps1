@@ -147,8 +147,8 @@
         [string[]] $ExcludeDomains,
         [string[]] $IncludeOrganizationalUnit,
         [string[]] $ExcludeOrganizationalUnit,
-        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $IncludeObjectType,
-        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $ExcludeObjectType,
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $IncludeObjectType = @(),
+        [ValidateSet('User', 'Group', 'Computer', 'msDS-ManagedServiceAccount', 'msDS-GroupManagedServiceAccount', 'ForeignSecurityPrincipal', 'Contact', 'inetOrgPerson')][string[]] $ExcludeObjectType = @(),
         [string[]] $IncludeSIDHistoryDomain,
         [string[]] $ExcludeSIDHistoryDomain,
         [nullable[int]] $RemoveLimitSID,
@@ -286,7 +286,13 @@
     }
 
     $Export['TotalObjectsFound'] = $ObjectsToProcess.Count
-    $Export['TotalSIDsFound'] = ($ObjectsToProcess | ForEach-Object { $_.Object.SIDHistory.Count } | Measure-Object -Sum).Sum
+    $Export['TotalSIDsFound'] = ($ObjectsToProcess | ForEach-Object {
+            if ($_.PSObject.Properties.Name -contains 'SIDHistoryToRemove' -and $_.SIDHistoryToRemove) {
+                $_.SIDHistoryToRemove.Count
+            } else {
+                $_.Object.SIDHistory.Count
+            }
+        } | Measure-Object -Sum).Sum
 
     if (-not $ReportOnly) {
         try {
