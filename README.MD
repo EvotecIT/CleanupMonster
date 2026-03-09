@@ -27,7 +27,7 @@ It has multiple functionalities currently & planned:
 - [x] Cleanup SID History from Active Directory
 - [ ] Cleanup stale User objects from Active Directory
 - [ ] Cleanup stale Group objects from Active Directory
-- [ ] Cleanup GMSA/MSA objects from Active Directory
+- [x] Cleanup GMSA/MSA objects from Active Directory
 
 There are 2 blog posts that explain how to use the module:
 - [Mastering Active Directory Hygiene: Automating Stale Computer Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-stale-computer-cleanup-with-cleanupmonster/)
@@ -125,6 +125,22 @@ $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PS
 $Output
 ```
 
+#### Protected computer objects
+
+If a computer is protected from accidental deletion, `-RemoveProtectedFromAccidentalDeletionFlag` now applies only to move and delete actions.
+Disable-only runs will leave that protection in place.
+
+```powershell
+$Output = Invoke-ADComputersCleanup `
+    -Disable `
+    -DisableAndMove `
+    -DisableMoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' `
+    -RemoveProtectedFromAccidentalDeletionFlag `
+    -WhatIfDisable `
+    -ShowHTML
+$Output
+```
+
 #### Non-interactively (scheduled task)
 
 This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
@@ -187,6 +203,7 @@ This is a sample script that you can use to run the module in a scheduled task. 
 Thi example shows how to use AzureAD, Intune and Jamf to clean up computers in Active Directory where computer also needs needs to be non-existant in AzureAD, Intune and Jamf or have last seen date matches in AzureAD, Intune and Jamf.
 
 This example also moves computers to different OU's as part of the disable process.
+When `RemoveProtectedFromAccidentalDeletionFlag` is enabled, the flag is only cleared for the move/delete steps that require it.
 For long computer names, cloud matching now falls back through `DNSHostName` and related aliases so truncated AD names can still match Azure AD and Intune records.
 
 ```powershell
@@ -241,9 +258,63 @@ $invokeADComputersCleanupSplat = @{
     WhatIfDisable                       = $true
     WhatIfDelete                        = $true
     ShowHTML                            = $true
+    RemoveProtectedFromAccidentalDeletionFlag = $true
 }
 
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
+$Output
+```
+
+### Cleaning Service Accounts
+
+Service-account cleanup supports report-only reviews, disable/delete staging, and explicit safety guardrails.
+If an account matches both sets of criteria in the same run, it stays in the disable stage and is skipped from delete.
+By default `DisableLimit` and `DeleteLimit` are both `1`.
+
+#### Report Only
+
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -ReportOnly
+$Output.CurrentRun
+```
+
+#### Safer scheduled run
+
+```powershell
+$invokeADServiceAccountsCleanupSplat = @{
+    Disable                        = $true
+    DisableLastLogonDateMoreThan   = 90
+    DisablePasswordLastSetMoreThan = 90
+    DisableLimit                   = 2
+
+    Delete                         = $true
+    DeleteLastLogonDateMoreThan    = 180
+    DeletePasswordLastSetMoreThan  = 180
+    DeleteLimit                    = 1
+
+    SafetyADLimit                  = 10
+    IncludeAccounts                = @('gmsa-*', 'msa-*')
+    ExcludeAccounts                = @('gmsa-keep-*')
+    ReportPath                     = "$PSScriptRoot\Reports\ServiceAccounts_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+    WhatIfDisable                  = $true
+    WhatIfDelete                   = $true
+}
+
+$Output = Invoke-ADServiceAccountsCleanup @invokeADServiceAccountsCleanupSplat
+$Output
+```
+
+#### Interactive review
+
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup `
+    -Disable `
+    -Delete `
+    -DisableLastLogonDateMoreThan 90 `
+    -DeleteLastLogonDateMoreThan 180 `
+    -WhatIfDisable `
+    -WhatIfDelete `
+    -ReportPath "$PSScriptRoot\Reports\ServiceAccounts.html"
 $Output
 ```
 

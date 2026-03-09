@@ -8,7 +8,7 @@
         [string] $Server
     )
     if ($Success) {
-        if ($Computer.Enabled -eq $true) {
+        if ($Success -and $Computer.Enabled -eq $true) {
             Write-Color -Text "[i] Disabling computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
             try {
                 if ($Computer.DistinguishedNameAfterMove) {

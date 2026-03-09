@@ -75,7 +75,8 @@ $invokeADComputersCleanupSplat = @{
     WhatIfMove                          = $true
     WhatIfDelete                        = $true
     ShowHTML                            = $true
-
+    RemoveProtectedFromAccidentalDeletionFlag = $true
+    # the protection flag is only removed for move/delete actions, not disable-only runs
     DontWriteToEventLog                 = $true
 }
 
