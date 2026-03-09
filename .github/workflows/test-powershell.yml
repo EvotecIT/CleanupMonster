@@ -1,0 +1,40 @@
+name: Test PowerShell
+
+on:
+    push:
+        paths-ignore:
+            - '*.md'
+            - 'Docs/**'
+            - 'Examples/**'
+            - '.gitignore'
+    pull_request:
+        paths-ignore:
+            - '*.md'
+            - 'Docs/**'
+            - 'Examples/**'
+            - '.gitignore'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    test-windows:
+        name: ${{ matrix.name }}
+        runs-on: windows-latest
+        timeout-minutes: 10
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: Windows PowerShell 5.1
+                      shell: powershell
+                    - name: PowerShell 7
+                      shell: pwsh
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Run PowerShell tests
+              shell: ${{ matrix.shell }}
+              run: ./CleanupMonster.Tests.ps1

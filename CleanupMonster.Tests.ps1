@@ -6,7 +6,7 @@ if ($ModuleManifest.Count -ne 1) {
 $ModuleInfo = Import-PowerShellDataFile -Path $ModuleManifest.FullName
 
 if (-not (Get-Module -ListAvailable -Name Pester)) {
-    Install-Module -Name Pester -Force -SkipPublisherCheck
+    Install-Module -Name Pester -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber -Scope CurrentUser
 }
 
 Import-Module Pester -Force -ErrorAction Stop
