@@ -17,6 +17,9 @@ function Get-ADServiceAccountsToProcess {
     Write-Color -Text "[i] ", "Looking for service accounts to $Type" -Color Yellow, Cyan, Green
     $Today = Get-Date
     [Array] $Output = foreach ($Account in $Accounts) {
+        $LastLogonDays = $null
+        $PasswordDays = $null
+        $CreatedDays = $null
         foreach ($Exclude in $Exclusions) {
             if ($Account.DistinguishedName -like $Exclude -or $Account.Name -like $Exclude) {
                 continue 2
@@ -26,27 +29,37 @@ function Get-ADServiceAccountsToProcess {
         if ($ActionIf.LastLogonDateMoreThan) {
             if ($Account.LastLogonDate) {
                 $LastLogonDays = (New-TimeSpan -Start $Account.LastLogonDate -End $Today).Days
-                $Account | Add-Member -NotePropertyName LastLogonDays -NotePropertyValue $LastLogonDays -Force
                 if ($LastLogonDays -le $ActionIf.LastLogonDateMoreThan) { $Include = $false }
             }
         }
         if ($ActionIf.PasswordLastSetMoreThan) {
             if ($Account.PasswordLastSet) {
                 $PasswordDays = (New-TimeSpan -Start $Account.PasswordLastSet -End $Today).Days
-                $Account | Add-Member -NotePropertyName PasswordLastChangedDays -NotePropertyValue $PasswordDays -Force
                 if ($PasswordDays -le $ActionIf.PasswordLastSetMoreThan) { $Include = $false }
             }
         }
         if ($ActionIf.WhenCreatedMoreThan) {
             if ($Account.WhenCreated) {
                 $CreatedDays = (New-TimeSpan -Start $Account.WhenCreated -End $Today).Days
-                $Account | Add-Member -NotePropertyName WhenCreatedDays -NotePropertyValue $CreatedDays -Force
                 if ($CreatedDays -le $ActionIf.WhenCreatedMoreThan) { $Include = $false }
             }
         }
         if ($Include) {
-            $Account | Add-Member -NotePropertyName Action -NotePropertyValue $Type -Force
-            $Account
+            $AccountData = [ordered] @{}
+            foreach ($Property in $Account.PSObject.Properties) {
+                $AccountData[$Property.Name] = $Property.Value
+            }
+            if ($null -ne $LastLogonDays) {
+                $AccountData['LastLogonDays'] = $LastLogonDays
+            }
+            if ($null -ne $PasswordDays) {
+                $AccountData['PasswordLastChangedDays'] = $PasswordDays
+            }
+            if ($null -ne $CreatedDays) {
+                $AccountData['WhenCreatedDays'] = $CreatedDays
+            }
+            $AccountData['Action'] = $Type
+            [PSCustomObject] $AccountData
         }
     }
     $Output

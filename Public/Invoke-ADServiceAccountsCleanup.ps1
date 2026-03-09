@@ -127,17 +127,27 @@ function Invoke-ADServiceAccountsCleanup {
 
     $Today = Get-Date
     [Array]$Processed = @()
+    $ScheduledForDisableByDomain = @{}
     foreach ($Domain in $Report.Keys) {
         $Accounts = $Report[$Domain]['Accounts']
         if ($Disable) {
             $DisableOnlyIf = @{ LastLogonDateMoreThan = $DisableLastLogonDateMoreThan; PasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan; WhenCreatedMoreThan = $DisableWhenCreatedMoreThan }
             $ToDisable = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $Accounts -ActionIf $DisableOnlyIf -Exclusions $ExcludeAccounts
+            $ScheduledForDisableByDomain[$Domain] = @($ToDisable | ForEach-Object { $_.DistinguishedName })
             $Report[$Domain]['AccountsToBeDisabled'] = $ToDisable.Count
             $Processed += Request-ADServiceAccountsDisable -Accounts $ToDisable -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
         }
         if ($Delete) {
             $DeleteOnlyIf = @{ LastLogonDateMoreThan = $DeleteLastLogonDateMoreThan; PasswordLastSetMoreThan = $DeletePasswordLastSetMoreThan; WhenCreatedMoreThan = $DeleteWhenCreatedMoreThan }
             $ToDelete = Get-ADServiceAccountsToProcess -Type 'Delete' -Accounts $Accounts -ActionIf $DeleteOnlyIf -Exclusions $ExcludeAccounts
+            if ($ScheduledForDisableByDomain[$Domain].Count -gt 0) {
+                $AccountsScheduledForDisable = $ScheduledForDisableByDomain[$Domain]
+                [Array] $SkippedDeleteBecauseDisabled = @($ToDelete | Where-Object { $_.DistinguishedName -in $AccountsScheduledForDisable })
+                $ToDelete = @($ToDelete | Where-Object { $_.DistinguishedName -notin $AccountsScheduledForDisable })
+                if ($SkippedDeleteBecauseDisabled.Count -gt 0) {
+                    Write-Color -Text "[i] ", "Skipping delete for ", $SkippedDeleteBecauseDisabled.Count, " service account(s) in domain ", $Domain, " because they are already scheduled for disable in this run." -Color Yellow, Cyan, Green, Cyan, Green, Cyan
+                }
+            }
             $Report[$Domain]['AccountsToBeDeleted'] = $ToDelete.Count
             $Processed += Request-ADServiceAccountsDelete -Accounts $ToDelete -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
         }

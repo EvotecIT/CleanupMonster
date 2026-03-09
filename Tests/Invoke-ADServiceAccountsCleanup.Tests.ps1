@@ -1,6 +1,8 @@
 BeforeAll {
-    $Public = Join-Path $PSScriptRoot '..' 'Public' 'Invoke-ADServiceAccountsCleanup.ps1'
-    $Private = Get-ChildItem -Path (Join-Path $PSScriptRoot '..' 'Private') -Filter '*ServiceAccounts*.ps1'
+    . "$PSScriptRoot\TestHelpers.ps1"
+
+    $Public = Get-CleanupMonsterPath 'Public/Invoke-ADServiceAccountsCleanup.ps1'
+    $Private = Get-ChildItem -Path (Get-CleanupMonsterPath 'Private') -Filter '*ServiceAccounts*.ps1'
     . $Public
     foreach ($P in $Private) { . $P.FullName }
 
@@ -42,5 +44,25 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $forest = @{ Domains=@('lab.local'); QueryServers=@{ 'lab.local'=@{ HostName=@('dc1') } } }
         $report = Get-InitialADServiceAccounts -ForestInformation $forest -IncludeAccounts @('gmsa*') -ExcludeAccounts @('gmsa2')
         $report['lab.local'].Accounts.SamAccountName | Should -Be @('gmsa1')
+    }
+
+    It 'does not delete accounts that are already scheduled for disable in the same run' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName   = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate    = (Get-Date).AddDays(-120)
+                    PasswordLastSet  = (Get-Date).AddDays(-120)
+                    WhenCreated      = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 30 -DeleteLastLogonDateMoreThan 30 -ReportOnly
+
+        $result.CurrentRun.Count | Should -Be 1
+        $result.CurrentRun[0].Action | Should -Be 'Disable'
+        $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
     }
 }
