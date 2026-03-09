@@ -65,4 +65,51 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $result.CurrentRun[0].Action | Should -Be 'Disable'
         $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
     }
+
+    It 'limits disable actions to one account by default' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa2'
+                    DistinguishedName = 'CN=gmsa2,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Disable-ADAccount {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable -DisableLastLogonDateMoreThan 30
+
+        $result.CurrentRun | Should -HaveCount 1
+        $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
+    }
+
+    It 'stops processing when SafetyADLimit is not met' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Disable-ADAccount {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable -DisableLastLogonDateMoreThan 30 -SafetyADLimit 2
+
+        $result | Should -BeNullOrEmpty
+        Assert-MockCalled Disable-ADAccount -Times 0
+    }
 }
