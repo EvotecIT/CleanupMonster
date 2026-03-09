@@ -11,8 +11,9 @@ function ConvertTo-PreparedComputer {
     )
 
     foreach ($Computer in $Computers) {
+        $LookupCandidates = Get-ComputerLookupCandidates -Name $Computer.Name -DNSHostName $Computer.DNSHostName -SamAccountName $Computer.SamAccountName
         if ($IncludeAzureAD) {
-            $AzureADComputer = $AzureInformationCache['AzureAD']["$($Computer.Name)"]
+            $AzureADComputer = Get-CloudCacheComputer -Cache $AzureInformationCache['AzureAD'] -Candidates $LookupCandidates
             $DataAzureAD = [ordered] @{
                 'AzureLastSeen'     = $AzureADComputer.LastSeen
                 'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
@@ -25,7 +26,7 @@ function ConvertTo-PreparedComputer {
         }
         if ($IncludeIntune) {
             # data was requested from Intune
-            $IntuneComputer = $AzureInformationCache['Intune']["$($Computer.Name)"]
+            $IntuneComputer = Get-CloudCacheComputer -Cache $AzureInformationCache['Intune'] -Candidates $LookupCandidates
             $DataIntune = [ordered] @{
                 'IntuneLastSeen'     = $IntuneComputer.LastSeen
                 'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
