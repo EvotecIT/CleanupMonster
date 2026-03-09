@@ -125,6 +125,22 @@ $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PS
 $Output
 ```
 
+#### Protected computer objects
+
+If a computer is protected from accidental deletion, `-RemoveProtectedFromAccidentalDeletionFlag` now applies only to move and delete actions.
+Disable-only runs will leave that protection in place.
+
+```powershell
+$Output = Invoke-ADComputersCleanup `
+    -Disable `
+    -DisableAndMove `
+    -DisableMoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' `
+    -RemoveProtectedFromAccidentalDeletionFlag `
+    -WhatIfDisable `
+    -ShowHTML
+$Output
+```
+
 #### Non-interactively (scheduled task)
 
 This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
@@ -187,6 +203,7 @@ This is a sample script that you can use to run the module in a scheduled task. 
 Thi example shows how to use AzureAD, Intune and Jamf to clean up computers in Active Directory where computer also needs needs to be non-existant in AzureAD, Intune and Jamf or have last seen date matches in AzureAD, Intune and Jamf.
 
 This example also moves computers to different OU's as part of the disable process.
+When `RemoveProtectedFromAccidentalDeletionFlag` is enabled, the flag is only cleared for the move/delete steps that require it.
 
 ```powershell
 # connect to graph for Azure AD, Intune (requires GraphEssentials module)
@@ -240,6 +257,7 @@ $invokeADComputersCleanupSplat = @{
     WhatIfDisable                       = $true
     WhatIfDelete                        = $true
     ShowHTML                            = $true
+    RemoveProtectedFromAccidentalDeletionFlag = $true
 }
 
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat

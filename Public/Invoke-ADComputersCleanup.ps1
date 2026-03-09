@@ -393,9 +393,10 @@
     It will use the default server if no server is provided for a domain, which is default approach.
     This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
 
-    .PARAMETER RemoveProtectedFromAccidentalDeletionFlag
-    Remove the ProtectedFromAccidentalDeletion flag from the computer object before deleting it.
-    By default it will not remove the flag, and require it to be removed manually.
+.PARAMETER RemoveProtectedFromAccidentalDeletionFlag
+Remove the ProtectedFromAccidentalDeletion flag from the computer object before moving or deleting it.
+Disable-only workflows leave the flag untouched.
+By default it will not remove the flag, and require it to be removed manually.
 
     .PARAMETER ADQueryMaxRetries
     Maximum number of retries for AD query operations. Default is 3.
@@ -429,6 +430,11 @@
     # this is a fresh run and it will try to delete computers according to it's defaults
     # read documentation to understand what it does
     $Output = Invoke-ADComputersCleanup -Delete -WhatIfDelete -ShowHTML -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
+    $Output
+
+    .EXAMPLE
+    # remove the protection flag only when a move or delete action actually needs it
+    $Output = Invoke-ADComputersCleanup -Disable -DisableAndMove -DisableMoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -RemoveProtectedFromAccidentalDeletionFlag -WhatIfDisable -ShowHTML
     $Output
 
     .EXAMPLE
