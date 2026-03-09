@@ -8,6 +8,8 @@
     Active Directory Cleanup function that can disable or delete computers
     that have not been logged on for a certain amount of time.
     It has many options to customize the cleanup process.
+    When Azure AD or Intune integration is used, device matching tries AD name,
+    DNS host name, and samAccountName aliases so computers with truncated AD names can still match their cloud records.
 
     .PARAMETER Forest
     Forest to use when connecting to Active Directory.

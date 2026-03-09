@@ -187,6 +187,7 @@ This is a sample script that you can use to run the module in a scheduled task. 
 Thi example shows how to use AzureAD, Intune and Jamf to clean up computers in Active Directory where computer also needs needs to be non-existant in AzureAD, Intune and Jamf or have last seen date matches in AzureAD, Intune and Jamf.
 
 This example also moves computers to different OU's as part of the disable process.
+For long computer names, cloud matching now falls back through `DNSHostName` and related aliases so truncated AD names can still match Azure AD and Intune records.
 
 ```powershell
 # connect to graph for Azure AD, Intune (requires GraphEssentials module)
