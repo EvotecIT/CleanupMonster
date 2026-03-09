@@ -29,8 +29,8 @@
 
         EmailTable -DataTable $Export.CurrentRun {
             EmailTableCondition -Name 'Enabled' -ComparisonType bool -Operator eq -Value $true -BackgroundColor MintGreen -FailBackgroundColor Salmon -Inline
-            EmailTableCondition -Name 'SIDBeforeCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral -FailBackgroundColor LightGreen -Inline
-            EmailTableCondition -Name 'SIDAfterCount' -ComparisonType number -Operator eq -Value 0 -BackgroundColor LightGreen -FailBackgroundColor Salmon -Inline
+            EmailTableCondition -Name 'SIDBeforeTargetedCount' -ComparisonType number -Operator gt -Value 0 -BackgroundColor LightCoral -FailBackgroundColor LightGreen -Inline
+            EmailTableCondition -Name 'SIDAfterTargetedCount' -ComparisonType number -Operator eq -Value 0 -BackgroundColor LightGreen -FailBackgroundColor Salmon -Inline
 
             EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAll' -BackgroundColor LightPink -Inline
             EmailTableCondition -Name 'Action' -ComparisonType string -Value 'RemovePerSID' -BackgroundColor LightCoral -Inline

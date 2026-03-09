@@ -286,7 +286,13 @@
     }
 
     $Export['TotalObjectsFound'] = $ObjectsToProcess.Count
-    $Export['TotalSIDsFound'] = ($ObjectsToProcess | ForEach-Object { $_.Object.SIDHistory.Count } | Measure-Object -Sum).Sum
+    $Export['TotalSIDsFound'] = ($ObjectsToProcess | ForEach-Object {
+            if ($_.PSObject.Properties.Name -contains 'SIDHistoryToRemove' -and $_.SIDHistoryToRemove) {
+                $_.SIDHistoryToRemove.Count
+            } else {
+                $_.Object.SIDHistory.Count
+            }
+        } | Measure-Object -Sum).Sum
 
     if (-not $ReportOnly) {
         try {
