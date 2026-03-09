@@ -27,7 +27,7 @@ It has multiple functionalities currently & planned:
 - [x] Cleanup SID History from Active Directory
 - [ ] Cleanup stale User objects from Active Directory
 - [ ] Cleanup stale Group objects from Active Directory
-- [ ] Cleanup GMSA/MSA objects from Active Directory
+- [x] Cleanup GMSA/MSA objects from Active Directory
 
 There are 2 blog posts that explain how to use the module:
 - [Mastering Active Directory Hygiene: Automating Stale Computer Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-stale-computer-cleanup-with-cleanupmonster/)
@@ -243,6 +243,44 @@ $invokeADComputersCleanupSplat = @{
 }
 
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
+$Output
+```
+
+### Cleaning Service Accounts
+
+Service-account cleanup supports report-only reviews, disable/delete staging, and explicit safety guardrails.
+By default `DisableLimit` and `DeleteLimit` are both `1`, and the same account will not be disabled and deleted in the same invocation.
+
+#### Report Only
+
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -ReportOnly
+$Output.CurrentRun
+```
+
+#### Safer scheduled run
+
+```powershell
+$invokeADServiceAccountsCleanupSplat = @{
+    Disable                        = $true
+    DisableLastLogonDateMoreThan   = 90
+    DisablePasswordLastSetMoreThan = 90
+    DisableLimit                   = 2
+
+    Delete                         = $true
+    DeleteLastLogonDateMoreThan    = 180
+    DeletePasswordLastSetMoreThan  = 180
+    DeleteLimit                    = 1
+
+    SafetyADLimit                  = 10
+    IncludeAccounts                = @('gmsa-*', 'msa-*')
+    ExcludeAccounts                = @('gmsa-keep-*')
+    ReportPath                     = "$PSScriptRoot\Reports\ServiceAccounts_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+    WhatIfDisable                  = $true
+    WhatIfDelete                   = $true
+}
+
+$Output = Invoke-ADServiceAccountsCleanup @invokeADServiceAccountsCleanupSplat
 $Output
 ```
 
