@@ -16,27 +16,36 @@
     :TopLoop foreach ($Item in $ObjectsToProcess) {
         $Object = $Item.Object
         $QueryServer = $Item.QueryServer
+        $SIDsToRemove = if ($Item.PSObject.Properties.Name -contains 'SIDHistoryToRemove' -and $Item.SIDHistoryToRemove) {
+            $Item.SIDHistoryToRemove
+        } else {
+            $Object.SIDHistory
+        }
 
         $CurrentRunObject = [PSCustomObject] @{
-            ObjectName     = $Object.Name
-            ObjectDomain   = $Object.Domain
-            Enabled        = $Object.Enabled
-            SIDBefore      = $Object.SIDHistory -join ", "
-            SIDBeforeCount = $Object.SIDHistory.Count
-            Action         = $null
-            ActionDate     = $null
-            ActionStatus   = $null
-            ActionError    = ''
-            SIDRemoved     = @()
-            SIDAfter       = @()
-            SIDAfterCount  = 0
-            ObjectDN       = $Object.DistinguishedName
+            ObjectName               = $Object.Name
+            ObjectDomain             = $Object.Domain
+            Enabled                  = $Object.Enabled
+            SIDBefore                = $Object.SIDHistory -join ", "
+            SIDBeforeCount           = $Object.SIDHistory.Count
+            SIDBeforeTargeted        = $SIDsToRemove -join ", "
+            SIDBeforeTargetedCount   = $SIDsToRemove.Count
+            Action                   = $null
+            ActionDate               = $null
+            ActionStatus             = $null
+            ActionError              = ''
+            SIDRemoved               = @()
+            SIDAfter                 = @()
+            SIDAfterCount            = 0
+            SIDAfterTargeted         = $null
+            SIDAfterTargetedCount    = 0
+            ObjectDN                 = $Object.DistinguishedName
         }
 
         $ProcessedObjects++
 
         # Process individual SIDs for this object
-        foreach ($SID in $Object.SIDHistory) {
+        foreach ($SID in $SIDsToRemove) {
             $CurrentDate = Get-Date
             if ($PSCmdlet.ShouldProcess("$($Object.Name) ($($Object.Domain))", "Remove SID History entry $SID")) {
                 Write-Color -Text "[i] ", "Removing SID History entry $SID from ", $Object.Name -Color Yellow, White, Green
@@ -108,7 +117,23 @@
                 $CurrentRunObject.SIDAfter = $null
             }
 
+            if ($RefreshedObject -and $RefreshedObject.SIDHistory) {
+                [Array] $RemainingTargetedSIDs = foreach ($RefreshedSID in $RefreshedObject.SIDHistory) {
+                    if ($SIDsToRemove -contains $RefreshedSID) {
+                        $RefreshedSID
+                    }
+                }
+            } else {
+                [Array] $RemainingTargetedSIDs = @()
+            }
+
             $CurrentRunObject.SIDAfterCount = $RefreshedObject.SIDHistory.Count
+            $CurrentRunObject.SIDAfterTargeted = if ($RemainingTargetedSIDs.Count -gt 0) {
+                $RemainingTargetedSIDs -join ", "
+            } else {
+                $null
+            }
+            $CurrentRunObject.SIDAfterTargetedCount = $RemainingTargetedSIDs.Count
             $Export.CurrentRun.Add($CurrentRunObject)
             $GlobalLimitSID++
             $ProcessedSIDs++

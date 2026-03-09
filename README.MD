@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/v/CleanupMonster.svg?style=flat-square"></a>
-  <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/vpre/CleanupMonster.svg?label=powershell%20gallery%20preview&colorB=yellow&style=flat-square"></a>
+  <a href="https://www.powershellgallery.com/packages/CleanupMonster"><img src="https://img.shields.io/powershellgallery/v/CleanupMonster.svg?label=powershell%20gallery%20preview&colorB=yellow&style=flat-square&include_prereleases"></a>
   <a href="https://github.com/EvotecIT/CleanupMonster"><img src="https://img.shields.io/github/license/EvotecIT/CleanupMonster.svg?style=flat-square"></a>
 </p>
 
