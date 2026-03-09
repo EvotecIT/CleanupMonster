@@ -7,6 +7,7 @@ function Invoke-ADServiceAccountsCleanup {
     Enumerates managed service accounts in Active Directory and disables or deletes
     accounts based on inactivity or age criteria.
     Disable and delete selections are staged so the same account is not actioned twice in one run.
+    The cmdlet also defaults to single-object safety limits unless you explicitly raise or remove them.
 
     .PARAMETER Forest
     Forest to use when connecting to Active Directory.
@@ -47,6 +48,15 @@ function Invoke-ADServiceAccountsCleanup {
     .PARAMETER DeleteWhenCreatedMoreThan
     Delete accounts created more than the specified number of days ago.
 
+    .PARAMETER DisableLimit
+    Limit the number of service accounts that will be disabled. 0 = unlimited. Default is 1.
+
+    .PARAMETER DeleteLimit
+    Limit the number of service accounts that will be deleted. 0 = unlimited. Default is 1.
+
+    .PARAMETER SafetyADLimit
+    Stops processing if the number of discovered service accounts is less than the specified limit.
+
     .PARAMETER ReportOnly
     Only report accounts that would be processed.
 
@@ -72,7 +82,7 @@ function Invoke-ADServiceAccountsCleanup {
     Invoke-ADServiceAccountsCleanup -Delete -DeleteLastLogonDateMoreThan 180 -WhatIfDelete
 
     .EXAMPLE
-    Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -WhatIfDisable -WhatIfDelete
+    Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -DisableLimit 2 -DeleteLimit 1 -SafetyADLimit 10 -WhatIfDisable -WhatIfDelete
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -86,9 +96,12 @@ function Invoke-ADServiceAccountsCleanup {
         [int] $DisableLastLogonDateMoreThan,
         [int] $DisablePasswordLastSetMoreThan,
         [int] $DisableWhenCreatedMoreThan,
+        [int] $DisableLimit = 1,
         [int] $DeleteLastLogonDateMoreThan,
         [int] $DeletePasswordLastSetMoreThan,
         [int] $DeleteWhenCreatedMoreThan,
+        [int] $DeleteLimit = 1,
+        [nullable[int]] $SafetyADLimit,
         [switch] $ReportOnly,
         [string] $ReportPath,
         [switch] $ShowHTML,
@@ -129,6 +142,14 @@ function Invoke-ADServiceAccountsCleanup {
 
     $Report = Get-InitialADServiceAccounts -ForestInformation $ForestInformation -IncludeAccounts $IncludeAccounts -ExcludeAccounts $ExcludeAccounts
 
+    [Array] $AllAccounts = foreach ($Domain in $Report.Keys) {
+        $Report[$Domain]['Accounts']
+    }
+    if ($null -ne $SafetyADLimit -and $AllAccounts.Count -lt $SafetyADLimit) {
+        Write-Color -Text "[e] ", "Only ", $AllAccounts.Count, " service account(s) found in AD, this is less than the safety limit of ", $SafetyADLimit, ". Terminating!" -Color Yellow, Cyan, Red, Cyan, Red
+        return
+    }
+
     $Today = Get-Date
     [Array]$Processed = @()
     $ScheduledForDisableByDomain = @{}
@@ -139,7 +160,7 @@ function Invoke-ADServiceAccountsCleanup {
             $ToDisable = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $Accounts -ActionIf $DisableOnlyIf -Exclusions $ExcludeAccounts
             $ScheduledForDisableByDomain[$Domain] = @($ToDisable | ForEach-Object { $_.DistinguishedName })
             $Report[$Domain]['AccountsToBeDisabled'] = $ToDisable.Count
-            $Processed += Request-ADServiceAccountsDisable -Accounts $ToDisable -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
+            $Processed += Request-ADServiceAccountsDisable -Accounts $ToDisable -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -DisableLimit $DisableLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
         }
         if ($Delete) {
             $DeleteOnlyIf = @{ LastLogonDateMoreThan = $DeleteLastLogonDateMoreThan; PasswordLastSetMoreThan = $DeletePasswordLastSetMoreThan; WhenCreatedMoreThan = $DeleteWhenCreatedMoreThan }
@@ -153,7 +174,7 @@ function Invoke-ADServiceAccountsCleanup {
                 }
             }
             $Report[$Domain]['AccountsToBeDeleted'] = $ToDelete.Count
-            $Processed += Request-ADServiceAccountsDelete -Accounts $ToDelete -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
+            $Processed += Request-ADServiceAccountsDelete -Accounts $ToDelete -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -DeleteLimit $DeleteLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
         }
     }
 
@@ -162,10 +183,12 @@ function Invoke-ADServiceAccountsCleanup {
 
     foreach ($Domain in $Report.Keys) {
         if ($Disable) {
-            Write-Color -Text "[i] ", "Accounts to be disabled for domain $Domain`: ", $Report[$Domain]['AccountsToBeDisabled'] -Color Yellow, Cyan, Green
+            $DisableLimitText = if ($DisableLimit -eq 0) { 'Unlimited' } else { $DisableLimit }
+            Write-Color -Text "[i] ", "Accounts to be disabled for domain $Domain`: ", $Report[$Domain]['AccountsToBeDisabled'], ". Current disable limit: ", $DisableLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
         if ($Delete) {
-            Write-Color -Text "[i] ", "Accounts to be deleted for domain $Domain`: ", $Report[$Domain]['AccountsToBeDeleted'] -Color Yellow, Cyan, Green
+            $DeleteLimitText = if ($DeleteLimit -eq 0) { 'Unlimited' } else { $DeleteLimit }
+            Write-Color -Text "[i] ", "Accounts to be deleted for domain $Domain`: ", $Report[$Domain]['AccountsToBeDeleted'], ". Current delete limit: ", $DeleteLimitText -Color Yellow, Cyan, Green, Cyan, Yellow
         }
     }
 

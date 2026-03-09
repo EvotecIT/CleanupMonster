@@ -4,9 +4,11 @@ function Request-ADServiceAccountsDelete {
         [Array] $Accounts,
         [switch] $ReportOnly,
         [switch] $WhatIfDelete,
+        [int] $DeleteLimit,
         [DateTime] $Today,
         [switch] $DontWriteToEventLog
     )
+    $CountDelete = 0
     foreach ($Account in $Accounts) {
         if ($Account.Action -ne 'Delete') { continue }
         if ($ReportOnly) {
@@ -32,5 +34,11 @@ function Request-ADServiceAccountsDelete {
             $Account.ActionStatus = $Success
         }
         $Account
+        $CountDelete++
+        if ($DeleteLimit) {
+            if ($DeleteLimit -eq $CountDelete) {
+                break
+            }
+        }
     }
 }

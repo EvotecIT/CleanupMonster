@@ -248,14 +248,41 @@ $Output
 
 ### Cleaning Service Accounts
 
-Service-account cleanup supports report-only reviews and staged disable/delete processing.
-If an account matches both sets of criteria in the same run, it is kept in the disable stage and skipped from delete.
+Service-account cleanup supports report-only reviews, disable/delete staging, and explicit safety guardrails.
+If an account matches both sets of criteria in the same run, it stays in the disable stage and is skipped from delete.
+By default `DisableLimit` and `DeleteLimit` are both `1`.
 
 #### Report Only
 
 ```powershell
 $Output = Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -ReportOnly
 $Output.CurrentRun
+```
+
+#### Safer scheduled run
+
+```powershell
+$invokeADServiceAccountsCleanupSplat = @{
+    Disable                        = $true
+    DisableLastLogonDateMoreThan   = 90
+    DisablePasswordLastSetMoreThan = 90
+    DisableLimit                   = 2
+
+    Delete                         = $true
+    DeleteLastLogonDateMoreThan    = 180
+    DeletePasswordLastSetMoreThan  = 180
+    DeleteLimit                    = 1
+
+    SafetyADLimit                  = 10
+    IncludeAccounts                = @('gmsa-*', 'msa-*')
+    ExcludeAccounts                = @('gmsa-keep-*')
+    ReportPath                     = "$PSScriptRoot\Reports\ServiceAccounts_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+    WhatIfDisable                  = $true
+    WhatIfDelete                   = $true
+}
+
+$Output = Invoke-ADServiceAccountsCleanup @invokeADServiceAccountsCleanupSplat
+$Output
 ```
 
 #### Interactive review

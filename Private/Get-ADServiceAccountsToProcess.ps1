@@ -59,6 +59,9 @@ function Get-ADServiceAccountsToProcess {
                 $AccountData['WhenCreatedDays'] = $CreatedDays
             }
             $AccountData['Action'] = $Type
+            $AccountData['ActionStatus'] = $null
+            $AccountData['ActionDate'] = $null
+            $AccountData['ActionComment'] = $null
             [PSCustomObject] $AccountData
         }
     }

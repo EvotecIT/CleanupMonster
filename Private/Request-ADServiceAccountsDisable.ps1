@@ -4,9 +4,11 @@ function Request-ADServiceAccountsDisable {
         [Array] $Accounts,
         [switch] $ReportOnly,
         [switch] $WhatIfDisable,
+        [int] $DisableLimit,
         [DateTime] $Today,
         [switch] $DontWriteToEventLog
     )
+    $CountDisable = 0
     foreach ($Account in $Accounts) {
         if ($Account.Action -ne 'Disable') { continue }
         if ($ReportOnly) {
@@ -32,5 +34,11 @@ function Request-ADServiceAccountsDisable {
             $Account.ActionStatus = $Success
         }
         $Account
+        $CountDisable++
+        if ($DisableLimit) {
+            if ($DisableLimit -eq $CountDisable) {
+                break
+            }
+        }
     }
 }
