@@ -393,9 +393,9 @@
     It will use the default server if no server is provided for a domain, which is default approach.
     This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
 
-    .PARAMETER RemoveProtectedFromAccidentalDeletionFlag
-    Remove the ProtectedFromAccidentalDeletion flag from the computer object before disabling, moving, or deleting it.
-    By default it will not remove the flag, and require it to be removed manually.
+.PARAMETER RemoveProtectedFromAccidentalDeletionFlag
+Remove the ProtectedFromAccidentalDeletion flag from the computer object before moving or deleting it.
+By default it will not remove the flag, and require it to be removed manually.
 
     .PARAMETER ADQueryMaxRetries
     Maximum number of retries for AD query operations. Default is 3.
