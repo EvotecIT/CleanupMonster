@@ -204,6 +204,7 @@ Thi example shows how to use AzureAD, Intune and Jamf to clean up computers in A
 
 This example also moves computers to different OU's as part of the disable process.
 When `RemoveProtectedFromAccidentalDeletionFlag` is enabled, the flag is only cleared for the move/delete steps that require it.
+For long computer names, cloud matching now falls back through `DNSHostName` and related aliases so truncated AD names can still match Azure AD and Intune records.
 
 ```powershell
 # connect to graph for Azure AD, Intune (requires GraphEssentials module)
