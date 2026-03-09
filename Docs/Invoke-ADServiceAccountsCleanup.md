@@ -49,6 +49,13 @@ $Output = Invoke-ADServiceAccountsCleanup @invokeADServiceAccountsCleanupSplat
 
 Run a staged cleanup with explicit AD safety thresholds and per-action limits.
 
+### EXAMPLE 3
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -WhatIfDisable -WhatIfDelete -ReportPath "$PSScriptRoot\Reports\ServiceAccounts.html"
+```
+
+Run an interactive review where matching accounts stay in the disable stage instead of being disabled and deleted in the same invocation.
+
 ## KEY PARAMETERS
 
 ### -DisableLimit

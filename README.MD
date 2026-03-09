@@ -249,7 +249,8 @@ $Output
 ### Cleaning Service Accounts
 
 Service-account cleanup supports report-only reviews, disable/delete staging, and explicit safety guardrails.
-By default `DisableLimit` and `DeleteLimit` are both `1`, and the same account will not be disabled and deleted in the same invocation.
+If an account matches both sets of criteria in the same run, it stays in the disable stage and is skipped from delete.
+By default `DisableLimit` and `DeleteLimit` are both `1`.
 
 #### Report Only
 
@@ -281,6 +282,20 @@ $invokeADServiceAccountsCleanupSplat = @{
 }
 
 $Output = Invoke-ADServiceAccountsCleanup @invokeADServiceAccountsCleanupSplat
+$Output
+```
+
+#### Interactive review
+
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup `
+    -Disable `
+    -Delete `
+    -DisableLastLogonDateMoreThan 90 `
+    -DeleteLastLogonDateMoreThan 180 `
+    -WhatIfDisable `
+    -WhatIfDelete `
+    -ReportPath "$PSScriptRoot\Reports\ServiceAccounts.html"
 $Output
 ```
 
