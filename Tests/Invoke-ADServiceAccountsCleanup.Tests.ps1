@@ -11,6 +11,8 @@ BeforeAll {
     function Get-GitHubVersion { param($Cmdlet,$RepositoryOwner,$RepositoryName) '0.0.0' }
     function Get-WinADForestDetails { param([string]$Forest,[string[]]$IncludeDomains,[string[]]$ExcludeDomains) @{ Domains=@('domain.local'); QueryServers=@{ 'domain.local'=@{ HostName=@('localhost') } }; DomainsExtended=@{}; Forest='domain.local' } }
     function Get-ADServiceAccount { param([string]$Filter,[string]$Server,[string[]]$Properties) @() }
+    function Disable-ADAccount {}
+    function Remove-ADObject {}
     function New-HTML { param([scriptblock]$Body,[string]$FilePath,[switch]$Online,[switch]$ShowHTML) & $Body }
     function New-HTMLProcessedServiceAccounts {}
 }
