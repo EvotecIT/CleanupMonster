@@ -1,6 +1,8 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Remove-ADSIDHistory.ps1')
+
+    function Write-Color {}
 }
 
 Describe 'Remove-ADSIDHistory' {
