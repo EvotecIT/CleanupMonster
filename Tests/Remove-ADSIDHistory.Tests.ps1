@@ -3,6 +3,8 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Remove-ADSIDHistory.ps1')
 
     function Write-Color {}
+    function Set-ADObject {}
+    function Get-ADObject {}
 }
 
 Describe 'Remove-ADSIDHistory' {
