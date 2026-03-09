@@ -19,22 +19,26 @@ permissions:
     contents: read
 
 jobs:
-    test-windows:
-        name: ${{ matrix.name }}
+    test-windows-ps5:
+        name: Windows PowerShell 5.1
         runs-on: windows-latest
         timeout-minutes: 10
-        strategy:
-            fail-fast: false
-            matrix:
-                include:
-                    - name: Windows PowerShell 5.1
-                      shell: powershell
-                    - name: PowerShell 7
-                      shell: pwsh
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
 
             - name: Run PowerShell tests
-              shell: ${{ matrix.shell }}
-              run: ./CleanupMonster.Tests.ps1
+              shell: powershell
+              run: .\CleanupMonster.Tests.ps1
+
+    test-windows-ps7:
+        name: PowerShell 7
+        runs-on: windows-latest
+        timeout-minutes: 10
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Run PowerShell tests
+              shell: pwsh
+              run: .\CleanupMonster.Tests.ps1
