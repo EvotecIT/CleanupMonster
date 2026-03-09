@@ -126,6 +126,14 @@ $Configuration = @{
 $Output = Invoke-ADComputersCleanup @Configuration
 $Output
 
+### EXAMPLE 7
+```
+# Remove the protection flag only for move or delete operations that require it
+$Output = Invoke-ADComputersCleanup -Disable -DisableAndMove -DisableMoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -RemoveProtectedFromAccidentalDeletionFlag -WhatIfDisable -ShowHTML
+```
+
+$Output
+
 ## PARAMETERS
 
 ### -Disable
