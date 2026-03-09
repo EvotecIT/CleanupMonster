@@ -41,4 +41,27 @@ Describe 'Cloud device lookup helpers' {
 
         $Device.LastSeen | Should -Be 'matched-by-host'
     }
+
+    It 'finds a cloud device by samAccountName without the trailing dollar sign' {
+        $Candidates = Get-ComputerLookupCandidates -Name 'ShortName' -DNSHostName $null -SamAccountName 'LongComputerName$'
+        $Cache = [ordered] @{
+            'LongComputerName' = [PSCustomObject] @{
+                LastSeen = 'matched-by-samaccount'
+            }
+        }
+
+        $Device = Get-CloudCacheComputer -Cache $Cache -Candidates $Candidates
+
+        $Device.LastSeen | Should -Be 'matched-by-samaccount'
+    }
+
+    It 'does not duplicate equivalent short-name candidates' {
+        $Candidates = Get-ComputerLookupCandidates -Name 'Server01' -DNSHostName 'Server01.contoso.com' -SamAccountName 'Server01$'
+
+        $Candidates | Should -Be @(
+            'Server01'
+            'Server01.contoso.com'
+            'Server01$'
+        )
+    }
 }

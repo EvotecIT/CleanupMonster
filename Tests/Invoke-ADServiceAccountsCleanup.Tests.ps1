@@ -95,6 +95,87 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
     }
 
+    It 'limits delete actions to one account by default' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa2'
+                    DistinguishedName = 'CN=gmsa2,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Remove-ADObject {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Delete -DeleteLastLogonDateMoreThan 30
+
+        $result.CurrentRun | Should -HaveCount 1
+        $result.CurrentRun[0].Action | Should -Be 'Delete'
+        $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
+    }
+
+    It 'does not apply action limits in report-only mode' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa2'
+                    DistinguishedName = 'CN=gmsa2,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+
+        $result = Invoke-ADServiceAccountsCleanup -Delete -DeleteLastLogonDateMoreThan 30 -ReportOnly
+
+        $result.CurrentRun | Should -HaveCount 2
+        $result.CurrentRun.Action | Should -Be @('Delete', 'Delete')
+    }
+
+    It 'treats limit 0 as unlimited for delete actions' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa2'
+                    DistinguishedName = 'CN=gmsa2,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Remove-ADObject {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Delete -DeleteLastLogonDateMoreThan 30 -DeleteLimit 0
+
+        $result.CurrentRun | Should -HaveCount 2
+        $result.CurrentRun.SamAccountName | Should -Be @('gmsa1', 'gmsa2')
+    }
+
     It 'stops processing when SafetyADLimit is not met' {
         Mock -CommandName Get-ADServiceAccount -MockWith {
             @(
