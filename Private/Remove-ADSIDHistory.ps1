@@ -23,19 +23,23 @@
         }
 
         $CurrentRunObject = [PSCustomObject] @{
-            ObjectName     = $Object.Name
-            ObjectDomain   = $Object.Domain
-            Enabled        = $Object.Enabled
-            SIDBefore      = $Object.SIDHistory -join ", "
-            SIDBeforeCount = $Object.SIDHistory.Count
-            Action         = $null
-            ActionDate     = $null
-            ActionStatus   = $null
-            ActionError    = ''
-            SIDRemoved     = @()
-            SIDAfter       = @()
-            SIDAfterCount  = 0
-            ObjectDN       = $Object.DistinguishedName
+            ObjectName               = $Object.Name
+            ObjectDomain             = $Object.Domain
+            Enabled                  = $Object.Enabled
+            SIDBefore                = $Object.SIDHistory -join ", "
+            SIDBeforeCount           = $Object.SIDHistory.Count
+            SIDBeforeTargeted        = $SIDsToRemove -join ", "
+            SIDBeforeTargetedCount   = $SIDsToRemove.Count
+            Action                   = $null
+            ActionDate               = $null
+            ActionStatus             = $null
+            ActionError              = ''
+            SIDRemoved               = @()
+            SIDAfter                 = @()
+            SIDAfterCount            = 0
+            SIDAfterTargeted         = $null
+            SIDAfterTargetedCount    = 0
+            ObjectDN                 = $Object.DistinguishedName
         }
 
         $ProcessedObjects++
@@ -113,7 +117,23 @@
                 $CurrentRunObject.SIDAfter = $null
             }
 
+            if ($RefreshedObject -and $RefreshedObject.SIDHistory) {
+                [Array] $RemainingTargetedSIDs = foreach ($RefreshedSID in $RefreshedObject.SIDHistory) {
+                    if ($SIDsToRemove -contains $RefreshedSID) {
+                        $RefreshedSID
+                    }
+                }
+            } else {
+                [Array] $RemainingTargetedSIDs = @()
+            }
+
             $CurrentRunObject.SIDAfterCount = $RefreshedObject.SIDHistory.Count
+            $CurrentRunObject.SIDAfterTargeted = if ($RemainingTargetedSIDs.Count -gt 0) {
+                $RemainingTargetedSIDs -join ", "
+            } else {
+                $null
+            }
+            $CurrentRunObject.SIDAfterTargetedCount = $RemainingTargetedSIDs.Count
             $Export.CurrentRun.Add($CurrentRunObject)
             $GlobalLimitSID++
             $ProcessedSIDs++
