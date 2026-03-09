@@ -6,6 +6,7 @@ function Invoke-ADServiceAccountsCleanup {
     .DESCRIPTION
     Enumerates managed service accounts in Active Directory and disables or deletes
     accounts based on inactivity or age criteria.
+    Disable and delete selections are staged so the same account is not actioned twice in one run.
 
     .PARAMETER Forest
     Forest to use when connecting to Active Directory.
@@ -69,6 +70,9 @@ function Invoke-ADServiceAccountsCleanup {
 
     .EXAMPLE
     Invoke-ADServiceAccountsCleanup -Delete -DeleteLastLogonDateMoreThan 180 -WhatIfDelete
+
+    .EXAMPLE
+    Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -WhatIfDisable -WhatIfDelete
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

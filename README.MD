@@ -27,7 +27,7 @@ It has multiple functionalities currently & planned:
 - [x] Cleanup SID History from Active Directory
 - [ ] Cleanup stale User objects from Active Directory
 - [ ] Cleanup stale Group objects from Active Directory
-- [ ] Cleanup GMSA/MSA objects from Active Directory
+- [x] Cleanup GMSA/MSA objects from Active Directory
 
 There are 2 blog posts that explain how to use the module:
 - [Mastering Active Directory Hygiene: Automating Stale Computer Cleanup with CleanupMonster](https://evotec.xyz/mastering-active-directory-hygiene-automating-stale-computer-cleanup-with-cleanupmonster/)
@@ -243,6 +243,32 @@ $invokeADComputersCleanupSplat = @{
 }
 
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
+$Output
+```
+
+### Cleaning Service Accounts
+
+Service-account cleanup supports report-only reviews and staged disable/delete processing.
+If an account matches both sets of criteria in the same run, it is kept in the disable stage and skipped from delete.
+
+#### Report Only
+
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -ReportOnly
+$Output.CurrentRun
+```
+
+#### Interactive review
+
+```powershell
+$Output = Invoke-ADServiceAccountsCleanup `
+    -Disable `
+    -Delete `
+    -DisableLastLogonDateMoreThan 90 `
+    -DeleteLastLogonDateMoreThan 180 `
+    -WhatIfDisable `
+    -WhatIfDelete `
+    -ReportPath "$PSScriptRoot\Reports\ServiceAccounts.html"
 $Output
 ```
 
