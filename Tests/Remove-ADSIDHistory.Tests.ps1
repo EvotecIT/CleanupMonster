@@ -95,4 +95,96 @@ Describe 'Remove-ADSIDHistory' {
         $currentRun.SIDBeforeTargetedCount | Should -Be 1
         $currentRun.SIDAfterTargetedCount | Should -Be 0
     }
+
+    It 'treats an omitted SID limit as unlimited processing' {
+        $sidOne = 'S-1-5-21-111-222-333-1001'
+        $sidTwo = 'S-1-5-21-111-222-333-1002'
+        $refreshCount = 0
+
+        $export = @{
+            History = [System.Collections.Generic.List[PSCustomObject]]::new()
+        }
+
+        $object = [PSCustomObject]@{
+            Name              = 'User3'
+            Domain            = 'contoso.com'
+            Enabled           = $false
+            SIDHistory        = @($sidOne, $sidTwo)
+            DistinguishedName = 'CN=User3,DC=contoso,DC=com'
+        }
+
+        $objectsToProcess = @(
+            [PSCustomObject]@{
+                Object             = $object
+                QueryServer        = 'dc1.contoso.com'
+                SIDHistoryToRemove = @($sidOne, $sidTwo)
+            }
+        )
+
+        Mock Set-ADObject {}
+        Mock Get-ADObject {
+            $script:refreshCount++
+            if ($script:refreshCount -eq 1) {
+                [PSCustomObject]@{
+                    SIDHistory = @($sidTwo)
+                }
+            } else {
+                [PSCustomObject]@{
+                    SIDHistory = @()
+                }
+            }
+        }
+
+        Remove-ADSIDHistory -ObjectsToProcess $objectsToProcess -Export $export -RemoveLimitSID $null
+
+        $export.History | Should -HaveCount 2
+        $export.CurrentRun | Should -HaveCount 2
+        Assert-MockCalled Set-ADObject -Times 2 -Exactly
+    }
+
+    It 'captures independent CurrentRun snapshots for each SID removal' {
+        $sidOne = 'S-1-5-21-111-222-333-1001'
+        $sidTwo = 'S-1-5-21-111-222-333-1002'
+        $refreshCount = 0
+
+        $export = @{
+            History = [System.Collections.Generic.List[PSCustomObject]]::new()
+        }
+
+        $object = [PSCustomObject]@{
+            Name              = 'User4'
+            Domain            = 'contoso.com'
+            Enabled           = $true
+            SIDHistory        = @($sidOne, $sidTwo)
+            DistinguishedName = 'CN=User4,DC=contoso,DC=com'
+        }
+
+        $objectsToProcess = @(
+            [PSCustomObject]@{
+                Object             = $object
+                QueryServer        = 'dc1.contoso.com'
+                SIDHistoryToRemove = @($sidOne, $sidTwo)
+            }
+        )
+
+        Mock Set-ADObject {}
+        Mock Get-ADObject {
+            $script:refreshCount++
+            if ($script:refreshCount -eq 1) {
+                [PSCustomObject]@{
+                    SIDHistory = @($sidTwo)
+                }
+            } else {
+                [PSCustomObject]@{
+                    SIDHistory = @()
+                }
+            }
+        }
+
+        Remove-ADSIDHistory -ObjectsToProcess $objectsToProcess -Export $export -RemoveLimitSID 10
+
+        $export.CurrentRun | Should -HaveCount 2
+        $export.CurrentRun[0].SIDRemoved | Should -Be @($sidOne)
+        $export.CurrentRun[1].SIDRemoved | Should -Be @($sidOne, $sidTwo)
+    }
 }

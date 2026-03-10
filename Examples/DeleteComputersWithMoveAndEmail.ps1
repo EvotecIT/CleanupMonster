@@ -1,4 +1,25 @@
-﻿Import-Module .\CleanupMonster.psd1 -Force
+﻿<#
+.SYNOPSIS
+Disable-and-move computer cleanup with optional email reporting.
+
+.DESCRIPTION
+This example demonstrates a richer automation flow:
+- disable stale computers
+- move them to a quarantine OU
+- optionally prepare an HTML email summary after the run
+
+Use this when your cleanup process includes a quarantine OU and you want
+operators to receive a run summary by email.
+
+Before running for real, review:
+- Graph permissions for mail delivery
+- target quarantine OUs per domain
+- SearchBase scoping
+- WhatIf settings
+- recipient addresses in the email section
+#>
+
+Import-Module .\CleanupMonster.psd1 -Force
 
 # connect to graph for Email sending
 Connect-MgGraph -Scopes Mail.Send -NoWelcome

@@ -1,4 +1,23 @@
-﻿Import-Module .\CleanupMonster.psd1 -Force
+﻿<#
+.SYNOPSIS
+Targeted SID-history cleanup with strict per-run limits.
+
+.DESCRIPTION
+This example shows how to remove SID history in a controlled way by scoping
+to specific source SID domains and OUs while keeping both object and SID
+limits low.
+
+Use this after migrations or trust cleanups when you want a report-first
+approach and a small initial blast radius.
+
+Before running for real, review:
+- IncludeSIDHistoryDomain values
+- OU scope
+- RemoveLimitSID and RemoveLimitObject
+- WhatIf and ReportOnly settings
+#>
+
+Import-Module .\CleanupMonster.psd1 -Force
 
 # Prepare splat
 $invokeADSIDHistoryCleanupSplat = @{

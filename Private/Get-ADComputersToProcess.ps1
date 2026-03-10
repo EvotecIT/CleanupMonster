@@ -34,20 +34,26 @@
 
     # Let's cache the destination move, if we have them
     $CachedDestinationMove = @{}
-    if ($ActionIf.MoveTargetOrganizationalUnit -is [string]) {
-        $Domain = ConvertFrom-DistinguishedName -DistinguishedName $ActionIf.MoveTargetOrganizationalUnit -ToDomainCN
-        $CachedDestinationMove[$ActionIf.MoveTargetOrganizationalUnit] = $Domain
-    } elseif ($ActionIf.MoveTargetOrganizationalUnit -is [System.Collections.IDictionary]) {
-        foreach ($Domain in $ActionIf.MoveTargetOrganizationalUnit.Keys) {
-            $OU = $ActionIf.MoveTargetOrganizationalUnit[$Domain]
+    $ConfiguredMoveTarget = if ($null -ne $ActionIf.MoveTargetOrganizationalUnit) {
+        $ActionIf.MoveTargetOrganizationalUnit
+    } else {
+        $ActionIf.TargetOrganizationalUnit
+    }
+
+    if ($ConfiguredMoveTarget -is [string]) {
+        $Domain = ConvertFrom-DistinguishedName -DistinguishedName $ConfiguredMoveTarget -ToDomainCN
+        $CachedDestinationMove[$ConfiguredMoveTarget] = $Domain
+    } elseif ($ConfiguredMoveTarget -is [System.Collections.IDictionary]) {
+        foreach ($Domain in $ConfiguredMoveTarget.Keys) {
+            $OU = $ConfiguredMoveTarget[$Domain]
             $CachedDestinationMove[$OU] = $Domain
         }
     }
 
     Write-Color -Text "[i] ", "Looking for computers to $Type" -Color Yellow, Cyan, Green
     :SkipComputer foreach ($Computer in $Computers) {
-        if ($Type -eq 'Delete') {
-            # actions to happen only if we are deleting computers
+        if ($Type -in 'Delete', 'Move') {
+            # actions to happen only if we are deleting or moving computers from the pending list
             if ($null -ne $ActionIf.ListProcessedMoreThan) {
                 # if more then 0 this means computer has to be on list of disabled computers for that number of days.
                 if ($ProcessedComputers.Count -gt 0) {
@@ -86,7 +92,7 @@
                         Write-Color -Text "[*] Removing computer from pending list (computer is enabled) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
                         $ProcessedComputers.Remove($FullComputerName)
                     } elseif ($ActionIf.DisableAndMove -and $Computer.Enabled -eq $false) {
-                        if ($ActionIf.MoveTargetOrganizationalUnit) {
+                        if ($ConfiguredMoveTarget) {
                             if (-not $CachedDestinationMove[$Computer.OrganizationalUnit]) {
                                 # We checked and it seems the computer has been moved since it was added to list, we remove it from the list and reprocess
                                 Write-Color -Text "[*] Removing computer from pending list (computer is moved out of pending deletion OU) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow

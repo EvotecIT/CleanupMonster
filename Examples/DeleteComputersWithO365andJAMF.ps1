@@ -1,4 +1,26 @@
-﻿Import-Module .\CleanupMonster.psd1 -Force
+﻿<#
+.SYNOPSIS
+Full multi-source computer cleanup with AD, Azure AD, Intune, and Jamf.
+
+.DESCRIPTION
+This example is a production-style configuration for environments that want
+to:
+- disable stale computers
+- optionally move them later
+- delete only disabled computers
+- validate inactivity across multiple inventory sources first
+
+Use this when your device hygiene process depends on both AD and external
+management platforms.
+
+Before running for real, review:
+- Graph and Jamf connectivity
+- cloud safety thresholds
+- OU targets and exclusions
+- WhatIf settings
+#>
+
+Import-Module .\CleanupMonster.psd1 -Force
 
 # connect to graph for Azure AD, Intune (requires GraphEssentials module)
 Connect-MgGraph -Scopes Device.Read.All, DeviceManagementManagedDevices.Read.All, Directory.ReadWrite.All, DeviceManagementConfiguration.Read.All

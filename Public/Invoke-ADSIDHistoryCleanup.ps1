@@ -193,6 +193,9 @@
     Write-Color -Text "[i] ", "Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Yellow, White, Green, White
 
     $Export = Import-SIDHistory -DataStorePath $DataStorePath -Export $Export
+    if ($Export -eq $false) {
+        return
+    }
 
     # Determine if we're using limits
     if ($Null -eq $RemoveLimitSID -and $null -eq $RemoveLimitObject) {

@@ -1,4 +1,20 @@
-﻿Import-Module .\CleanupMonster.psd1 -Force
+﻿<#
+.SYNOPSIS
+Interactive computer-cleanup walkthroughs for first-time validation.
+
+.DESCRIPTION
+This file contains several small examples that are useful during the pilot
+phase:
+- report-only preview with defaults
+- report-only preview with explicit date cutoffs
+- disable preview
+- delete preview
+
+Use these examples to understand how your environment responds before you
+turn the workflow into a scheduled task.
+#>
+
+Import-Module .\CleanupMonster.psd1 -Force
 
 # this is a fresh run and it will provide report only according to it's defaults
 $Output = Invoke-ADComputersCleanup -WhatIf -ReportOnly -Disable -Delete -ShowHTML

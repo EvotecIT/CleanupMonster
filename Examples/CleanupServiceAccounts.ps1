@@ -1,3 +1,24 @@
+﻿<#
+.SYNOPSIS
+Safer service-account cleanup with explicit selectors and low limits.
+
+.DESCRIPTION
+This example targets managed service accounts using:
+- explicit include/exclude patterns
+- separate disable and delete criteria
+- low action limits
+- WhatIf previews
+
+Use this as the starting point for gMSA/MSA hygiene. It is intentionally
+safer than a broad destructive run.
+
+Before running for real, review:
+- IncludeAccounts and ExcludeAccounts filters
+- disable/delete age thresholds
+- limits and report path
+- WhatIf settings
+#>
+
 Import-Module .\CleanupMonster.psd1 -Force
 
 $invokeADServiceAccountsCleanupSplat = @{

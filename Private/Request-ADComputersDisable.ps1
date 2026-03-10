@@ -6,6 +6,8 @@
         [nullable[bool]] $DisableAndMove,
         [System.Collections.IDictionary] $Report,
         [switch] $WhatIfDisable,
+        [System.Collections.IDictionary] $ProcessedComputers,
+        [System.Collections.IDictionary] $DisableOnlyIf,
         [switch] $DisableModifyDescription,
         [switch] $DisableModifyAdminDescription,
         [int] $DisableLimit,
@@ -50,9 +52,9 @@
                 $Success = $true
                 if ($DisableAndMoveOrder -eq 'DisableAndMove') {
                     $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
-                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
+                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -Domain $Domain -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                 } else {
-                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
+                    $Success = Move-WinADComputer -Success $Success -DisableAndMove $DisableAndMove -OrganizationalUnit $OrganizationalUnit -Computer $Computer -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Server $Server -Domain $Domain -RemoveProtectedFromAccidentalDeletionFlag:$RemoveProtectedFromAccidentalDeletionFlag.IsPresent
                     $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
                 }
                 if ($Success) {

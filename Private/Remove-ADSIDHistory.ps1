@@ -3,7 +3,7 @@
     param(
         [Array] $ObjectsToProcess,
         [System.Collections.IDictionary] $Export,
-        [int] $RemoveLimitSID
+        [nullable[int]] $RemoveLimitSID
     )
     Write-Color -Text "[i] ", "Starting process of removing SID History entries from ", $ObjectsToProcess.Count, " objects" -Color Yellow, White, Green
 
@@ -134,11 +134,19 @@
                 $null
             }
             $CurrentRunObject.SIDAfterTargetedCount = $RemainingTargetedSIDs.Count
-            $Export.CurrentRun.Add($CurrentRunObject)
+            $CurrentRunSnapshot = [ordered] @{}
+            foreach ($Property in $CurrentRunObject.PSObject.Properties) {
+                if ($Property.Value -is [Array]) {
+                    $CurrentRunSnapshot[$Property.Name] = @($Property.Value)
+                } else {
+                    $CurrentRunSnapshot[$Property.Name] = $Property.Value
+                }
+            }
+            $Export.CurrentRun.Add([PSCustomObject] $CurrentRunSnapshot)
             $GlobalLimitSID++
             $ProcessedSIDs++
 
-            if ($GlobalLimitSID -ge $RemoveLimitSID) {
+            if ($null -ne $RemoveLimitSID -and $GlobalLimitSID -ge $RemoveLimitSID) {
                 Write-Color -Text "[i] ", "Reached SID limit of ", $RemoveLimitSID, ". Stopping processing." -Color Yellow, White, Green, White
                 break TopLoop
             }

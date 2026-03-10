@@ -83,7 +83,7 @@
                                 foreach ($W in $Warnings) {
                                     Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
                                 }
-                                if (-not $Delete) {
+                                if (-not $Delete -and -not $WhatIfMove.IsPresent) {
                                     # lets remove computer from $ProcessedComputers
                                     # we only remove it if Delete is not part of the removal process and move is the last step
                                     if (-not $DoNotAddToPendingList) {
