@@ -619,9 +619,17 @@ By default it will not remove the flag, and require it to be removed manually.
     # we will use it to check for intune/azuread/jamf functionality
     $Script:CleanupOptions = [ordered] @{}
 
-    # just in case user wants to use -WhatIf instead of -WhatIfDelete and -WhatIfDisable
-    if (-not $WhatIfDelete -and -not $WhatIfDisable) {
-        $WhatIfDelete = $WhatIfDisable = $WhatIfPreference
+    # honor top-level -WhatIf for all actions unless an action-specific override was supplied
+    if ($WhatIfPreference) {
+        if (-not $PSBoundParameters.ContainsKey('WhatIfDelete')) {
+            $WhatIfDelete = $true
+        }
+        if (-not $PSBoundParameters.ContainsKey('WhatIfDisable')) {
+            $WhatIfDisable = $true
+        }
+        if (-not $PSBoundParameters.ContainsKey('WhatIfMove')) {
+            $WhatIfMove = $true
+        }
     }
 
     # lets enable global logging
@@ -749,8 +757,8 @@ By default it will not remove the flag, and require it to be removed manually.
         Write-Color -Text "[i] ", "Loaded ", $($ProcessedComputers.Count), " computers from $($DataStorePath) and added to pending list of computers." -Color Yellow, White, Green, White
     }
 
-    if (-not $Disable -and -not $Delete) {
-        Write-Color -Text "[i] ", "No action can be taken. You need to enable Disable or/and Delete feature to have any action." -Color Yellow, Red
+    if (-not $Disable -and -not $DisableAndMove -and -not $Move -and -not $Delete) {
+        Write-Color -Text "[i] ", "No action can be taken. You need to enable Disable, DisableAndMove, Move or Delete feature to have any action." -Color Yellow, Red
         return
     }
 
@@ -793,7 +801,7 @@ By default it will not remove the flag, and require it to be removed manually.
         Filter                = $Filter
         SearchBase            = $SearchBase
         Properties            = $Properties
-        Disable               = $Disable
+        Disable               = ($Disable -or $DisableAndMove)
         Delete                = $Delete
         Move                  = $Move
         DisableOnlyIf         = $DisableOnlyIf
@@ -856,6 +864,8 @@ By default it will not remove the flag, and require it to be removed manually.
             Report                                    = $Report
             WhatIfDisable                             = $WhatIfDisable
             WhatIf                                    = $WhatIfPreference
+            ProcessedComputers                        = $ProcessedComputers
+            DisableOnlyIf                             = $DisableOnlyIf
             DisableModifyDescription                  = $DisableModifyDescription.IsPresent
             DisableModifyAdminDescription             = $DisableModifyAdminDescription.IsPresent
             DisableLimit                              = $DisableLimit

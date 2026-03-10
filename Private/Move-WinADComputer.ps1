@@ -8,6 +8,7 @@
         [switch] $WhatIfDisable,
         [switch] $DontWriteToEventLog,
         [string] $Server,
+        [string] $Domain,
         [switch] $RemoveProtectedFromAccidentalDeletionFlag
     )
     if ($Success -and $DisableAndMove) {
