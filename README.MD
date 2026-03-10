@@ -68,6 +68,184 @@ Thank you for considering supporting this project!
 Install-Module -Name CleanupMonster -Force -Verbose
 ```
 
+## What CleanupMonster Covers
+
+CleanupMonster currently gives you three cleanup tracks:
+
+| Track | Cmdlet | Best for | Typical actions |
+| --- | --- | --- | --- |
+| Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete |
+| Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stricter destructive-run guardrails | Disable, delete |
+| SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with reporting-first workflows | Report, selective remove |
+
+If you are new to the module, start with `-ReportOnly` and `-WhatIf` and keep limits low until the generated reports match your expectations.
+
+## Choose Your Path
+
+Use this as the quick decision guide:
+
+| If you want to... | Start here | Why |
+| --- | --- | --- |
+| Find stale computers and review the blast radius | `Invoke-ADComputersCleanup -ReportOnly -WhatIf` | Shows candidates, history, and pending state without changing AD |
+| Disable stale computers first, then delete later | `Invoke-ADComputersCleanup -Disable` now, add `-DeleteListProcessedMoreThan` later | Creates a staged workflow instead of immediate deletion |
+| Move stale computers to a quarantine OU | `Invoke-ADComputersCleanup -Move` or `-DisableAndMove` | Supports move-only and disable-plus-move paths |
+| Require cloud inactivity before touching AD computers | `Invoke-ADComputersCleanup` with Azure AD / Intune / Jamf thresholds | Lets AD cleanup respect external device signals |
+| Clean up gMSA/MSA objects carefully | `Invoke-ADServiceAccountsCleanup` with explicit filters or `IncludeAccounts` | Destructive runs are intentionally guarded |
+| Remove SID history after migrations or domain consolidations | `Invoke-ADSIDHistoryCleanup` | Filters by object type, OU, SID domain, trust type, and limits |
+
+## How The Module Fits Together
+
+At a high level, the module follows a report-first, action-second design:
+
+```mermaid
+flowchart TD
+    A["Choose cleanup cmdlet"] --> B["Collect candidates from AD"]
+    B --> C["Optionally enrich with Azure AD / Intune / Jamf"]
+    C --> D["Apply filters and exclusions"]
+    D --> E["Apply safety guards and limits"]
+    E --> F["Generate report / WhatIf preview"]
+    F --> G["Perform action when not in preview mode"]
+    G --> H["Persist history / pending state"]
+    H --> I["Generate HTML report and summary"]
+```
+
+Computer cleanup has the richest lifecycle because it can stage objects across multiple runs:
+
+```mermaid
+flowchart LR
+    A["Candidate computer"] --> B{"Matches disable filters?"}
+    B -- "No" --> Z["Remain untouched"]
+    B -- "Yes" --> C["Disable"]
+    C --> D{"DisableAndMove enabled?"}
+    D -- "Yes" --> E["Move to quarantine OU"]
+    D -- "No" --> F["Add to pending list"]
+    E --> F
+    F --> G{"Later matches move/delete gates?"}
+    G -- "Move path" --> H["Move only workflow"]
+    G -- "Delete path" --> I["Delete after pending age threshold"]
+```
+
+## Cleanup Modes Explained
+
+### Computer cleanup
+
+Computer cleanup is for the full device lifecycle in AD. It can:
+
+- disable stale computers
+- move them to a quarantine OU
+- do both in one run with `-DisableAndMove`
+- delete them after they have spent enough time on the pending list
+- require inactivity across Azure AD, Intune, or Jamf before actioning AD objects
+
+This is the best fit when your environment wants a staged workflow such as:
+
+1. report only
+2. disable
+3. optionally move to a quarantine OU
+4. wait for `DeleteListProcessedMoreThan`
+5. delete
+
+Key behavior to understand:
+
+- `-WhatIf` now flows to move actions as well, not just disable/delete.
+- `-Move` can be used as its own first-class action path.
+- `-DisableAndMove` behaves like a disable workflow during discovery, then performs the move in the action step.
+- Pending-list timing is stored in the datastore, so delete or move follow-up actions can be delayed across runs.
+
+### Service-account cleanup
+
+Service-account cleanup is intentionally narrower and safer than computer cleanup. It focuses on `MSA` and `gMSA` objects and supports disable/delete actions without allowing the same object to be disabled and deleted in the same run.
+
+Use it when you want:
+
+- a short review cycle for stale managed service accounts
+- explicit targeting through age filters or `IncludeAccounts`
+- default single-item action limits unless you deliberately raise them
+
+Key behavior to understand:
+
+- destructive disable/delete runs require explicit selection criteria
+- `IncludeAccounts` counts as an explicit selector
+- preview scenarios with `-ReportOnly`, top-level `-WhatIf`, `-WhatIfDisable`, or `-WhatIfDelete` are allowed without destructive criteria
+- accounts scheduled for disable in a run are skipped from delete in that same run
+
+### SID history cleanup
+
+SID history cleanup is for post-migration and identity-hygiene work. It lets you discover and selectively remove SID history entries by:
+
+- object type
+- organizational unit
+- source SID domain
+- trust classification such as `Internal`, `External`, or `Unknown`
+- disabled-only filtering
+- object and SID removal limits
+
+Use it when you want to reduce old trust baggage while keeping a clear before/after report for each processed entry.
+
+## Guards And Safety Model
+
+CleanupMonster is designed to be used with multiple layers of safety. You do not need every guard in every environment, but you should choose a guard set deliberately.
+
+### Universal guards
+
+These are good defaults almost everywhere:
+
+- `-ReportOnly` for first-pass validation
+- top-level `-WhatIf` for broad previews
+- action-specific `-WhatIfDisable`, `-WhatIfMove`, and `-WhatIfDelete` when you want mixed behavior
+- low action limits during rollout, then widen later
+- HTML reporting plus log files for every scheduled run
+
+### Environment guards
+
+These help ensure your data sources are healthy before any action happens:
+
+- `SafetyADLimit` to stop if AD returns fewer objects than expected
+- `SafetyAzureADLimit`, `SafetyIntuneLimit`, and `SafetyJamfLimit` when cloud/device-source validation matters
+- `TargetServers` when you want deterministic domain-controller selection
+
+### Workflow guards
+
+These reduce risk in destructive cleanup patterns:
+
+- pending-list aging via `DeleteListProcessedMoreThan` or `MoveListProcessedMoreThan`
+- OU quarantine with `-Move` or `-DisableAndMove`
+- exclusions for known-sensitive OUs, names, or systems
+- service-account explicit selectors before destructive runs
+- protected-from-accidental-deletion checks for move/delete operations
+
+### Recommended guard posture by environment
+
+| Environment maturity | Suggested guard set |
+| --- | --- |
+| First lab / pilot | `-ReportOnly`, top-level `-WhatIf`, low limits, HTML report, log file |
+| Early production rollout | Explicit exclusions, low limits, AD safety limit, pending-list staging, action-specific `WhatIf` for risky steps |
+| Mature production automation | AD and cloud safety limits, staged disable/delete windows, OU quarantine, reports/logs, explicit target servers where needed |
+
+## Recommended Rollout Pattern
+
+If you are introducing CleanupMonster into an environment for the first time, this is a good default operating model:
+
+1. Run report-only previews and validate the HTML output with your AD owners.
+2. Enable disable-only or disable-and-move with low limits.
+3. Review pending-list behavior for several runs.
+4. Add delete or move-after-delay thresholds only after the staged output is stable.
+5. Increase limits gradually once the rules are proven.
+
+For service accounts, start even narrower:
+
+1. use `IncludeAccounts` or very explicit age filters
+2. keep `DisableLimit` / `DeleteLimit` low
+3. review the report
+4. then automate
+
+For SID history, start by discovering:
+
+1. run in report mode
+2. filter to a known source SID domain, OU, or object type
+3. set low `RemoveLimitObject` / `RemoveLimitSID`
+4. then expand when the before/after report looks right
+
 ## Cleaning Active Directory
 
 ### Cleaning Computers

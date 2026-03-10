@@ -1,4 +1,24 @@
-﻿Import-Module .\CleanupMonster.psd1 -Force
+﻿<#
+.SYNOPSIS
+Baseline staged computer-cleanup configuration for scheduled runs.
+
+.DESCRIPTION
+This example shows a conservative computer lifecycle:
+- disable stale computers first
+- keep them on the pending list
+- delete only after the pending-age threshold is reached
+
+Use this as the starting point for production automation when you want
+separate disable and delete phases with logs and HTML reporting.
+
+Before running for real, review:
+- exclusions for protected OUs and known exceptions
+- disable/delete limits
+- datastore and report paths
+- WhatIf settings
+#>
+
+Import-Module .\CleanupMonster.psd1 -Force
 
 # Run the script
 $Configuration = @{
