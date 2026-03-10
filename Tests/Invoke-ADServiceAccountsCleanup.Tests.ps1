@@ -195,4 +195,67 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $result | Should -BeNullOrEmpty
         Assert-MockCalled Disable-ADAccount -Times 0
     }
+
+    It 'blocks destructive disable runs without selection criteria' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Disable-ADAccount {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable
+
+        $result | Should -BeNullOrEmpty
+        Assert-MockCalled Get-ADServiceAccount -Times 0
+        Assert-MockCalled Disable-ADAccount -Times 0
+    }
+
+    It 'blocks destructive delete runs without selection criteria' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Remove-ADObject {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Delete
+
+        $result | Should -BeNullOrEmpty
+        Assert-MockCalled Get-ADServiceAccount -Times 0
+        Assert-MockCalled Remove-ADObject -Times 0
+    }
+
+    It 'allows IncludeAccounts to act as an explicit selection criteria' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-5)
+                    PasswordLastSet   = (Get-Date).AddDays(-5)
+                    WhenCreated       = (Get-Date).AddDays(-5)
+                }
+            )
+        }
+        Mock -CommandName Disable-ADAccount {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable -IncludeAccounts 'gmsa1'
+
+        $result.CurrentRun | Should -HaveCount 1
+        $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
+        Assert-MockCalled Disable-ADAccount -Times 1
+    }
 }

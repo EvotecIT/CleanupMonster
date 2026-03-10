@@ -140,6 +140,25 @@ function Invoke-ADServiceAccountsCleanup {
         return
     }
 
+    $PreviewOnly = $ReportOnly -or $WhatIfPreference -or $WhatIfDisable.IsPresent -or $WhatIfDelete.IsPresent
+    $DisableHasSelectionCriteria = $DisableLastLogonDateMoreThan -gt 0 -or
+        $DisablePasswordLastSetMoreThan -gt 0 -or
+        $DisableWhenCreatedMoreThan -gt 0 -or
+        $IncludeAccounts.Count -gt 0
+    $DeleteHasSelectionCriteria = $DeleteLastLogonDateMoreThan -gt 0 -or
+        $DeletePasswordLastSetMoreThan -gt 0 -or
+        $DeleteWhenCreatedMoreThan -gt 0 -or
+        $IncludeAccounts.Count -gt 0
+
+    if ($Disable -and -not $DisableHasSelectionCriteria -and -not $PreviewOnly) {
+        Write-Color -Text "[e] ", "Disable requires explicit selection criteria. Provide at least one disable filter or IncludeAccounts." -Color Yellow, Red
+        return
+    }
+    if ($Delete -and -not $DeleteHasSelectionCriteria -and -not $PreviewOnly) {
+        Write-Color -Text "[e] ", "Delete requires explicit selection criteria. Provide at least one delete filter or IncludeAccounts." -Color Yellow, Red
+        return
+    }
+
     $Report = Get-InitialADServiceAccounts -ForestInformation $ForestInformation -IncludeAccounts $IncludeAccounts -ExcludeAccounts $ExcludeAccounts
 
     [Array] $AllAccounts = foreach ($Domain in $Report.Keys) {
