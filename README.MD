@@ -155,7 +155,7 @@ Typical lifecycle:
 flowchart LR
     classDef stage fill:#D9F2E6,stroke:#1F7A4D,stroke-width:2px,color:#123524;
     classDef gate fill:#FFF7E6,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
-    classDef end fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+    classDef outcome fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
 
     A["Discover stale computers"] --> B{"Matches disable filters?"}
     B -- "No" --> Z["Remain untouched"]
@@ -170,7 +170,7 @@ flowchart LR
 
     class A,C,E,F,H,I stage;
     class B,D,G gate;
-    class Z end;
+    class Z outcome;
 ```
 
 What matters most:
@@ -211,7 +211,7 @@ Typical lifecycle:
 flowchart LR
     classDef stage fill:#FFF0CC,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
     classDef gate fill:#FFF7E6,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
-    classDef end fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+    classDef outcome fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
 
     A["Discover service accounts"] --> B{"Explicit selectors or age filters?"}
     B -- "No destructive criteria" --> Z["Allow preview only"]
@@ -224,7 +224,7 @@ flowchart LR
 
     class A,C,D,E,G,H stage;
     class B,F gate;
-    class Z end;
+    class Z outcome;
 ```
 
 What matters most:
@@ -261,7 +261,7 @@ Typical lifecycle:
 flowchart LR
     classDef stage fill:#DCEBFF,stroke:#2B6CB0,stroke-width:2px,color:#153E75;
     classDef gate fill:#EAF4FF,stroke:#2B6CB0,stroke-width:2px,color:#153E75;
-    classDef end fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+    classDef outcome fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
 
     A["Discover objects with SID history"] --> B["Filter by OU / object type / SID domain / trust type"]
     B --> C{"ReportOnly or WhatIf?"}
@@ -274,7 +274,7 @@ flowchart LR
 
     class A,B,D,E,G stage;
     class C,F gate;
-    class Z end;
+    class Z outcome;
 ```
 
 What matters most:
