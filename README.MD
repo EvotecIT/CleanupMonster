@@ -72,58 +72,168 @@ Install-Module -Name CleanupMonster -Force -Verbose
 
 CleanupMonster currently gives you three cleanup tracks:
 
-| Track | Cmdlet | Best for | Typical actions |
+```mermaid
+flowchart LR
+    classDef computer fill:#D9F2E6,stroke:#1F7A4D,stroke-width:2px,color:#123524;
+    classDef service fill:#FFF0CC,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef sid fill:#DCEBFF,stroke:#2B6CB0,stroke-width:2px,color:#153E75;
+    classDef action fill:#F7FAFC,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+
+    A["CleanupMonster"] --> B["Computer cleanup"]
+    A --> C["Service-account cleanup"]
+    A --> D["SID history cleanup"]
+
+    B --> B1["Disable"]
+    B --> B2["Move"]
+    B --> B3["DisableAndMove"]
+    B --> B4["Delete after pending age"]
+
+    C --> C1["Disable"]
+    C --> C2["Delete"]
+    C --> C3["Explicit selectors and low limits"]
+
+    D --> D1["Report targeted SID history"]
+    D --> D2["Filter by OU / object type / domain"]
+    D --> D3["Remove with object and SID limits"]
+
+    class B,B1,B2,B3,B4 computer;
+    class C,C1,C2,C3 service;
+    class D,D1,D2,D3 sid;
+    class A action;
+```
+
+| Track | Cmdlet | Best for | Typical actions | Default mindset |
 | --- | --- | --- | --- |
-| Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete |
-| Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stricter destructive-run guardrails | Disable, delete |
-| SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with reporting-first workflows | Report, selective remove |
+| Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete | Stage changes over multiple runs |
+| Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stricter destructive-run guardrails | Disable, delete | Start narrow and require explicit selectors |
+| SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with reporting-first workflows | Report, selective remove | Start with discovery and tiny limits |
 
 If you are new to the module, start with `-ReportOnly` and `-WhatIf` and keep limits low until the generated reports match your expectations.
 
 ## Choose Your Path
 
-Use this as the quick decision guide:
+### Computer cleanup
 
-| If you want to... | Start here | Why |
-| --- | --- | --- |
-| Find stale computers and review the blast radius | `Invoke-ADComputersCleanup -ReportOnly -WhatIf` | Shows candidates, history, and pending state without changing AD |
-| Disable stale computers first, then delete later | `Invoke-ADComputersCleanup -Disable` now, add `-DeleteListProcessedMoreThan` later | Creates a staged workflow instead of immediate deletion |
-| Move stale computers to a quarantine OU | `Invoke-ADComputersCleanup -Move` or `-DisableAndMove` | Supports move-only and disable-plus-move paths |
-| Require cloud inactivity before touching AD computers | `Invoke-ADComputersCleanup` with Azure AD / Intune / Jamf thresholds | Lets AD cleanup respect external device signals |
-| Clean up gMSA/MSA objects carefully | `Invoke-ADServiceAccountsCleanup` with explicit filters or `IncludeAccounts` | Destructive runs are intentionally guarded |
-| Remove SID history after migrations or domain consolidations | `Invoke-ADSIDHistoryCleanup` | Filters by object type, OU, SID domain, trust type, and limits |
+Choose computer cleanup when you want a real lifecycle for stale devices:
+
+- start with a broad report of stale AD computer objects
+- optionally require Azure AD, Intune, or Jamf inactivity before touching AD
+- disable first, then move or delete later
+- use the pending list as a safety buffer between phases
+
+Good starting point:
+
+```powershell
+Invoke-ADComputersCleanup -Disable -ReportOnly -WhatIf -ShowHTML
+```
+
+### Service-account cleanup
+
+Choose service-account cleanup when you want a narrower and safer pass over `MSA` and `gMSA` objects:
+
+- limit scope with age filters or `IncludeAccounts`
+- keep disable/delete limits intentionally low
+- prevent the same account from being disabled and deleted in one run
+- require explicit selection criteria before destructive runs
+
+Good starting point:
+
+```powershell
+Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -WhatIf -IncludeAccounts 'gmsa-*'
+```
+
+### SID history cleanup
+
+Choose SID history cleanup when you are doing migration or trust hygiene work:
+
+- discover where SID history still exists
+- narrow scope by source SID domain, OU, object type, and trust type
+- remove only a few SIDs or objects per run at first
+- keep strong before/after reporting for each processed object
+
+Good starting point:
+
+```powershell
+Invoke-ADSIDHistoryCleanup -ReportOnly -WhatIf
+```
 
 ## How The Module Fits Together
 
-At a high level, the module follows a report-first, action-second design:
+All three tracks are report-first, but each one has a different action path.
 
-```mermaid
-flowchart TD
-    A["Choose cleanup cmdlet"] --> B["Collect candidates from AD"]
-    B --> C["Optionally enrich with Azure AD / Intune / Jamf"]
-    C --> D["Apply filters and exclusions"]
-    D --> E["Apply safety guards and limits"]
-    E --> F["Generate report / WhatIf preview"]
-    F --> G["Perform action when not in preview mode"]
-    G --> H["Persist history / pending state"]
-    H --> I["Generate HTML report and summary"]
-```
-
-Computer cleanup has the richest lifecycle because it can stage objects across multiple runs:
+### Computer cleanup flow
 
 ```mermaid
 flowchart LR
-    A["Candidate computer"] --> B{"Matches disable filters?"}
+    classDef stage fill:#D9F2E6,stroke:#1F7A4D,stroke-width:2px,color:#123524;
+    classDef gate fill:#FFF7E6,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef end fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+
+    A["Discover stale computers"] --> B{"Matches disable filters?"}
     B -- "No" --> Z["Remain untouched"]
     B -- "Yes" --> C["Disable"]
     C --> D{"DisableAndMove enabled?"}
     D -- "Yes" --> E["Move to quarantine OU"]
     D -- "No" --> F["Add to pending list"]
     E --> F
-    F --> G{"Later matches move/delete gates?"}
-    G -- "Move path" --> H["Move only workflow"]
-    G -- "Delete path" --> I["Delete after pending age threshold"]
+    F --> G{"Later matches move or delete gates?"}
+    G -- "Move path" --> H["Move-only follow-up"]
+    G -- "Delete path" --> I["Delete after pending-age threshold"]
+
+    class A,C,E,F,H,I stage;
+    class B,D,G gate;
+    class Z end;
 ```
+
+Computer cleanup is the best fit when you want staged remediation over time instead of one destructive pass.
+
+### Service-account cleanup flow
+
+```mermaid
+flowchart LR
+    classDef stage fill:#FFF0CC,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef gate fill:#FFF7E6,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef end fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+
+    A["Discover service accounts"] --> B{"Explicit selectors or age filters?"}
+    B -- "No destructive criteria" --> Z["Allow preview only"]
+    B -- "Yes" --> C["Find disable candidates"]
+    C --> D["Disable with low limits"]
+    D --> E["Find delete candidates"]
+    E --> F{"Already scheduled for disable?"}
+    F -- "Yes" --> G["Skip delete in this run"]
+    F -- "No" --> H["Delete with low limits"]
+
+    class A,C,D,E,G,H stage;
+    class B,F gate;
+    class Z end;
+```
+
+Service-account cleanup is the best fit when you want a small, explicit blast radius and stronger destructive-run guardrails.
+
+### SID history cleanup flow
+
+```mermaid
+flowchart LR
+    classDef stage fill:#DCEBFF,stroke:#2B6CB0,stroke-width:2px,color:#153E75;
+    classDef gate fill:#EAF4FF,stroke:#2B6CB0,stroke-width:2px,color:#153E75;
+    classDef end fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+
+    A["Discover objects with SID history"] --> B["Filter by OU / object type / SID domain / trust type"]
+    B --> C{"ReportOnly or WhatIf?"}
+    C -- "Yes" --> Z["Review targeted objects and counts"]
+    C -- "No" --> D["Remove targeted SID values"]
+    D --> E["Refresh object after each SID removal"]
+    E --> F{"Reached object or SID limit?"}
+    F -- "No" --> D
+    F -- "Yes" --> G["Stop and report current state"]
+
+    class A,B,D,E,G stage;
+    class C,F gate;
+    class Z end;
+```
+
+SID history cleanup is the best fit when you want precise migration cleanup with strong per-object and per-SID reporting.
 
 ## Cleanup Modes Explained
 
