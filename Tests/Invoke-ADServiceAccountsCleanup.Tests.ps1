@@ -258,4 +258,46 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $result.CurrentRun[0].SamAccountName | Should -Be 'gmsa1'
         Assert-MockCalled Disable-ADAccount -Times 1
     }
+
+    It 'does not let WhatIfDelete bypass disable guardrails' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Disable-ADAccount {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable -WhatIfDelete
+
+        $result | Should -BeNullOrEmpty
+        Assert-MockCalled Get-ADServiceAccount -Times 0
+        Assert-MockCalled Disable-ADAccount -Times 0
+    }
+
+    It 'does not let WhatIfDisable bypass delete guardrails' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Remove-ADObject {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Delete -WhatIfDisable
+
+        $result | Should -BeNullOrEmpty
+        Assert-MockCalled Get-ADServiceAccount -Times 0
+        Assert-MockCalled Remove-ADObject -Times 0
+    }
 }
