@@ -68,9 +68,21 @@ Thank you for considering supporting this project!
 Install-Module -Name CleanupMonster -Force -Verbose
 ```
 
-## What CleanupMonster Covers
+## Introduction ✨
 
-CleanupMonster currently gives you three cleanup tracks:
+CleanupMonster is built for teams that want Active Directory cleanup to feel deliberate, staged, and reviewable instead of risky and opaque. Every cleanup path starts with discovery, can generate HTML output for review, and can be wrapped in limits, pending lists, and `WhatIf` controls before anything destructive happens.
+
+Whether you are retiring stale computers, pruning unused `MSA` / `gMSA` objects, or removing legacy SID history after migrations, the module is designed to help you choose the right cleanup track for the problem in front of you.
+
+> [!WARNING]
+> Run the module with the permissions required to read the attributes you rely on. In a default AD configuration that often includes `LastLogonDate` and `PasswordLastSet`, but hardened environments may require elevated rights even for reporting-only runs.
+
+## Overview 🧭
+
+CleanupMonster is easiest to understand as three end-to-end cleanup paths. They all start with discovery and reporting, but each one is optimized for a different cleanup problem.
+
+> [!TIP]
+> If you are new to the module, start with `-ReportOnly` and `-WhatIf`, keep limits low, and validate the generated HTML output before enabling destructive actions.
 
 ```mermaid
 flowchart LR
@@ -92,9 +104,9 @@ flowchart LR
     C --> C2["Delete"]
     C --> C3["Explicit selectors and low limits"]
 
-    D --> D1["Report targeted SID history"]
-    D --> D2["Filter by OU / object type / domain"]
-    D --> D3["Remove with object and SID limits"]
+    D --> D1["Discover SID history"]
+    D --> D2["Filter by OU / object type / SID domain"]
+    D --> D3["Remove with small limits"]
 
     class B,B1,B2,B3,B4 computer;
     class C,C1,C2,C3 service;
@@ -102,66 +114,42 @@ flowchart LR
     class A action;
 ```
 
-| Track | Cmdlet | Best for | Typical actions | Default mindset |
-| --- | --- | --- | --- |
-| Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete | Stage changes over multiple runs |
-| Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stricter destructive-run guardrails | Disable, delete | Start narrow and require explicit selectors |
-| SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with reporting-first workflows | Report, selective remove | Start with discovery and tiny limits |
+| Area | Cmdlet | Best for | Typical actions | Recommended mindset |
+| --- | --- | --- | --- | --- |
+| Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete | Stage changes across multiple runs |
+| Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stronger destructive-run guardrails | Disable, delete | Start narrow and require explicit selectors |
+| SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with detailed before/after reporting | Report, selective remove | Start with discovery and tiny limits |
 
-If you are new to the module, start with `-ReportOnly` and `-WhatIf` and keep limits low until the generated reports match your expectations.
+## Quick Start 🚀
 
-## Choose Your Path
-
-### Computer cleanup
-
-Choose computer cleanup when you want a real lifecycle for stale devices:
-
-- start with a broad report of stale AD computer objects
-- optionally require Azure AD, Intune, or Jamf inactivity before touching AD
-- disable first, then move or delete later
-- use the pending list as a safety buffer between phases
-
-Good starting point:
+Recommended first commands for each path:
 
 ```powershell
+# Computer cleanup preview
 Invoke-ADComputersCleanup -Disable -ReportOnly -WhatIf -ShowHTML
-```
 
-### Service-account cleanup
-
-Choose service-account cleanup when you want a narrower and safer pass over `MSA` and `gMSA` objects:
-
-- limit scope with age filters or `IncludeAccounts`
-- keep disable/delete limits intentionally low
-- prevent the same account from being disabled and deleted in one run
-- require explicit selection criteria before destructive runs
-
-Good starting point:
-
-```powershell
+# Service-account cleanup preview
 Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -WhatIf -IncludeAccounts 'gmsa-*'
-```
 
-### SID history cleanup
-
-Choose SID history cleanup when you are doing migration or trust hygiene work:
-
-- discover where SID history still exists
-- narrow scope by source SID domain, OU, object type, and trust type
-- remove only a few SIDs or objects per run at first
-- keep strong before/after reporting for each processed object
-
-Good starting point:
-
-```powershell
+# SID history cleanup preview
 Invoke-ADSIDHistoryCleanup -ReportOnly -WhatIf
 ```
 
-## How The Module Fits Together
+## Cleanup Paths 🧰
 
-All three tracks are report-first, but each one has a different action path.
+### Computer Cleanup 🖥️
 
-### Computer cleanup flow
+Computer cleanup is the richest workflow in the module. It is built for staged remediation of stale computer objects rather than one immediate destructive pass.
+
+Use it when you want to:
+
+- find stale AD computer objects
+- optionally require Azure AD, Intune, or Jamf inactivity before actioning AD
+- disable first and delete later
+- move devices to a quarantine OU before final deletion
+- keep a pending list as a safety buffer across multiple runs
+
+Typical lifecycle:
 
 ```mermaid
 flowchart LR
@@ -185,9 +173,39 @@ flowchart LR
     class Z end;
 ```
 
-Computer cleanup is the best fit when you want staged remediation over time instead of one destructive pass.
+What matters most:
 
-### Service-account cleanup flow
+- `-WhatIf` now flows to move actions as well as disable/delete actions
+- `-Move` is a first-class path, not just a side effect of disable
+- `-DisableAndMove` behaves like a disable workflow during discovery and then performs the move during execution
+- pending-list timing in the datastore lets you separate disable, move, and delete into different operational windows
+
+Good starter profiles:
+
+- pilot: `-ReportOnly -WhatIf -Disable`
+- staged remediation: `-Disable` now, then `-DeleteListProcessedMoreThan` later
+- quarantine-first: `-DisableAndMove -DisableMoveTargetOrganizationalUnit ...`
+- cloud-aware cleanup: add Azure AD / Intune / Jamf inactivity thresholds and safety limits
+
+Relevant examples:
+
+- `Examples/DeleteComputers.ps1`
+- `Examples/DeleteComputersWithMoveAndEmail.ps1`
+- `Examples/DeleteComputersWithO365.ps1`
+- `Examples/DeleteComputersWithO365andJAMF.ps1`
+
+### Service-Account Cleanup 🔐
+
+Service-account cleanup is intentionally narrower and safer than computer cleanup. It is designed for `MSA` and `gMSA` hygiene where you want low limits and explicit destructive intent.
+
+Use it when you want to:
+
+- review stale managed service accounts
+- limit scope with age filters or `IncludeAccounts`
+- keep disable/delete limits very small during rollout
+- avoid disabling and deleting the same account in the same run
+
+Typical lifecycle:
 
 ```mermaid
 flowchart LR
@@ -209,9 +227,35 @@ flowchart LR
     class Z end;
 ```
 
-Service-account cleanup is the best fit when you want a small, explicit blast radius and stronger destructive-run guardrails.
+What matters most:
 
-### SID history cleanup flow
+- destructive disable/delete runs require explicit selection criteria
+- `IncludeAccounts` counts as an explicit selector
+- preview scenarios with `-ReportOnly`, `-WhatIf`, `-WhatIfDisable`, or `-WhatIfDelete` are allowed even without destructive selectors
+- accounts scheduled for disable in a run are skipped from delete in that same run
+
+Good starter profiles:
+
+- preview by name pattern: `-Disable -ReportOnly -WhatIf -IncludeAccounts 'gmsa-*'`
+- safer scheduled run: explicit include/exclude patterns plus low `DisableLimit` and `DeleteLimit`
+- age-based hygiene: combine `LastLogonDateMoreThan`, `PasswordLastSetMoreThan`, and `WhenCreatedMoreThan`
+
+Relevant examples:
+
+- `Examples/CleanupServiceAccounts.ps1`
+
+### SID History Cleanup 🧬
+
+SID history cleanup is for post-migration and trust-hygiene work. It is optimized for discovering targeted SID history entries, filtering them carefully, and removing them with very small limits at first.
+
+Use it when you want to:
+
+- discover which objects still carry SID history
+- narrow scope by source SID domain, OU, object type, or trust type
+- clean up legacy migration artifacts with strong before/after reporting
+- remove only a few SIDs or a few objects per run until the results are proven
+
+Typical lifecycle:
 
 ```mermaid
 flowchart LR
@@ -233,66 +277,23 @@ flowchart LR
     class Z end;
 ```
 
-SID history cleanup is the best fit when you want precise migration cleanup with strong per-object and per-SID reporting.
+What matters most:
 
-## Cleanup Modes Explained
+- you can filter by object type, OU, SID source domain, and trust type
+- `RemoveLimitSID` and `RemoveLimitObject` let you keep the blast radius intentionally small
+- each SID removal is tracked with before/after state so the report remains reviewable even for multi-SID objects
 
-### Computer cleanup
+Good starter profiles:
 
-Computer cleanup is for the full device lifecycle in AD. It can:
+- full discovery: `-ReportOnly -WhatIf`
+- migration cleanup by domain SID: use `IncludeSIDHistoryDomain`
+- targeted validation run: set both `RemoveLimitSID` and `RemoveLimitObject` to `1` or `2`
 
-- disable stale computers
-- move them to a quarantine OU
-- do both in one run with `-DisableAndMove`
-- delete them after they have spent enough time on the pending list
-- require inactivity across Azure AD, Intune, or Jamf before actioning AD objects
+Relevant examples:
 
-This is the best fit when your environment wants a staged workflow such as:
+- `Examples/DeleteSIDHistory.ps1`
 
-1. report only
-2. disable
-3. optionally move to a quarantine OU
-4. wait for `DeleteListProcessedMoreThan`
-5. delete
-
-Key behavior to understand:
-
-- `-WhatIf` now flows to move actions as well, not just disable/delete.
-- `-Move` can be used as its own first-class action path.
-- `-DisableAndMove` behaves like a disable workflow during discovery, then performs the move in the action step.
-- Pending-list timing is stored in the datastore, so delete or move follow-up actions can be delayed across runs.
-
-### Service-account cleanup
-
-Service-account cleanup is intentionally narrower and safer than computer cleanup. It focuses on `MSA` and `gMSA` objects and supports disable/delete actions without allowing the same object to be disabled and deleted in the same run.
-
-Use it when you want:
-
-- a short review cycle for stale managed service accounts
-- explicit targeting through age filters or `IncludeAccounts`
-- default single-item action limits unless you deliberately raise them
-
-Key behavior to understand:
-
-- destructive disable/delete runs require explicit selection criteria
-- `IncludeAccounts` counts as an explicit selector
-- preview scenarios with `-ReportOnly`, top-level `-WhatIf`, `-WhatIfDisable`, or `-WhatIfDelete` are allowed without destructive criteria
-- accounts scheduled for disable in a run are skipped from delete in that same run
-
-### SID history cleanup
-
-SID history cleanup is for post-migration and identity-hygiene work. It lets you discover and selectively remove SID history entries by:
-
-- object type
-- organizational unit
-- source SID domain
-- trust classification such as `Internal`, `External`, or `Unknown`
-- disabled-only filtering
-- object and SID removal limits
-
-Use it when you want to reduce old trust baggage while keeping a clear before/after report for each processed entry.
-
-## Guards And Safety Model
+## Operational Guards 🛡️
 
 CleanupMonster is designed to be used with multiple layers of safety. You do not need every guard in every environment, but you should choose a guard set deliberately.
 
@@ -332,7 +333,7 @@ These reduce risk in destructive cleanup patterns:
 | Early production rollout | Explicit exclusions, low limits, AD safety limit, pending-list staging, action-specific `WhatIf` for risky steps |
 | Mature production automation | AD and cloud safety limits, staged disable/delete windows, OU quarantine, reports/logs, explicit target servers where needed |
 
-## Recommended Rollout Pattern
+## Rollout Pattern 🪜
 
 If you are introducing CleanupMonster into an environment for the first time, this is a good default operating model:
 
@@ -356,9 +357,16 @@ For SID history, start by discovering:
 3. set low `RemoveLimitObject` / `RemoveLimitSID`
 4. then expand when the before/after report looks right
 
-## Cleaning Active Directory
+## Detailed Walkthroughs 📚
 
-### Cleaning Computers
+The sections below go deeper into each cleanup path with concrete commands, screenshots, and scheduled-task examples you can adapt for your own environment.
+
+> [!NOTE]
+> The earlier sections help you pick the right cleanup track. The walkthroughs below show how to operate each track in practice once you know which one you want.
+
+### Computer Cleanup Walkthrough 🖥️
+
+This is the full staged device-cleanup path, from first report to scheduled automation and cloud-aware validation.
 
 #### Report Only
 
@@ -429,7 +437,7 @@ $Output = Invoke-ADComputersCleanup `
 $Output
 ```
 
-#### Non-interactively (scheduled task)
+#### Scheduled task
 
 This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
 
@@ -484,7 +492,7 @@ $Output = Invoke-ADComputersCleanup @Configuration
 $Output
 ```
 
-#### Non-interactively (scheduled task)
+#### Cloud-aware scheduled task
 
 This is a sample script that you can use to run the module in a scheduled task. It's a good idea to run it as a scheduled task as it will log all the actions and you can easily review them. It's very advanced with many options and you can easily customize it to your needs.
 
@@ -553,7 +561,7 @@ $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
 $Output
 ```
 
-### Cleaning Service Accounts
+### Service-Account Walkthrough 🔐
 
 Service-account cleanup supports report-only reviews, disable/delete staging, and explicit safety guardrails.
 If an account matches both sets of criteria in the same run, it stays in the disable stage and is skipped from delete.
@@ -606,7 +614,9 @@ $Output = Invoke-ADServiceAccountsCleanup `
 $Output
 ```
 
-### Cleaning SID History
+### SID History Walkthrough 🧬
+
+This path is focused on reviewable, targeted SID history removal with strong filtering and very small starter limits.
 
 #### Report Only
 
@@ -617,8 +627,9 @@ It will show you how many SID History entries are there to remove.
 $Output = Invoke-ADSIDHistoryCleanup -WhatIf -ReportOnly
 ```
 
-####
-Cleanup of specific SID History entries along with report with email
+#### Targeted cleanup with reporting
+
+Cleanup of specific SID History entries along with report output and email-friendly reporting.
 
 ```powershell
 $invokeADSIDHistoryCleanupSplat = @{
