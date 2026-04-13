@@ -20,11 +20,12 @@
   <a href="https://evo.yt/discord"><img alt="Discord" src="https://img.shields.io/discord/508328927853281280?style=flat-square&label=discord%20chat"></a>
 </p>
 
-`CleanupMonster` is a PowerShell module to that helps you clean up **Active Directory**.
+`CleanupMonster` is a PowerShell module that helps you clean up **Active Directory** and stale cloud device records.
 
 It has multiple functionalities currently & planned:
 - [x] Cleanup stale Computer objects from Active Directory
 - [x] Cleanup SID History from Active Directory
+- [x] Cleanup stale AzureAD registered mobile devices from the cloud side
 - [ ] Cleanup stale User objects from Active Directory
 - [ ] Cleanup stale Group objects from Active Directory
 - [x] Cleanup GMSA/MSA objects from Active Directory
@@ -117,6 +118,7 @@ flowchart LR
 | Area | Cmdlet | Best for | Typical actions | Recommended mindset |
 | --- | --- | --- | --- | --- |
 | Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete | Stage changes across multiple runs |
+| Cloud device cleanup | `Invoke-CloudDevicesCleanup` | Stale AzureAD registered mobile devices that need Intune retire and Entra cleanup | Retire, disable, delete | Retire first, then enforce grace periods |
 | Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stronger destructive-run guardrails | Disable, delete | Start narrow and require explicit selectors |
 | SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with detailed before/after reporting | Report, selective remove | Start with discovery and tiny limits |
 
@@ -127,6 +129,9 @@ Recommended first commands for each path:
 ```powershell
 # Computer cleanup preview
 Invoke-ADComputersCleanup -Disable -ReportOnly -WhatIf -ShowHTML
+
+# Cloud device cleanup preview
+Invoke-CloudDevicesCleanup -Retire -ReportOnly -WhatIf -ShowHTML
 
 # Service-account cleanup preview
 Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -WhatIf -IncludeAccounts 'gmsa-*'
@@ -193,6 +198,59 @@ Relevant examples:
 - `Examples/DeleteComputersWithMoveAndEmail.ps1`
 - `Examples/DeleteComputersWithO365.ps1`
 - `Examples/DeleteComputersWithO365andJAMF.ps1`
+
+### Cloud Device Cleanup 📱
+
+Cloud device cleanup is the Azure-side companion workflow for stale mobile devices. It is intentionally separate from AD computer cleanup because the lifecycle is different: Intune-managed devices should be retired first, while Microsoft Entra directory objects should usually be disabled before final deletion.
+
+Use it when you want to:
+
+- review stale AzureAD registered `iOS` and `Android` devices
+- distinguish matched devices from `EntraOnly` and `IntuneOnly` orphan records
+- retire managed devices first and keep a pending list before later disable/delete steps
+- clean up Intune-only orphan records that no longer have a matching Entra device object
+
+Typical lifecycle:
+
+```mermaid
+flowchart LR
+    classDef stage fill:#FFF0CC,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef gate fill:#FFF7E6,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef outcome fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
+
+    A["Discover cloud device records"] --> B{"Matched or orphan?"}
+    B -- "Matched" --> C["Retire in Intune"]
+    B -- "EntraOnly" --> D["Disable in Entra after grace period"]
+    B -- "IntuneOnly" --> E["Retire or delete orphan Intune record"]
+    C --> F["Add to pending list"]
+    D --> F
+    E --> F
+    F --> G{"Still stale after grace period?"}
+    G -- "Yes" --> H["Delete remaining records"]
+    G -- "No" --> Z["Remain pending / untouched"]
+
+    class A,C,D,E,F,H stage;
+    class B,G gate;
+    class Z outcome;
+```
+
+What matters most:
+
+- inventory now includes `Matched`, `EntraOnly`, and `IntuneOnly` record states
+- action candidates include a `SelectionReason` so reports explain why a device qualified
+- orphan records are discovered by default, but stage-specific orphan processing now requires explicit switches
+- default scope is mobile-first: `iOS` and `Android`, with company-owned devices excluded unless requested
+
+Recommended production stance:
+
+- discover all record states in the report
+- action matched records first
+- enable `-RetireIncludeIntuneOnly`, `-DisableIncludeEntraOnly`, `-DeleteIncludeEntraOnly`, and `-DeleteIncludeIntuneOnly` only after reviewing orphan behavior in your tenant
+
+Relevant examples:
+
+- `Examples/CleanupCloudDevicesPreview.ps1`
+- `Examples/CleanupCloudDevicesStaged.ps1`
 
 ### Service-Account Cleanup 🔐
 
