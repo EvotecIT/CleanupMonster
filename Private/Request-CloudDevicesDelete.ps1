@@ -77,11 +77,12 @@ function Request-CloudDevicesDelete {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionStatus' -Value $actionStatus -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'Delete' -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value ($subActionMessages -join '; ') -Force
+        Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
 
         if (($subActionExecuted -and ($subActionSuccess -or $WhatIf -or $WhatIfDelete)) -or $ReportOnly) {
             if (-not ($WhatIf -or $WhatIfDelete -or $ReportOnly)) {
-                $null = $ProcessedDevices.Remove($device.ProcessedDeviceKey)
+                Remove-ProcessedCloudDeviceRecord -ProcessedDevices $ProcessedDevices -Device $device
             }
             $processedCount++
         }

@@ -1,6 +1,8 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceInventoryScope.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKeys.ps1')
+    . (Get-CleanupMonsterPath 'Private/Find-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialCloudDevices.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKey.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceSelectionReason.ps1')
@@ -116,6 +118,37 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices.Count | Should -Be 1
         $devices[0].RecordState | Should -Be 'IntuneOnly'
         $devices[0].ManagedDeviceId | Should -Be 'managed-2'
+    }
+
+    It 'applies Entra object-id exclusions during the Intune orphan sweep' {
+        Mock Get-MyDevice { @() }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Android-Excluded'
+                    ManagedDeviceId         = 'managed-excluded'
+                    EntraDeviceObjectId     = 'entra-excluded'
+                    AzureAdDeviceId         = 'device-excluded'
+                    OperatingSystem         = 'Android'
+                    OperatingSystemVersion  = '14'
+                    LastSeen                = (Get-Date).AddDays(-90)
+                    LastSeenDays            = 90
+                    FirstSeen               = (Get-Date).AddDays(-200)
+                    UserDisplayName         = 'User Excluded'
+                    UserPrincipalName       = 'user.excluded@contoso.com'
+                    EmailAddress            = 'user.excluded@contoso.com'
+                    ManagedDeviceOwnerType  = 'personal'
+                    DeviceRegistrationState = 'registered'
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'unknown'
+                    ManagementAgent         = 'mdm'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeOperatingSystem @('Android*') -ExcludeOperatingSystem @() -Exclusions @('entra-excluded'))
+
+        $devices.Count | Should -Be 0
     }
 
     It 'adds an orphan-aware selection reason for delete candidates' {
@@ -354,5 +387,50 @@ Describe 'Cloud device inventory and selection helpers' {
         $key = Get-CloudDeviceRecordKey -Device $device
 
         $key | Should -Be 'intune:managed-7'
+    }
+
+    It 'finds prior pending state when a managed record falls back to Entra keys' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-Staged'
+                EntraDeviceObjectId    = 'entra-8'
+                DeviceId               = 'device-8'
+                ManagedDeviceId        = $null
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $false
+                RecordState            = 'EntraOnly'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 200
+                IntuneLastSeenDays     = $null
+                Enabled                = $false
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $true
+            IncludeIntuneOnly      = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-8' = [PSCustomObject] @{
+                Action              = 'Disable'
+                ActionStatus        = 'True'
+                ActionDate          = (Get-Date).AddDays(-45)
+                ManagedDeviceId     = 'managed-8'
+                EntraDeviceObjectId = 'entra-8'
+                DeviceId            = 'device-8'
+                ProcessedDeviceKeys = @('intune:managed-8', 'entra:entra-8', 'device:device-8')
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].ProcessedDeviceKey | Should -Be 'entra:entra-8'
+        $candidates[0].MatchedProcessedDeviceKey | Should -Be 'intune:managed-8'
     }
 }

@@ -26,8 +26,9 @@ function Get-CloudDevicesToProcess {
 
     $today = Get-Date
     $candidates = foreach ($device in $Devices) {
-        $deviceKey = Get-CloudDeviceRecordKey -Device $device
-        $processedDevice = $ProcessedDevices[$deviceKey]
+        $processedRecord = Find-ProcessedCloudDeviceRecord -Device $device -ProcessedDevices $ProcessedDevices
+        $deviceKey = $processedRecord.CurrentDeviceKey
+        $processedDevice = $processedRecord.ProcessedDevice
         $processedActionSucceeded = $false
 
         if ($processedDevice) {
@@ -105,6 +106,8 @@ function Get-CloudDevicesToProcess {
         $selectionReason = Get-CloudDeviceSelectionReason -Device $device -Type $Type -ActionIf $ActionIf -ProcessedDevice $processedDevice
         Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'Action' -Value $Type -Force
         Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'ProcessedDeviceKey' -Value $deviceKey -Force
+        Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $processedRecord.CurrentDeviceKeys -Force
+        Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'MatchedProcessedDeviceKey' -Value $processedRecord.MatchedProcessedDeviceKey -Force
         Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'TimeOnPendingList' -Value $(if ($processedDevice) { $processedDevice.TimeOnPendingList } else { $null }) -Force
         Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'TimeToNextAction' -Value $(if ($processedDevice) { $processedDevice.TimeToNextAction } else { $null }) -Force
         Add-Member -InputObject $candidate -MemberType NoteProperty -Name 'SelectionReason' -Value $selectionReason -Force

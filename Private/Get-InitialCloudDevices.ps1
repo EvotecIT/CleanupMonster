@@ -110,7 +110,7 @@ function Get-InitialCloudDevices {
         }
 
         $operatingSystem = $intuneDevice.OperatingSystem
-        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions -Name $intuneDevice.Name -DeviceId $intuneDevice.AzureAdDeviceId -ManagedDeviceId $intuneDevice.ManagedDeviceId
+        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions -Name $intuneDevice.Name -DeviceId $intuneDevice.AzureAdDeviceId -EntraDeviceObjectId $intuneDevice.EntraDeviceObjectId -ManagedDeviceId $intuneDevice.ManagedDeviceId
         if (-not $deviceInScope) {
             continue
         }

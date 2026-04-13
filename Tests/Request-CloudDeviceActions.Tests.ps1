@@ -1,5 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Remove-ProcessedCloudDeviceRecord.ps1')
+    . (Get-CleanupMonsterPath 'Private/Set-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDelete.ps1')
 
     function Remove-MyDevice {}
