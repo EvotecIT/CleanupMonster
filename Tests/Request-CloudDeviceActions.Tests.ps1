@@ -30,7 +30,7 @@ Describe 'Request-CloudDevicesDelete' {
             }
         )
 
-        $results = Request-CloudDevicesDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -DeleteRemoveIntuneRecord:$false
+        $results = @(Request-CloudDevicesDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -DeleteRemoveIntuneRecord:$false)
 
         $results.Count | Should -Be 1
         $results[0].ActionStatus | Should -Be 'False'

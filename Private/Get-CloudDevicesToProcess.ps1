@@ -28,6 +28,14 @@ function Get-CloudDevicesToProcess {
     $candidates = foreach ($device in $Devices) {
         $deviceKey = Get-CloudDeviceRecordKey -Device $device
         $processedDevice = $ProcessedDevices[$deviceKey]
+        $processedActionSucceeded = $false
+
+        if ($processedDevice) {
+            $processedActionSucceeded = $processedDevice.ActionStatus -is [bool] -and $processedDevice.ActionStatus
+            if (-not $processedActionSucceeded) {
+                $processedActionSucceeded = [string] $processedDevice.ActionStatus -eq 'True'
+            }
+        }
 
         if ($ActionIf.ExcludeCompanyOwned -and $device.ManagedDeviceOwnerType -eq 'company') {
             continue
@@ -40,14 +48,8 @@ function Get-CloudDevicesToProcess {
             if ($device.RecordState -eq 'IntuneOnly' -and -not $ActionIf.IncludeIntuneOnly) {
                 continue
             }
-            if ($processedDevice -and $processedDevice.Action -eq 'Retire') {
-                $retireAlreadySucceeded = $processedDevice.ActionStatus -is [bool] -and $processedDevice.ActionStatus
-                if (-not $retireAlreadySucceeded) {
-                    $retireAlreadySucceeded = [string] $processedDevice.ActionStatus -eq 'True'
-                }
-                if ($retireAlreadySucceeded) {
-                    continue
-                }
+            if ($processedDevice -and $processedDevice.Action -eq 'Retire' -and $processedActionSucceeded) {
+                continue
             }
         } elseif ($Type -eq 'Disable') {
             if (-not $device.HasEntraRecord -or $device.Enabled -eq $false) {
@@ -69,7 +71,7 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($null -ne $ActionIf.ListProcessedMoreThan) {
-            if (-not $processedDevice -or -not $processedDevice.ActionDate) {
+            if (-not $processedDevice -or -not $processedDevice.ActionDate -or -not $processedActionSucceeded) {
                 continue
             }
 

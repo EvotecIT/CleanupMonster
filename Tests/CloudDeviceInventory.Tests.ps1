@@ -78,10 +78,10 @@ Describe 'Cloud device inventory and selection helpers' {
             )
         }
 
-        $devices = Get-InitialCloudDevices -IncludeOperatingSystem @('iOS*', 'Android*') -ExcludeOperatingSystem @() -Exclusions @()
+        $devices = @(Get-InitialCloudDevices -IncludeOperatingSystem @('iOS*', 'Android*') -ExcludeOperatingSystem @() -Exclusions @())
 
         $devices.Count | Should -Be 2
-        ($devices | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count | Should -Be 1
+        @($devices | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count | Should -Be 1
         ($devices | Where-Object { $_.Name -eq 'Android-Orphan' }).ManagedDeviceId | Should -Be 'managed-2'
     }
 
@@ -111,7 +111,7 @@ Describe 'Cloud device inventory and selection helpers' {
             )
         }
 
-        $devices = Get-InitialCloudDevices -IncludeOperatingSystem @('Android*') -ExcludeOperatingSystem @() -Exclusions @()
+        $devices = @(Get-InitialCloudDevices -IncludeOperatingSystem @('Android*') -ExcludeOperatingSystem @() -Exclusions @())
 
         $devices.Count | Should -Be 1
         $devices[0].RecordState | Should -Be 'IntuneOnly'
@@ -144,7 +144,7 @@ Describe 'Cloud device inventory and selection helpers' {
             IncludeIntuneOnly      = $true
         }
 
-        $candidates = Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
 
         $candidates.Count | Should -Be 1
         $candidates[0].SelectionReason | Should -Match 'Delete Intune orphan record'
@@ -178,7 +178,7 @@ Describe 'Cloud device inventory and selection helpers' {
             IncludeIntuneOnly      = $false
         }
 
-        $candidates = Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
 
         $candidates.Count | Should -Be 0
     }
@@ -216,9 +216,47 @@ Describe 'Cloud device inventory and selection helpers' {
             }
         }
 
-        $candidates = Get-CloudDevicesToProcess -Type Retire -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices
+        $candidates = @(Get-CloudDevicesToProcess -Type Retire -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
 
         $candidates.Count | Should -Be 1
         $candidates[0].ProcessedDeviceKey | Should -Be 'entra:entra-3'
+    }
+
+    It 'does not promote WhatIf entries through pending-age gates' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-Staged'
+                EntraDeviceObjectId    = 'entra-4'
+                DeviceId               = 'device-4'
+                ManagedDeviceId        = 'managed-4'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 200
+                IntuneLastSeenDays     = 200
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'entra:entra-4' = [PSCustomObject] @{
+                Action       = 'Disable'
+                ActionStatus = 'WhatIf'
+                ActionDate   = (Get-Date).AddDays(-45)
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
     }
 }
