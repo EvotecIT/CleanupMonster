@@ -259,4 +259,49 @@ Describe 'Cloud device inventory and selection helpers' {
 
         $candidates.Count | Should -Be 0
     }
+
+    It 'excludes enabled Entra-backed delete candidates' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-Reenabled'
+                EntraDeviceObjectId    = 'entra-5'
+                DeviceId               = 'device-5'
+                ManagedDeviceId        = 'managed-5'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 300
+                IntuneLastSeenDays     = 300
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            IncludeIntuneOnly      = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'entra:entra-5' = [PSCustomObject] @{
+                Action       = 'Disable'
+                ActionStatus = 'True'
+                ActionDate   = (Get-Date).AddDays(-45)
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'treats missing operating system as out of scope when include filters are present' {
+        $result = Test-CloudDeviceInventoryScope -OperatingSystem $null -IncludeOperatingSystem @('iOS*') -ExcludeOperatingSystem @() -Exclusions @()
+
+        $result | Should -BeFalse
+    }
 }

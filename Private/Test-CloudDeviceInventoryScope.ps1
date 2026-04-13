@@ -2,6 +2,8 @@ function Test-CloudDeviceInventoryScope {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [AllowNull()]
+        [AllowEmptyString()]
         [string] $OperatingSystem,
 
         [Parameter(Mandatory)]
@@ -21,6 +23,12 @@ function Test-CloudDeviceInventoryScope {
         [string] $EntraDeviceObjectId,
         [string] $ManagedDeviceId
     )
+
+    if ([string]::IsNullOrWhiteSpace($OperatingSystem)) {
+        if ($IncludeOperatingSystem.Count -gt 0) {
+            return $false
+        }
+    }
 
     if ($IncludeOperatingSystem.Count -gt 0) {
         $includeMatch = $false

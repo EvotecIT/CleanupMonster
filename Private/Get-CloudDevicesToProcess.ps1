@@ -62,6 +62,9 @@ function Get-CloudDevicesToProcess {
             if (-not $device.HasEntraRecord -and -not $device.HasIntuneRecord) {
                 continue
             }
+            if ($device.HasEntraRecord -and $device.Enabled -eq $true) {
+                continue
+            }
             if ($device.RecordState -eq 'EntraOnly' -and -not $ActionIf.IncludeEntraOnly) {
                 continue
             }
