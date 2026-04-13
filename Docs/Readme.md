@@ -14,3 +14,6 @@ Locale: en-US
 ### [Invoke-ADComputersCleanup](Invoke-ADComputersCleanup.md)
 {{ Fill in the Synopsis }}
 
+### [Invoke-CloudDevicesCleanup](Invoke-CloudDevicesCleanup.md)
+Staged cleanup of stale AzureAD registered mobile devices from Microsoft Entra ID and Intune.
+
