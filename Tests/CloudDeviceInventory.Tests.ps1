@@ -120,6 +120,58 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices[0].ManagedDeviceId | Should -Be 'managed-2'
     }
 
+    It 'applies managed-device exclusions to matched records' {
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                   = 'iPhone-ManagedExcluded'
+                    EntraDeviceObjectId    = 'entra-managed-excluded'
+                    DeviceId               = 'device-managed-excluded'
+                    Enabled                = $true
+                    OperatingSystem        = 'iOS'
+                    OperatingSystemVersion = '17.0'
+                    TrustType              = 'AzureAD registered'
+                    LastSeen               = (Get-Date).AddDays(-100)
+                    LastSeenDays           = 100
+                    FirstSeen              = (Get-Date).AddDays(-300)
+                    IsManaged              = $true
+                    IsCompliant            = $true
+                    ManagementType         = 'mdm'
+                    EnrollmentType         = 'userEnrollment'
+                    OwnerDisplayName       = @('User Managed')
+                    OwnerUserPrincipalName = @('user.managed@contoso.com')
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'iPhone-ManagedExcluded'
+                    ManagedDeviceId         = 'managed-excluded'
+                    EntraDeviceObjectId     = 'entra-managed-excluded'
+                    AzureAdDeviceId         = 'device-managed-excluded'
+                    OperatingSystem         = 'iOS'
+                    OperatingSystemVersion  = '17.0'
+                    LastSeen                = (Get-Date).AddDays(-95)
+                    LastSeenDays            = 95
+                    FirstSeen               = (Get-Date).AddDays(-300)
+                    UserDisplayName         = 'User Managed'
+                    UserPrincipalName       = 'user.managed@contoso.com'
+                    EmailAddress            = 'user.managed@contoso.com'
+                    ManagedDeviceOwnerType  = 'personal'
+                    DeviceRegistrationState = 'registered'
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'compliant'
+                    ManagementAgent         = 'mdm'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeOperatingSystem @('iOS*') -ExcludeOperatingSystem @() -Exclusions @('managed-excluded'))
+
+        $devices.Count | Should -Be 0
+    }
+
     It 'applies Entra object-id exclusions during the Intune orphan sweep' {
         Mock Get-MyDevice { @() }
         Mock Get-MyDeviceIntune {

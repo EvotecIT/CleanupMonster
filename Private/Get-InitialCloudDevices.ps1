@@ -52,16 +52,20 @@ function Get-InitialCloudDevices {
 
     $outputDevices = [System.Collections.Generic.List[object]]::new()
     foreach ($entraDevice in $entraDevices) {
-        $operatingSystem = $entraDevice.OperatingSystem
-        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions -Name $entraDevice.Name -DeviceId $entraDevice.DeviceId -EntraDeviceObjectId $entraDevice.EntraDeviceObjectId
-        if (-not $deviceInScope) {
-            continue
-        }
-
         $intuneDevice = if ($entraDevice.DeviceId -and $intuneByAzureDeviceId.Contains($entraDevice.DeviceId)) {
             $intuneByAzureDeviceId[$entraDevice.DeviceId]
         } else {
             $null
+        }
+
+        $operatingSystem = if ($intuneDevice -and $intuneDevice.OperatingSystem) {
+            $intuneDevice.OperatingSystem
+        } else {
+            $entraDevice.OperatingSystem
+        }
+        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions -Name $entraDevice.Name -DeviceId $entraDevice.DeviceId -EntraDeviceObjectId $entraDevice.EntraDeviceObjectId -ManagedDeviceId $(if ($intuneDevice) { $intuneDevice.ManagedDeviceId } else { $null })
+        if (-not $deviceInScope) {
+            continue
         }
 
         if ($intuneDevice -and $intuneDevice.ManagedDeviceId) {
