@@ -149,7 +149,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 1
         $candidates[0].SelectionReason | Should -Match 'Delete Intune orphan record'
         $candidates[0].SelectionReason | Should -Match 'IncludeIntuneOnly=True'
-        $candidates[0].ProcessedDeviceKey | Should -Be 'device:device-2'
+        $candidates[0].ProcessedDeviceKey | Should -Be 'intune:managed-2'
     }
 
     It 'excludes Intune-only delete candidates unless explicitly enabled' {
@@ -209,7 +209,7 @@ Describe 'Cloud device inventory and selection helpers' {
         }
 
         $processedDevices = [ordered] @{
-            'entra:entra-3' = [PSCustomObject] @{
+            'intune:managed-3' = [PSCustomObject] @{
                 Action       = 'Retire'
                 ActionStatus = 'WhatIf'
                 ActionDate   = (Get-Date).AddDays(-5)
@@ -219,7 +219,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates = @(Get-CloudDevicesToProcess -Type Retire -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
 
         $candidates.Count | Should -Be 1
-        $candidates[0].ProcessedDeviceKey | Should -Be 'entra:entra-3'
+        $candidates[0].ProcessedDeviceKey | Should -Be 'intune:managed-3'
     }
 
     It 'does not promote WhatIf entries through pending-age gates' {
@@ -248,7 +248,7 @@ Describe 'Cloud device inventory and selection helpers' {
         }
 
         $processedDevices = [ordered] @{
-            'entra:entra-4' = [PSCustomObject] @{
+            'intune:managed-4' = [PSCustomObject] @{
                 Action       = 'Disable'
                 ActionStatus = 'WhatIf'
                 ActionDate   = (Get-Date).AddDays(-45)
@@ -287,7 +287,7 @@ Describe 'Cloud device inventory and selection helpers' {
         }
 
         $processedDevices = [ordered] @{
-            'entra:entra-5' = [PSCustomObject] @{
+            'intune:managed-5' = [PSCustomObject] @{
                 Action       = 'Disable'
                 ActionStatus = 'True'
                 ActionDate   = (Get-Date).AddDays(-45)
@@ -303,5 +303,56 @@ Describe 'Cloud device inventory and selection helpers' {
         $result = Test-CloudDeviceInventoryScope -OperatingSystem $null -IncludeOperatingSystem @('iOS*') -ExcludeOperatingSystem @() -Exclusions @()
 
         $result | Should -BeFalse
+    }
+
+    It 'does not include Intune-only records in disable selection' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'Android-Orphan'
+                EntraDeviceObjectId    = 'entra-6'
+                DeviceId               = 'device-6'
+                ManagedDeviceId        = 'managed-6'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'IntuneOnly'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 300
+                IntuneLastSeenDays     = 300
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-6' = [PSCustomObject] @{
+                Action       = 'Retire'
+                ActionStatus = 'True'
+                ActionDate   = (Get-Date).AddDays(-45)
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'prefers managed device id when building cloud device keys' {
+        $device = [PSCustomObject] @{
+            Name               = 'Android-Duplicate'
+            ManagedDeviceId    = 'managed-7'
+            EntraDeviceObjectId = 'entra-7'
+            DeviceId           = 'device-7'
+        }
+
+        $key = Get-CloudDeviceRecordKey -Device $device
+
+        $key | Should -Be 'intune:managed-7'
     }
 }
