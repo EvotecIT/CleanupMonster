@@ -7,6 +7,8 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Get-CloudDevicesToProcess.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
+    function Get-MyDevice {}
+    function Get-MyDeviceIntune {}
 }
 
 Describe 'Cloud device inventory and selection helpers' {
@@ -83,6 +85,39 @@ Describe 'Cloud device inventory and selection helpers' {
         ($devices | Where-Object { $_.Name -eq 'Android-Orphan' }).ManagedDeviceId | Should -Be 'managed-2'
     }
 
+    It 'continues with Intune inventory when Entra inventory is empty' {
+        Mock Get-MyDevice { @() }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Android-Orphan'
+                    ManagedDeviceId         = 'managed-2'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-2'
+                    OperatingSystem         = 'Android'
+                    OperatingSystemVersion  = '14'
+                    LastSeen                = (Get-Date).AddDays(-190)
+                    LastSeenDays            = 190
+                    FirstSeen               = (Get-Date).AddDays(-400)
+                    UserDisplayName         = 'User Two'
+                    UserPrincipalName       = 'user.two@contoso.com'
+                    EmailAddress            = 'user.two@contoso.com'
+                    ManagedDeviceOwnerType  = 'personal'
+                    DeviceRegistrationState = 'registered'
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'unknown'
+                    ManagementAgent         = 'mdm'
+                }
+            )
+        }
+
+        $devices = Get-InitialCloudDevices -IncludeOperatingSystem @('Android*') -ExcludeOperatingSystem @() -Exclusions @()
+
+        $devices.Count | Should -Be 1
+        $devices[0].RecordState | Should -Be 'IntuneOnly'
+        $devices[0].ManagedDeviceId | Should -Be 'managed-2'
+    }
+
     It 'adds an orphan-aware selection reason for delete candidates' {
         $devices = @(
             [PSCustomObject] @{
@@ -146,5 +181,44 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates = Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})
 
         $candidates.Count | Should -Be 0
+    }
+
+    It 'allows retire candidates after a WhatIf preview entry exists' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-Preview'
+                EntraDeviceObjectId    = 'entra-3'
+                DeviceId               = 'device-3'
+                ManagedDeviceId        = 'managed-3'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 200
+                IntuneLastSeenDays     = 200
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = $null
+            LastSeenIntuneMoreThan = 180
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeIntuneOnly      = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'entra:entra-3' = [PSCustomObject] @{
+                Action       = 'Retire'
+                ActionStatus = 'WhatIf'
+                ActionDate   = (Get-Date).AddDays(-5)
+            }
+        }
+
+        $candidates = Get-CloudDevicesToProcess -Type Retire -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].ProcessedDeviceKey | Should -Be 'entra:entra-3'
     }
 }

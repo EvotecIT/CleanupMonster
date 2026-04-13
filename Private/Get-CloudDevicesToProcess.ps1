@@ -41,7 +41,13 @@ function Get-CloudDevicesToProcess {
                 continue
             }
             if ($processedDevice -and $processedDevice.Action -eq 'Retire') {
-                continue
+                $retireAlreadySucceeded = $processedDevice.ActionStatus -is [bool] -and $processedDevice.ActionStatus
+                if (-not $retireAlreadySucceeded) {
+                    $retireAlreadySucceeded = [string] $processedDevice.ActionStatus -eq 'True'
+                }
+                if ($retireAlreadySucceeded) {
+                    continue
+                }
             }
         } elseif ($Type -eq 'Disable') {
             if (-not $device.HasEntraRecord -or $device.Enabled -eq $false) {

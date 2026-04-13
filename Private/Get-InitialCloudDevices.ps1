@@ -16,11 +16,12 @@ function Get-InitialCloudDevices {
     }
 
     if ($entraDevices.Count -eq 0) {
-        Write-Color -Text '[e] ', 'No AzureAD registered devices found in Microsoft Entra ID. Terminating.' -Color Yellow, Red
-        return $false
-    }
-
-    if ($null -ne $SafetyEntraLimit -and $entraDevices.Count -lt $SafetyEntraLimit) {
+        if ($null -ne $SafetyEntraLimit -and $SafetyEntraLimit -gt 0) {
+            Write-Color -Text '[e] ', 'Only ', $entraDevices.Count, ' devices found in Microsoft Entra ID, this is less than the safety limit of ', $SafetyEntraLimit, '. Terminating!' -Color Yellow, Cyan, Red, Cyan
+            return $false
+        }
+        Write-Color -Text '[i] ', 'No AzureAD registered devices found in Microsoft Entra ID. Continuing with Intune inventory to discover orphan records.' -Color Yellow, Yellow
+    } elseif ($null -ne $SafetyEntraLimit -and $entraDevices.Count -lt $SafetyEntraLimit) {
         Write-Color -Text '[e] ', 'Only ', $entraDevices.Count, ' devices found in Microsoft Entra ID, this is less than the safety limit of ', $SafetyEntraLimit, '. Terminating!' -Color Yellow, Cyan, Red, Cyan
         return $false
     }

@@ -29,9 +29,11 @@ function Request-CloudDevicesDelete {
 
         $subActionMessages = [System.Collections.Generic.List[string]]::new()
         $subActionSuccess = $true
+        $subActionExecuted = $false
 
         if (-not $ReportOnly) {
             if ($DeleteRemoveIntuneRecord -and $device.HasIntuneRecord) {
+                $subActionExecuted = $true
                 $removeIntuneResult = Remove-MyDeviceIntuneRecord -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeIntuneResult.Message) {
                     $subActionMessages.Add("Intune: $($removeIntuneResult.Message)")
@@ -42,6 +44,7 @@ function Request-CloudDevicesDelete {
             }
 
             if ($device.HasEntraRecord) {
+                $subActionExecuted = $true
                 $removeEntraResult = Remove-MyDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeEntraResult.Message) {
                     $subActionMessages.Add("Entra: $($removeEntraResult.Message)")
@@ -50,10 +53,17 @@ function Request-CloudDevicesDelete {
                     $subActionSuccess = $false
                 }
             }
+
+            if (-not $subActionExecuted) {
+                $subActionSuccess = $false
+                $subActionMessages.Add('No delete sub-actions were applicable for this device.')
+            }
         }
 
         $actionStatus = if ($ReportOnly) {
             'ReportOnly'
+        } elseif (-not $subActionExecuted) {
+            'False'
         } elseif ($WhatIf -or $WhatIfDelete) {
             'WhatIf'
         } elseif ($subActionSuccess) {
@@ -69,7 +79,7 @@ function Request-CloudDevicesDelete {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value ($subActionMessages -join '; ') -Force
         $results.Add($result)
 
-        if ($subActionSuccess -or $WhatIf -or $WhatIfDelete -or $ReportOnly) {
+        if (($subActionExecuted -and ($subActionSuccess -or $WhatIf -or $WhatIfDelete)) -or $ReportOnly) {
             if (-not ($WhatIf -or $WhatIfDelete -or $ReportOnly)) {
                 $null = $ProcessedDevices.Remove($device.ProcessedDeviceKey)
             }
