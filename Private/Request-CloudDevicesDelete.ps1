@@ -43,7 +43,7 @@ function Request-CloudDevicesDelete {
                 }
             }
 
-            if ($device.HasEntraRecord) {
+            if ($device.HasEntraRecord -and $device.RecordState -ne 'IntuneOnly') {
                 $subActionExecuted = $true
                 $removeEntraResult = Remove-MyDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeEntraResult.Message) {
