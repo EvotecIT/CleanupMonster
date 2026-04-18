@@ -47,7 +47,15 @@ function Get-CloudDeviceSelectionReason {
     }
 
     if ($Type -eq 'Delete') {
-        if ($Device.HasIntuneRecord -and $Device.HasEntraRecord) {
+        if ($Device.RecordState -eq 'Matched' -and $Device.HasIntuneRecord -and $Device.HasEntraRecord) {
+            $reasons.Add('Delete Intune record and Entra device object')
+        } elseif ($Device.RecordState -eq 'IntuneOnly' -and $Device.HasIntuneRecord) {
+            $reasons.Add('Delete Intune orphan record')
+            $reasons.Add("IncludeIntuneOnly=$($ActionIf.IncludeIntuneOnly)")
+        } elseif ($Device.RecordState -eq 'EntraOnly' -and $Device.HasEntraRecord) {
+            $reasons.Add('Delete Entra orphan record')
+            $reasons.Add("IncludeEntraOnly=$($ActionIf.IncludeEntraOnly)")
+        } elseif ($Device.HasIntuneRecord -and $Device.HasEntraRecord) {
             $reasons.Add('Delete Intune record and Entra device object')
         } elseif ($Device.HasIntuneRecord) {
             $reasons.Add('Delete Intune orphan record')

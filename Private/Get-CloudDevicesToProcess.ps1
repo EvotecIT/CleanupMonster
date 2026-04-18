@@ -88,6 +88,12 @@ function Get-CloudDevicesToProcess {
                 $processedDevice.TimeToNextAction = $ActionIf.ListProcessedMoreThan - $timeOnPendingList
                 continue
             }
+
+            if ($null -eq $ActionIf.LastSeenEntraMoreThan -and
+                $null -eq $ActionIf.LastSeenIntuneMoreThan -and
+                -not (Test-CloudDevicePendingActivity -Device $device -ProcessedDevice $processedDevice)) {
+                continue
+            }
         }
 
         if ($null -ne $ActionIf.LastSeenEntraMoreThan) {
