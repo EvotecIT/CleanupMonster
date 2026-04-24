@@ -41,8 +41,10 @@ function Request-CloudDevicesDisable {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
 
-        if ($actionSucceeded -or $WhatIf -or $WhatIfDisable -or $ReportOnly) {
+        if ($actionSucceeded -and -not ($WhatIf -or $WhatIfDisable -or $ReportOnly)) {
             Set-ProcessedCloudDeviceRecord -ProcessedDevices $ProcessedDevices -Device $device -Result $result
+            $processedCount++
+        } elseif ($actionSucceeded -or $WhatIf -or $WhatIfDisable -or $ReportOnly) {
             $processedCount++
         }
     }

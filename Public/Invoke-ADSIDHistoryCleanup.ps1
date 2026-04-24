@@ -83,14 +83,11 @@
     .PARAMETER ReportOnly
     If specified, only generates a report without making any changes.
 
-    .PARAMETER Report
-    Generates a report of affected objects without making any changes.
-
     .PARAMETER ReportPath
-    The path where the HTML report should be saved. Used with the -Report parameter.
+    The path where the HTML report should be saved.
 
-    .PARAMETER WhatIf
-    Shows what would happen if the function runs. The SID history entries aren't actually removed.
+    .PARAMETER DontWriteToEventLog
+    Prevents writing cleanup events to the Windows event log.
 
     .EXAMPLE
     Invoke-ADSIDHistoryCleanup -Forest "contoso.com" -IncludeType "External" -ReportOnly -ReportPath "C:\Temp\SIDHistoryReport.html" -WhatIf

@@ -192,6 +192,9 @@
     This is to prevent accidental deletion of all computers that meet the criteria.
     Adjust the limit to your needs.
 
+    .PARAMETER Move
+    Enable the move process, meaning computers that meet the move criteria will be moved to MoveTargetOrganizationalUnit.
+
     .PARAMETER MoveIsEnabled
     Move computer only if it's Enabled or only if it's Disabled.
     By default it will try to Move all computers that are either disabled or enabled.
@@ -273,15 +276,6 @@
     .PARAMETER MoveLimit
     Limit the number of computers that will be moved. 0 = unlimited. Default is 1.
     This is to prevent accidental move of all computers that meet the criteria.
-    Adjust the limit to your needs.
-
-    .PARAMETER MoveDoNotAddToPendingList
-    By default the script will add computers that are moved to a list of computers that will be actioned later (deleted).
-    If you want to move computers, but not add them to the list of computers that will be action later (aka pending list),  use this switch.
-
-    .PARAMETER DeleteLimit
-    Limit the number of computers that will be deleted. 0 = unlimited. Default is 1.
-    This is to prevent accidental deletion of all computers that meet the criteria.
     Adjust the limit to your needs.
 
     .PARAMETER DisableLimit
@@ -395,10 +389,10 @@
     It will use the default server if no server is provided for a domain, which is default approach.
     This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
 
-.PARAMETER RemoveProtectedFromAccidentalDeletionFlag
-Remove the ProtectedFromAccidentalDeletion flag from the computer object before moving or deleting it.
-Disable-only workflows leave the flag untouched.
-By default it will not remove the flag, and require it to be removed manually.
+    .PARAMETER RemoveProtectedFromAccidentalDeletionFlag
+    Remove the ProtectedFromAccidentalDeletion flag from the computer object before moving or deleting it.
+    Disable-only workflows leave the flag untouched.
+    By default it will not remove the flag, and require it to be removed manually.
 
     .PARAMETER ADQueryMaxRetries
     Maximum number of retries for AD query operations. Default is 3.

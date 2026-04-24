@@ -75,14 +75,44 @@ function Invoke-ADServiceAccountsCleanup {
     .PARAMETER WhatIfDelete
     Shows what would happen if accounts were deleted.
 
+    .PARAMETER DontWriteToEventLog
+    Prevents writing cleanup events to the Windows event log.
+
+    .PARAMETER Suppress
+    Suppresses returning the export object to the pipeline.
+
+    .PARAMETER LogPath
+    Path to a log file. When omitted, file logging is not enabled.
+
+    .PARAMETER LogMaximum
+    Maximum number of rotated log files to keep. Default is 5.
+
+    .PARAMETER LogShowTime
+    Includes timestamps in log output.
+
+    .PARAMETER LogTimeFormat
+    Date/time format used when LogShowTime is enabled.
+
     .EXAMPLE
     Invoke-ADServiceAccountsCleanup -Disable -DisableLastLogonDateMoreThan 90 -ReportOnly
+
+    Reports service accounts that would be disabled because they have not logged on for more than 90 days.
 
     .EXAMPLE
     Invoke-ADServiceAccountsCleanup -Delete -DeleteLastLogonDateMoreThan 180 -WhatIfDelete
 
+    Previews deletion of service accounts that have not logged on for more than 180 days.
+
     .EXAMPLE
     Invoke-ADServiceAccountsCleanup -Disable -Delete -DisableLastLogonDateMoreThan 90 -DeleteLastLogonDateMoreThan 180 -DisableLimit 2 -DeleteLimit 1 -SafetyADLimit 10 -WhatIfDisable -WhatIfDelete
+
+    Previews a staged disable/delete cleanup while limiting the number of accounts per action and requiring a minimum AD inventory count.
+
+    .EXAMPLE
+    $serviceAccounts = Invoke-ADServiceAccountsCleanup -Forest contoso.com -IncludeAccounts 'svc-*' -Disable -DisablePasswordLastSetMoreThan 120 -DisableLimit 5 -ReportPath C:\Reports\ServiceAccounts.html -ShowHTML
+    $serviceAccounts.CurrentRun | Format-Table SamAccountName, Action, ActionStatus
+
+    Disables up to five matching service accounts with old passwords, writes an HTML report, and returns the current run for review.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(

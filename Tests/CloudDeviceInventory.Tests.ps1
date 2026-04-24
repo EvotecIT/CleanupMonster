@@ -1,11 +1,13 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceRegistrationScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceInventoryScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKeys.ps1')
     . (Get-CleanupMonsterPath 'Private/Find-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialCloudDevices.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKey.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceSelectionReason.ps1')
+    . (Get-CleanupMonsterPath 'Private/Test-CloudDevicePendingActivity.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDevicesToProcess.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
@@ -118,6 +120,107 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices.Count | Should -Be 1
         $devices[0].RecordState | Should -Be 'IntuneOnly'
         $devices[0].ManagedDeviceId | Should -Be 'managed-2'
+    }
+
+    It 'excludes hybrid and joined records from cloud cleanup inventory' {
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                  = 'Hybrid-Windows'
+                    EntraDeviceObjectId   = 'entra-hybrid'
+                    DeviceId              = 'device-hybrid'
+                    Enabled               = $true
+                    OperatingSystem       = 'Windows'
+                    TrustType             = 'Hybrid AzureAD'
+                    IsSynchronized        = $true
+                    LastSeen              = (Get-Date).AddDays(-200)
+                    LastSeenDays          = 200
+                }
+                [PSCustomObject] @{
+                    Name                  = 'Joined-Windows'
+                    EntraDeviceObjectId   = 'entra-joined'
+                    DeviceId              = 'device-joined'
+                    Enabled               = $true
+                    OperatingSystem       = 'Windows'
+                    TrustType             = 'AzureAD joined'
+                    IsSynchronized        = $false
+                    LastSeen              = (Get-Date).AddDays(-200)
+                    LastSeenDays          = 200
+                }
+                [PSCustomObject] @{
+                    Name                  = 'Android-Registered'
+                    EntraDeviceObjectId   = 'entra-registered'
+                    DeviceId              = 'device-registered'
+                    Enabled               = $true
+                    OperatingSystem       = 'Android'
+                    TrustType             = 'AzureAD registered'
+                    IsSynchronized        = $false
+                    LastSeen              = (Get-Date).AddDays(-200)
+                    LastSeenDays          = 200
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Hybrid-Intune'
+                    ManagedDeviceId         = 'managed-hybrid'
+                    EntraDeviceObjectId     = 'entra-hybrid-intune'
+                    AzureAdDeviceId         = 'device-hybrid-intune'
+                    OperatingSystem         = 'Windows'
+                    TrustType               = 'Hybrid AzureAD'
+                    IsSynchronized          = $true
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                    DeviceRegistrationState = 'registered'
+                }
+                [PSCustomObject] @{
+                    Name                    = 'Joined-State-Intune'
+                    ManagedDeviceId         = 'managed-joined-state'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-joined-state'
+                    OperatingSystem         = 'Android'
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                    DeviceRegistrationState = 'joined'
+                }
+                [PSCustomObject] @{
+                    Name                    = 'Unknown-State-Intune'
+                    ManagedDeviceId         = 'managed-unknown-state'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-unknown-state'
+                    OperatingSystem         = 'Android'
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                }
+                [PSCustomObject] @{
+                    Name                    = 'Android-Orphan'
+                    ManagedDeviceId         = 'managed-registered'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-orphan'
+                    OperatingSystem         = 'Android'
+                    TrustType               = 'AzureAD registered'
+                    IsSynchronized          = $false
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                    DeviceRegistrationState = 'registered'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeOperatingSystem @('*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices.Name | Should -Contain 'Android-Registered'
+        $devices.Name | Should -Contain 'Android-Orphan'
+        $devices.Name | Should -Not -Contain 'Hybrid-Windows'
+        $devices.Name | Should -Not -Contain 'Joined-Windows'
+        $devices.Name | Should -Not -Contain 'Hybrid-Intune'
+        $devices.Name | Should -Not -Contain 'Joined-State-Intune'
+        $devices.Name | Should -Not -Contain 'Unknown-State-Intune'
     }
 
     It 'applies managed-device exclusions to matched records' {
@@ -237,6 +340,36 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates[0].ProcessedDeviceKey | Should -Be 'intune:managed-2'
     }
 
+    It 'keeps Intune-only delete selection reasons aligned with the executor' {
+        $device = [PSCustomObject] @{
+            Name                 = 'Android-Orphan'
+            EntraDeviceObjectId  = 'entra-2'
+            DeviceId             = 'device-2'
+            ManagedDeviceId      = 'managed-2'
+            HasEntraRecord       = $true
+            HasIntuneRecord      = $true
+            RecordState          = 'IntuneOnly'
+            ManagedDeviceOwnerType = 'personal'
+            EntraLastSeenDays    = $null
+            IntuneLastSeenDays   = 190
+            Enabled              = $null
+        }
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = $null
+            LastSeenIntuneMoreThan = 180
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            IncludeIntuneOnly      = $true
+        }
+
+        $reason = Get-CloudDeviceSelectionReason -Device $device -Type Delete -ActionIf $actionIf
+
+        $reason | Should -Match 'Delete Intune orphan record'
+        $reason | Should -Not -Match 'Entra device object'
+    }
+
     It 'excludes Intune-only delete candidates unless explicitly enabled' {
         $devices = @(
             [PSCustomObject] @{
@@ -345,6 +478,205 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 0
     }
 
+    It 'does not promote pending-aged devices after new activity is observed' {
+        $previousEntraLastSeen = (Get-Date).AddDays(-200)
+        $previousIntuneLastSeen = (Get-Date).AddDays(-200)
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-Reactivated'
+                EntraDeviceObjectId    = 'entra-reactivated'
+                DeviceId               = 'device-reactivated'
+                ManagedDeviceId        = 'managed-reactivated'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeen          = (Get-Date).AddDays(-1)
+                IntuneLastSeen         = (Get-Date).AddDays(-1)
+                EntraLastSeenDays      = 1
+                IntuneLastSeenDays     = 1
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = $null
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-reactivated' = [PSCustomObject] @{
+                Action              = 'Retire'
+                ActionStatus        = 'True'
+                ActionDate          = (Get-Date).AddDays(-31)
+                ManagedDeviceId     = 'managed-reactivated'
+                EntraDeviceObjectId = 'entra-reactivated'
+                DeviceId            = 'device-reactivated'
+                EntraLastSeen       = $previousEntraLastSeen
+                IntuneLastSeen      = $previousIntuneLastSeen
+                ProcessedDeviceKeys = @('intune:managed-reactivated', 'entra:entra-reactivated', 'device:device-reactivated')
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'does not promote pending-aged devices with stale thresholds after new activity is observed' {
+        $previousEntraLastSeen = (Get-Date).AddDays(-220)
+        $previousIntuneLastSeen = (Get-Date).AddDays(-220)
+        $currentEntraLastSeen = (Get-Date).AddDays(-190)
+        $currentIntuneLastSeen = (Get-Date).AddDays(-190)
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-ReactivatedButStillStale'
+                EntraDeviceObjectId    = 'entra-reactivated-stale'
+                DeviceId               = 'device-reactivated-stale'
+                ManagedDeviceId        = 'managed-reactivated-stale'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeen          = $currentEntraLastSeen
+                IntuneLastSeen         = $currentIntuneLastSeen
+                EntraLastSeenDays      = 190
+                IntuneLastSeenDays     = 190
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = 180
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-reactivated-stale' = [PSCustomObject] @{
+                Action              = 'Retire'
+                ActionStatus        = 'True'
+                ActionDate          = (Get-Date).AddDays(-31)
+                ManagedDeviceId     = 'managed-reactivated-stale'
+                EntraDeviceObjectId = 'entra-reactivated-stale'
+                DeviceId            = 'device-reactivated-stale'
+                EntraLastSeen       = $previousEntraLastSeen
+                IntuneLastSeen      = $previousIntuneLastSeen
+                ProcessedDeviceKeys = @('intune:managed-reactivated-stale', 'entra:entra-reactivated-stale', 'device:device-reactivated-stale')
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'does not promote pending-aged devices when current activity is missing' {
+        $previousEntraLastSeen = (Get-Date).AddDays(-220)
+        $previousIntuneLastSeen = (Get-Date).AddDays(-220)
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-MissingActivity'
+                EntraDeviceObjectId    = 'entra-missing-activity'
+                DeviceId               = 'device-missing-activity'
+                ManagedDeviceId        = 'managed-missing-activity'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeen          = $null
+                IntuneLastSeen         = $previousIntuneLastSeen
+                EntraLastSeenDays      = $null
+                IntuneLastSeenDays     = 220
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = $null
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-missing-activity' = [PSCustomObject] @{
+                Action              = 'Retire'
+                ActionStatus        = 'True'
+                ActionDate          = (Get-Date).AddDays(-31)
+                ManagedDeviceId     = 'managed-missing-activity'
+                EntraDeviceObjectId = 'entra-missing-activity'
+                DeviceId            = 'device-missing-activity'
+                EntraLastSeen       = $previousEntraLastSeen
+                IntuneLastSeen      = $previousIntuneLastSeen
+                ProcessedDeviceKeys = @('intune:managed-missing-activity', 'entra:entra-missing-activity', 'device:device-missing-activity')
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'promotes pending-aged devices when activity has not advanced' {
+        $staleEntraLastSeen = (Get-Date).AddDays(-200)
+        $staleIntuneLastSeen = (Get-Date).AddDays(-200)
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-StillStale'
+                EntraDeviceObjectId    = 'entra-still-stale'
+                DeviceId               = 'device-still-stale'
+                ManagedDeviceId        = 'managed-still-stale'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeen          = $staleEntraLastSeen
+                IntuneLastSeen         = $staleIntuneLastSeen
+                EntraLastSeenDays      = 200
+                IntuneLastSeenDays     = 200
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = $null
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-still-stale' = [PSCustomObject] @{
+                Action              = 'Retire'
+                ActionStatus        = 'True'
+                ActionDate          = (Get-Date).AddDays(-31)
+                ManagedDeviceId     = 'managed-still-stale'
+                EntraDeviceObjectId = 'entra-still-stale'
+                DeviceId            = 'device-still-stale'
+                EntraLastSeen       = $staleEntraLastSeen
+                IntuneLastSeen      = $staleIntuneLastSeen
+                ProcessedDeviceKeys = @('intune:managed-still-stale', 'entra:entra-still-stale', 'device:device-still-stale')
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].ProcessedDeviceKey | Should -Be 'intune:managed-still-stale'
+    }
+
     It 'excludes enabled Entra-backed delete candidates' {
         $devices = @(
             [PSCustomObject] @{
@@ -380,6 +712,67 @@ Describe 'Cloud device inventory and selection helpers' {
         }
 
         $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'does not disable Entra-backed candidates when enabled state is unknown' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-UnknownEnabled'
+                EntraDeviceObjectId    = 'entra-unknown-enabled'
+                DeviceId               = 'device-unknown-enabled'
+                ManagedDeviceId        = 'managed-unknown-enabled'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 300
+                IntuneLastSeenDays     = 300
+                Enabled                = $null
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'does not delete Entra-backed candidates when enabled state is unknown' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-UnknownDeleteState'
+                EntraDeviceObjectId    = 'entra-unknown-delete'
+                DeviceId               = 'device-unknown-delete'
+                ManagedDeviceId        = 'managed-unknown-delete'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 300
+                IntuneLastSeenDays     = 300
+                Enabled                = $null
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            IncludeIntuneOnly      = $false
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
 
         $candidates.Count | Should -Be 0
     }
