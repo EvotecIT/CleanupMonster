@@ -4,11 +4,19 @@ function Invoke-CloudDevicesCleanup {
     Cleans up stale AzureAD registered cloud devices.
 
     .DESCRIPTION
-    Handles staged cleanup for AzureAD registered mobile devices from the cloud side.
-    The workflow is designed for iOS and Android devices and supports:
-    - Intune retire for stale managed devices
-    - Microsoft Entra disable after a grace period
-    - Final deletion from Microsoft Entra and optional Intune record removal
+    Handles staged cleanup for Microsoft Entra and Intune cloud device records.
+    The default operating-system scope is iOS and Android because these are the
+    intended mobile-device cleanup targets, but the scope can be changed with
+    IncludeOperatingSystem and ExcludeOperatingSystem.
+
+    The workflow supports three explicit stages:
+    - Retire: retires stale Intune managed devices.
+    - Disable: disables stale Microsoft Entra devices after matching criteria or pending-list age.
+    - Delete: removes stale Microsoft Entra devices and, by default, eligible Intune records.
+
+    The cmdlet keeps a datastore with PendingActions and History so staged actions
+    can be reviewed over multiple runs. ReportOnly and WhatIf/action-specific
+    WhatIf modes show candidates without mutating pending cleanup state.
 
     Blank activity timestamps are intentionally excluded from destructive actions by default.
     This follows Microsoft guidance for stale-device cleanup where activity timestamps can be empty
@@ -17,28 +25,57 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER Retire
     Enables the Intune retire stage.
 
-    .PARAMETER Disable
-    Enables the Microsoft Entra disable stage.
-
-    .PARAMETER Delete
-    Enables the final delete stage.
-
     .PARAMETER RetireLastSeenIntuneMoreThan
-    Retire devices only if Intune LastSeenDays is greater than this number.
+    Retire devices only when the Intune LastSeenDays value is greater than this number.
+    Defaults to 120 days. Devices with blank Intune activity are not selected by this criterion.
+
+    .PARAMETER RetireLastSeenEntraMoreThan
+    Retire devices only when the Entra LastSeenDays value is greater than this number.
+    Devices with blank Entra activity are not selected by this criterion.
 
     .PARAMETER RetireIncludeIntuneOnly
     Allows retire-stage processing of Intune-only orphan records.
     By default, orphan Intune records are discovered and reported but not actioned.
 
+    .PARAMETER RetireLimit
+    Maximum number of devices to retire in one run. 0 means unlimited. Default is 10.
+
+    .PARAMETER Disable
+    Enables the Microsoft Entra disable stage.
+
+    .PARAMETER DisableLastSeenEntraMoreThan
+    Disable devices only when the Entra LastSeenDays value is greater than this number.
+    Entra-backed devices must have Enabled equal to $true; unknown enabled state is treated as unsafe.
+
+    .PARAMETER DisableLastSeenIntuneMoreThan
+    Disable devices only when the Intune LastSeenDays value is greater than this number.
+    Devices with blank Intune activity are not selected by this criterion.
+
     .PARAMETER DisableListProcessedMoreThan
     Disable devices only after they were previously actioned and remained pending longer than this number of days.
+    Defaults to 30 days.
 
     .PARAMETER DisableIncludeEntraOnly
     Allows disable-stage processing of Entra-only records.
     By default, Entra-only records are discovered and reported but not actioned.
 
+    .PARAMETER DisableLimit
+    Maximum number of devices to disable in one run. 0 means unlimited. Default is 10.
+
+    .PARAMETER Delete
+    Enables the final delete stage.
+
+    .PARAMETER DeleteLastSeenEntraMoreThan
+    Delete devices only when the Entra LastSeenDays value is greater than this number.
+    Entra-backed devices must have Enabled equal to $false; unknown enabled state is treated as unsafe.
+
+    .PARAMETER DeleteLastSeenIntuneMoreThan
+    Delete devices only when the Intune LastSeenDays value is greater than this number.
+    Devices with blank Intune activity are not selected by this criterion.
+
     .PARAMETER DeleteListProcessedMoreThan
     Delete devices only after they were previously actioned and remained pending longer than this number of days.
+    Defaults to 30 days.
 
     .PARAMETER DeleteIncludeEntraOnly
     Allows delete-stage processing of Entra-only orphan records.
@@ -46,11 +83,102 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER DeleteIncludeIntuneOnly
     Allows delete-stage processing of Intune-only orphan records.
 
+    .PARAMETER DeleteLimit
+    Maximum number of devices to delete in one run. 0 means unlimited. Default is 10.
+
+    .PARAMETER DeleteRemoveIntuneRecord
+    Controls whether delete-stage processing also removes eligible Intune managed-device records.
+    Defaults to $true.
+
+    .PARAMETER IncludeOperatingSystem
+    Operating-system patterns to include when building cloud-device inventory.
+    Defaults to iOS and Android patterns. Wildcards are supported.
+
+    .PARAMETER ExcludeOperatingSystem
+    Operating-system patterns to exclude when building cloud-device inventory.
+    Wildcards are supported.
+
+    .PARAMETER Exclusions
+    Device names, Entra object IDs, Intune managed-device IDs, or other supported identifiers to exclude from cleanup.
+
+    .PARAMETER IncludeCompanyOwned
+    Includes company-owned devices in candidate selection. By default company-owned devices are excluded from actions.
+
+    .PARAMETER DataStorePath
+    Path to the XML datastore that tracks PendingActions and History.
+    Defaults to ProcessedCloudDevices.xml next to this function.
+
+    .PARAMETER ReportOnly
+    Generates inventory and reports without executing retire, disable, or delete actions and without writing updated cleanup state.
+    Existing pending actions are still read so staged candidates can be reported accurately.
+
+    .PARAMETER WhatIfRetire
+    Previews retire actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+
+    .PARAMETER WhatIfDisable
+    Previews disable actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+
+    .PARAMETER WhatIfDelete
+    Previews delete actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+
+    .PARAMETER LogPath
+    Path to a log file. When omitted, file logging is not enabled.
+
+    .PARAMETER LogMaximum
+    Maximum number of rotated log files to keep. Default is 5.
+
+    .PARAMETER LogShowTime
+    Includes timestamps in log output.
+
+    .PARAMETER LogTimeFormat
+    Date/time format used when LogShowTime is enabled.
+
+    .PARAMETER Suppress
+    Suppresses returning the export object to the pipeline.
+
+    .PARAMETER ShowHTML
+    Opens the generated HTML report after the run.
+
+    .PARAMETER Online
+    Uses CDN-hosted CSS and JavaScript assets for the HTML report, reducing report file size.
+
+    .PARAMETER ReportPath
+    Path where the HTML report is written.
+    Defaults to ProcessedCloudDevices.html next to this function.
+
+    .PARAMETER SafetyEntraLimit
+    Stops processing if the Entra inventory count is below this value.
+    Use this as a guard against partial Graph inventory responses.
+
+    .PARAMETER SafetyIntuneLimit
+    Stops processing if the Intune inventory count is below this value.
+    Use this as a guard against partial Graph inventory responses.
+
     .EXAMPLE
     Invoke-CloudDevicesCleanup -Retire -ReportOnly -ShowHTML
 
+    Builds a report of Intune retire candidates using the default stale threshold without changing devices or cleanup state.
+
     .EXAMPLE
     Invoke-CloudDevicesCleanup -Retire -Disable -Delete -RetireLastSeenIntuneMoreThan 120 -DisableListProcessedMoreThan 30 -DeleteListProcessedMoreThan 30
+
+    Runs the full staged workflow: retire stale Intune devices, disable pending devices after 30 days, and delete pending devices after 30 days.
+
+    .EXAMPLE
+    Invoke-CloudDevicesCleanup -Retire -Disable -Delete -WhatIf -SafetyEntraLimit 1000 -SafetyIntuneLimit 1000 -ReportPath C:\Reports\CloudDevices.html -ShowHTML
+
+    Previews all enabled stages, requires minimum inventory counts, writes an HTML report, and opens it for review.
+
+    .EXAMPLE
+    Invoke-CloudDevicesCleanup -Delete -DeleteIncludeIntuneOnly -DeleteRemoveIntuneRecord $true -DeleteLastSeenIntuneMoreThan 180 -WhatIfDelete
+
+    Previews cleanup of stale Intune-only orphan records without deleting anything or updating the pending-action datastore.
+
+    .EXAMPLE
+    $cloudCleanup = Invoke-CloudDevicesCleanup -Disable -DisableLastSeenEntraMoreThan 180 -IncludeOperatingSystem 'Android*' -ExcludeOperatingSystem '*Dedicated*' -Confirm
+    $cloudCleanup.CurrentRun | Format-Table Name, Action, ActionStatus, ActionDate
+
+    Disables matching Android Entra-backed devices after confirmation and reviews the current run.
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
