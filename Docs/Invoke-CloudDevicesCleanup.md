@@ -33,7 +33,7 @@ Orphan records are still discovered by default, but actioning them is intentiona
 Destructive cloud cleanup treats missing Graph data as unsafe:
 
 - blank activity timestamps are excluded from destructive action selection
-- hybrid Azure AD joined, Azure AD joined, synchronized, and non-registered Intune states are excluded; use `Invoke-ADComputersCleanup` for hybrid device lifecycle cleanup
+- hybrid Azure AD joined, Azure AD joined, synchronized, non-registered, and unknown registration states are excluded; use `Invoke-ADComputersCleanup` for hybrid device lifecycle cleanup
 - pending devices are not promoted if current inventory loses activity that existed when staged
 - Entra-backed disable requires `Enabled -eq $true`
 - Entra-backed delete requires `Enabled -eq $false`

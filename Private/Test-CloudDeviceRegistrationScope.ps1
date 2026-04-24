@@ -21,5 +21,5 @@ function Test-CloudDeviceRegistrationScope {
         return $false
     }
 
-    $true
+    $false
 }
