@@ -214,4 +214,83 @@ Describe 'Invoke-CloudDevicesCleanup' {
         Assert-MockCalled Request-CloudDevicesDelete -Times 0 -Exactly
     }
 
+    It 'uses existing pending actions for report-only candidate selection' {
+        $script:capturedReportOnlyProcessedDevices = $null
+        $pendingActions = [ordered] @{
+            'intune:managed-staged' = [PSCustomObject] @{
+                Name         = 'iPhone-Staged'
+                Action       = 'Retire'
+                ActionStatus = 'True'
+                ActionDate   = (Get-Date).AddDays(-31)
+            }
+        }
+
+        Mock Import-CloudDevicesData { $pendingActions }
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            $script:capturedReportOnlyProcessedDevices = $ProcessedDevices
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -ReportOnly -Suppress | Out-Null
+
+        $script:capturedReportOnlyProcessedDevices.Contains('intune:managed-staged') | Should -BeTrue
+    }
+
+    It 'does not persist WhatIf action results into exported history' {
+        $dataStorePath = Join-Path ([IO.Path]::GetTempPath()) "cleanupmonster-whatif-$([guid]::NewGuid()).xml"
+
+        try {
+            Mock Import-CloudDevicesData { [ordered] @{} }
+            Mock Get-InitialCloudDevices {
+                @(
+                    [PSCustomObject] @{
+                        Name            = 'iPhone-Preview'
+                        ManagedDeviceId = 'managed-preview'
+                        HasIntuneRecord = $true
+                    }
+                )
+            }
+            Mock Get-CloudDevicesToProcess {
+                @(
+                    [PSCustomObject] @{
+                        Name                = 'iPhone-Preview'
+                        ManagedDeviceId     = 'managed-preview'
+                        HasIntuneRecord     = $true
+                        ProcessedDeviceKey  = 'intune:managed-preview'
+                        ProcessedDeviceKeys = @('intune:managed-preview')
+                    }
+                )
+            }
+            Mock Request-CloudDevicesRetire {
+                @(
+                    [PSCustomObject] @{
+                        Name         = 'iPhone-Preview'
+                        Action       = 'Retire'
+                        ActionStatus = 'WhatIf'
+                    }
+                )
+            }
+
+            Invoke-CloudDevicesCleanup -Retire -WhatIfRetire -DataStorePath $dataStorePath -Suppress | Out-Null
+
+            $exportedCloudCleanup = Import-Clixml -LiteralPath $dataStorePath
+            @($exportedCloudCleanup.CurrentRun).Count | Should -Be 1
+            $exportedCloudCleanup.History.Count | Should -Be 0
+            $exportedCloudCleanup.PendingActions.Count | Should -Be 0
+
+        } finally {
+            if (Test-Path -LiteralPath $dataStorePath) {
+                Remove-Item -LiteralPath $dataStorePath -Force
+            }
+        }
+    }
+
 }

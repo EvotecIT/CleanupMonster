@@ -166,13 +166,9 @@ function Invoke-CloudDevicesCleanup {
         PendingActions = [ordered] @{}
     }
 
-    if (-not $ReportOnly) {
-        $processedDevices = Import-CloudDevicesData -DataStorePath $DataStorePath -Export $export
-        if ($processedDevices -eq $false) {
-            return
-        }
-    } else {
-        $processedDevices = [ordered] @{}
+    $processedDevices = Import-CloudDevicesData -DataStorePath $DataStorePath -Export $export
+    if ($processedDevices -eq $false) {
+        return
     }
 
     $allDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions
@@ -194,7 +190,7 @@ function Invoke-CloudDevicesCleanup {
             $processRetire = $PSCmdlet.ShouldProcess("$($devicesToRetire.Count) cloud device(s)", 'Retire')
         }
         if ($processRetire) {
-            $reportRetired = Request-CloudDevicesRetire -Devices $devicesToRetire -ProcessedDevices $processedDevices -Today $today -RetireLimit $RetireLimit -ReportOnly:$ReportOnly -WhatIfRetire:$WhatIfRetire -WhatIf:$WhatIfPreference
+            $reportRetired = @(Request-CloudDevicesRetire -Devices $devicesToRetire -ProcessedDevices $processedDevices -Today $today -RetireLimit $RetireLimit -ReportOnly:$ReportOnly -WhatIfRetire:$WhatIfRetire -WhatIf:$WhatIfPreference)
         }
     }
 
@@ -207,7 +203,7 @@ function Invoke-CloudDevicesCleanup {
             $processDisable = $PSCmdlet.ShouldProcess("$($devicesToDisable.Count) cloud device(s)", 'Disable')
         }
         if ($processDisable) {
-            $reportDisabled = Request-CloudDevicesDisable -Devices $devicesToDisable -ProcessedDevices $processedDevices -Today $today -DisableLimit $DisableLimit -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -WhatIf:$WhatIfPreference
+            $reportDisabled = @(Request-CloudDevicesDisable -Devices $devicesToDisable -ProcessedDevices $processedDevices -Today $today -DisableLimit $DisableLimit -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -WhatIf:$WhatIfPreference)
         }
     }
 
@@ -220,7 +216,7 @@ function Invoke-CloudDevicesCleanup {
             $processDelete = $PSCmdlet.ShouldProcess("$($devicesToDelete.Count) cloud device(s)", 'Delete')
         }
         if ($processDelete) {
-            $reportDeleted = Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference
+            $reportDeleted = @(Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference)
         }
     }
 
@@ -230,11 +226,19 @@ function Invoke-CloudDevicesCleanup {
         if ($reportDisabled.Count -gt 0) { $reportDisabled }
         if ($reportDeleted.Count -gt 0) { $reportDeleted }
     )
+    $persistedRun = @()
+    if ($reportRetired.Count -gt 0) {
+        $persistedRun += @($reportRetired | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
+    }
+    if ($reportDisabled.Count -gt 0) {
+        $persistedRun += @($reportDisabled | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
+    }
+    if ($reportDeleted.Count -gt 0) {
+        $persistedRun += @($reportDeleted | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
+    }
     $export.History = @(
         if ($export.History) { $export.History }
-        if ($reportRetired.Count -gt 0) { $reportRetired }
-        if ($reportDisabled.Count -gt 0) { $reportDisabled }
-        if ($reportDeleted.Count -gt 0) { $reportDeleted }
+        if ($persistedRun.Count -gt 0) { $persistedRun }
     )
 
     if (-not $ReportOnly) {

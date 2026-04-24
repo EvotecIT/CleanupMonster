@@ -41,8 +41,10 @@ function Request-CloudDevicesRetire {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
 
-        if ($actionSucceeded -or $WhatIf -or $WhatIfRetire -or $ReportOnly) {
+        if ($actionSucceeded -and -not ($WhatIf -or $WhatIfRetire -or $ReportOnly)) {
             Set-ProcessedCloudDeviceRecord -ProcessedDevices $ProcessedDevices -Device $device -Result $result
+            $processedCount++
+        } elseif ($actionSucceeded -or $WhatIf -or $WhatIfRetire -or $ReportOnly) {
             $processedCount++
         }
     }

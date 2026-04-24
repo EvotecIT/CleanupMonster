@@ -2,10 +2,98 @@ BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Remove-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Set-ProcessedCloudDeviceRecord.ps1')
+    . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesRetire.ps1')
+    . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDisable.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDelete.ps1')
 
+    function Invoke-MyDeviceRetire {}
+    function Disable-MyDevice {}
     function Remove-MyDevice {}
     function Remove-MyDeviceIntuneRecord {}
+}
+
+Describe 'Request-CloudDevicesRetire' {
+    BeforeEach {
+        Mock Invoke-MyDeviceRetire { [PSCustomObject] @{ Success = $true; Message = 'Preview retire' } }
+    }
+
+    It 'does not store WhatIf retire results in pending actions' {
+        $processedDevices = [ordered] @{}
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'iPhone-Preview'
+                ManagedDeviceId     = 'managed-preview'
+                ProcessedDeviceKey  = 'intune:managed-preview'
+                ProcessedDeviceKeys = @('intune:managed-preview')
+            }
+        )
+
+        $results = @(Request-CloudDevicesRetire -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -WhatIfRetire)
+
+        $results.Count | Should -Be 1
+        $results[0].ActionStatus | Should -Be 'WhatIf'
+        $processedDevices.Count | Should -Be 0
+    }
+
+    It 'does not store report-only retire results in pending actions' {
+        $processedDevices = [ordered] @{}
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'iPhone-ReportOnly'
+                ManagedDeviceId     = 'managed-reportonly'
+                ProcessedDeviceKey  = 'intune:managed-reportonly'
+                ProcessedDeviceKeys = @('intune:managed-reportonly')
+            }
+        )
+
+        $results = @(Request-CloudDevicesRetire -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -ReportOnly)
+
+        $results.Count | Should -Be 1
+        $results[0].ActionStatus | Should -Be 'ReportOnly'
+        $processedDevices.Count | Should -Be 0
+    }
+}
+
+Describe 'Request-CloudDevicesDisable' {
+    BeforeEach {
+        Mock Disable-MyDevice { [PSCustomObject] @{ Success = $true; Message = 'Preview disable' } }
+    }
+
+    It 'does not store WhatIf disable results in pending actions' {
+        $processedDevices = [ordered] @{}
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'iPhone-Preview'
+                ManagedDeviceId     = 'managed-preview'
+                ProcessedDeviceKey  = 'intune:managed-preview'
+                ProcessedDeviceKeys = @('intune:managed-preview')
+            }
+        )
+
+        $results = @(Request-CloudDevicesDisable -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -WhatIfDisable)
+
+        $results.Count | Should -Be 1
+        $results[0].ActionStatus | Should -Be 'WhatIf'
+        $processedDevices.Count | Should -Be 0
+    }
+
+    It 'does not store report-only disable results in pending actions' {
+        $processedDevices = [ordered] @{}
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'iPhone-ReportOnly'
+                ManagedDeviceId     = 'managed-reportonly'
+                ProcessedDeviceKey  = 'intune:managed-reportonly'
+                ProcessedDeviceKeys = @('intune:managed-reportonly')
+            }
+        )
+
+        $results = @(Request-CloudDevicesDisable -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -ReportOnly)
+
+        $results.Count | Should -Be 1
+        $results[0].ActionStatus | Should -Be 'ReportOnly'
+        $processedDevices.Count | Should -Be 0
+    }
 }
 
 Describe 'Request-CloudDevicesDelete' {
