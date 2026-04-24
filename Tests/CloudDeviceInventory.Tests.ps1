@@ -425,6 +425,57 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 0
     }
 
+    It 'does not promote pending-aged devices with stale thresholds after new activity is observed' {
+        $previousEntraLastSeen = (Get-Date).AddDays(-220)
+        $previousIntuneLastSeen = (Get-Date).AddDays(-220)
+        $currentEntraLastSeen = (Get-Date).AddDays(-190)
+        $currentIntuneLastSeen = (Get-Date).AddDays(-190)
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'iPhone-ReactivatedButStillStale'
+                EntraDeviceObjectId    = 'entra-reactivated-stale'
+                DeviceId               = 'device-reactivated-stale'
+                ManagedDeviceId        = 'managed-reactivated-stale'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeen          = $currentEntraLastSeen
+                IntuneLastSeen         = $currentIntuneLastSeen
+                EntraLastSeenDays      = 190
+                IntuneLastSeenDays     = 190
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = 180
+            ListProcessedMoreThan  = 30
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $processedDevices = [ordered] @{
+            'intune:managed-reactivated-stale' = [PSCustomObject] @{
+                Action              = 'Retire'
+                ActionStatus        = 'True'
+                ActionDate          = (Get-Date).AddDays(-31)
+                ManagedDeviceId     = 'managed-reactivated-stale'
+                EntraDeviceObjectId = 'entra-reactivated-stale'
+                DeviceId            = 'device-reactivated-stale'
+                EntraLastSeen       = $previousEntraLastSeen
+                IntuneLastSeen      = $previousIntuneLastSeen
+                ProcessedDeviceKeys = @('intune:managed-reactivated-stale', 'entra:entra-reactivated-stale', 'device:device-reactivated-stale')
+            }
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices $processedDevices)
+
+        $candidates.Count | Should -Be 0
+    }
+
     It 'promotes pending-aged devices when activity has not advanced' {
         $staleEntraLastSeen = (Get-Date).AddDays(-200)
         $staleIntuneLastSeen = (Get-Date).AddDays(-200)

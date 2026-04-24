@@ -89,9 +89,7 @@ function Get-CloudDevicesToProcess {
                 continue
             }
 
-            if ($null -eq $ActionIf.LastSeenEntraMoreThan -and
-                $null -eq $ActionIf.LastSeenIntuneMoreThan -and
-                -not (Test-CloudDevicePendingActivity -Device $device -ProcessedDevice $processedDevice)) {
+            if (-not (Test-CloudDevicePendingActivity -Device $device -ProcessedDevice $processedDevice)) {
                 continue
             }
         }
