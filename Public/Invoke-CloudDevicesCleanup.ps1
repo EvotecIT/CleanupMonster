@@ -1,7 +1,7 @@
 function Invoke-CloudDevicesCleanup {
     <#
     .SYNOPSIS
-    Cleans up stale AzureAD registered cloud devices.
+    Cleans up stale Microsoft Entra registered cloud devices.
 
     .DESCRIPTION
     Handles staged cleanup for Microsoft Entra and Intune cloud device records.
@@ -21,6 +21,8 @@ function Invoke-CloudDevicesCleanup {
     Blank activity timestamps are intentionally excluded from destructive actions by default.
     This follows Microsoft guidance for stale-device cleanup where activity timestamps can be empty
     even for active devices.
+    Hybrid Azure AD joined and Azure AD joined records are excluded from this cloud-device workflow;
+    use Invoke-ADComputersCleanup for hybrid device lifecycle cleanup.
 
     .PARAMETER Retire
     Enables the Intune retire stage.

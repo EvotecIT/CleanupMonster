@@ -258,6 +258,7 @@ What matters most:
 - action candidates include a `SelectionReason` so reports explain why a device qualified
 - orphan records are discovered by default, but stage-specific orphan processing now requires explicit switches
 - default scope is mobile-first: `iOS` and `Android`, with company-owned devices excluded unless requested
+- hybrid Azure AD joined and Azure AD joined devices are excluded from cloud-device cleanup; use `Invoke-ADComputersCleanup` for hybrid device lifecycle cleanup
 - blank current activity is unsafe for destructive selection, including when a pending device had activity before but the current inventory loses it
 - Entra-backed disable requires `Enabled -eq $true`; Entra-backed delete requires `Enabled -eq $false`; unknown enabled state is treated as unsafe
 - `-ReportOnly`, top-level `-WhatIf`, and action-specific preview switches do not add devices to `PendingActions` or persisted `History`

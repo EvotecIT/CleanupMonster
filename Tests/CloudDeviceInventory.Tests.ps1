@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceRegistrationScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceInventoryScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKeys.ps1')
     . (Get-CleanupMonsterPath 'Private/Find-ProcessedCloudDeviceRecord.ps1')
@@ -119,6 +120,84 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices.Count | Should -Be 1
         $devices[0].RecordState | Should -Be 'IntuneOnly'
         $devices[0].ManagedDeviceId | Should -Be 'managed-2'
+    }
+
+    It 'excludes hybrid and joined records from cloud cleanup inventory' {
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                  = 'Hybrid-Windows'
+                    EntraDeviceObjectId   = 'entra-hybrid'
+                    DeviceId              = 'device-hybrid'
+                    Enabled               = $true
+                    OperatingSystem       = 'Windows'
+                    TrustType             = 'Hybrid AzureAD'
+                    IsSynchronized        = $true
+                    LastSeen              = (Get-Date).AddDays(-200)
+                    LastSeenDays          = 200
+                }
+                [PSCustomObject] @{
+                    Name                  = 'Joined-Windows'
+                    EntraDeviceObjectId   = 'entra-joined'
+                    DeviceId              = 'device-joined'
+                    Enabled               = $true
+                    OperatingSystem       = 'Windows'
+                    TrustType             = 'AzureAD joined'
+                    IsSynchronized        = $false
+                    LastSeen              = (Get-Date).AddDays(-200)
+                    LastSeenDays          = 200
+                }
+                [PSCustomObject] @{
+                    Name                  = 'Android-Registered'
+                    EntraDeviceObjectId   = 'entra-registered'
+                    DeviceId              = 'device-registered'
+                    Enabled               = $true
+                    OperatingSystem       = 'Android'
+                    TrustType             = 'AzureAD registered'
+                    IsSynchronized        = $false
+                    LastSeen              = (Get-Date).AddDays(-200)
+                    LastSeenDays          = 200
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Hybrid-Intune'
+                    ManagedDeviceId         = 'managed-hybrid'
+                    EntraDeviceObjectId     = 'entra-hybrid-intune'
+                    AzureAdDeviceId         = 'device-hybrid-intune'
+                    OperatingSystem         = 'Windows'
+                    TrustType               = 'Hybrid AzureAD'
+                    IsSynchronized          = $true
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                    DeviceRegistrationState = 'registered'
+                }
+                [PSCustomObject] @{
+                    Name                    = 'Android-Orphan'
+                    ManagedDeviceId         = 'managed-registered'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-orphan'
+                    OperatingSystem         = 'Android'
+                    TrustType               = 'AzureAD registered'
+                    IsSynchronized          = $false
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                    DeviceRegistrationState = 'registered'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeOperatingSystem @('*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices.Name | Should -Contain 'Android-Registered'
+        $devices.Name | Should -Contain 'Android-Orphan'
+        $devices.Name | Should -Not -Contain 'Hybrid-Windows'
+        $devices.Name | Should -Not -Contain 'Joined-Windows'
+        $devices.Name | Should -Not -Contain 'Hybrid-Intune'
     }
 
     It 'applies managed-device exclusions to matched records' {
