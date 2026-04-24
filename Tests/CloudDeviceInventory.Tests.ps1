@@ -176,6 +176,17 @@ Describe 'Cloud device inventory and selection helpers' {
                     DeviceRegistrationState = 'registered'
                 }
                 [PSCustomObject] @{
+                    Name                    = 'Joined-State-Intune'
+                    ManagedDeviceId         = 'managed-joined-state'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-joined-state'
+                    OperatingSystem         = 'Android'
+                    AzureAdRegistered       = $true
+                    LastSeen                = (Get-Date).AddDays(-200)
+                    LastSeenDays            = 200
+                    DeviceRegistrationState = 'joined'
+                }
+                [PSCustomObject] @{
                     Name                    = 'Android-Orphan'
                     ManagedDeviceId         = 'managed-registered'
                     EntraDeviceObjectId     = $null
@@ -198,6 +209,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices.Name | Should -Not -Contain 'Hybrid-Windows'
         $devices.Name | Should -Not -Contain 'Joined-Windows'
         $devices.Name | Should -Not -Contain 'Hybrid-Intune'
+        $devices.Name | Should -Not -Contain 'Joined-State-Intune'
     }
 
     It 'applies managed-device exclusions to matched records' {

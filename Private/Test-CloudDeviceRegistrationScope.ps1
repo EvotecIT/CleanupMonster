@@ -9,6 +9,10 @@ function Test-CloudDeviceRegistrationScope {
         return $Device.TrustType -eq 'AzureAD registered'
     }
 
+    if ($Device.PSObject.Properties['DeviceRegistrationState'] -and $Device.DeviceRegistrationState) {
+        return $Device.DeviceRegistrationState -eq 'registered'
+    }
+
     if ($Device.PSObject.Properties['IsSynchronized'] -and $Device.IsSynchronized -eq $true) {
         return $false
     }
