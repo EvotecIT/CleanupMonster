@@ -8,12 +8,17 @@ Locale: en-US
 
 # CleanupMonster Module
 ## Description
-{{ Fill in the Description }}
+CleanupMonster provides staged, reportable cleanup workflows for Active Directory computers, cloud devices, service accounts, and SID history.
 
 ## CleanupMonster Cmdlets
 ### [Invoke-ADComputersCleanup](Invoke-ADComputersCleanup.md)
-{{ Fill in the Synopsis }}
+Staged cleanup of stale Active Directory computer objects, including disable, move, disable-and-move, and delete workflows.
 
 ### [Invoke-CloudDevicesCleanup](Invoke-CloudDevicesCleanup.md)
-Staged cleanup of stale AzureAD registered mobile devices from Microsoft Entra ID and Intune.
+Staged cleanup of stale Microsoft Entra registered mobile devices from Microsoft Entra ID and Intune.
 
+### [Invoke-ADServiceAccountsCleanup](Invoke-ADServiceAccountsCleanup.md)
+Staged cleanup of stale Active Directory managed service accounts and group managed service accounts.
+
+### [Invoke-ADSIDHistoryCleanup](Invoke-ADSIDHistoryCleanup.md)
+Targeted cleanup of SID history entries with filtering, reporting, and small removal limits.

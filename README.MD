@@ -25,7 +25,7 @@
 It has multiple functionalities currently & planned:
 - [x] Cleanup stale Computer objects from Active Directory
 - [x] Cleanup SID History from Active Directory
-- [x] Cleanup stale AzureAD registered mobile devices from the cloud side
+- [x] Cleanup stale Microsoft Entra registered mobile devices from the cloud side
 - [ ] Cleanup stale User objects from Active Directory
 - [ ] Cleanup stale Group objects from Active Directory
 - [x] Cleanup GMSA/MSA objects from Active Directory
@@ -80,7 +80,7 @@ Whether you are retiring stale computers, pruning unused `MSA` / `gMSA` objects,
 
 ## Overview 🧭
 
-CleanupMonster is easiest to understand as three end-to-end cleanup paths. They all start with discovery and reporting, but each one is optimized for a different cleanup problem.
+CleanupMonster is easiest to understand as four end-to-end cleanup paths. They all start with discovery and reporting, but each one is optimized for a different cleanup problem.
 
 > [!TIP]
 > If you are new to the module, start with `-ReportOnly` and `-WhatIf`, keep limits low, and validate the generated HTML output before enabling destructive actions.
@@ -88,37 +88,45 @@ CleanupMonster is easiest to understand as three end-to-end cleanup paths. They 
 ```mermaid
 flowchart LR
     classDef computer fill:#D9F2E6,stroke:#1F7A4D,stroke-width:2px,color:#123524;
+    classDef cloud fill:#E6FFFA,stroke:#2C7A7B,stroke-width:2px,color:#234E52;
     classDef service fill:#FFF0CC,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
     classDef sid fill:#DCEBFF,stroke:#2B6CB0,stroke-width:2px,color:#153E75;
     classDef action fill:#F7FAFC,stroke:#4A5568,stroke-width:1px,color:#1A202C;
 
     A["CleanupMonster"] --> B["Computer cleanup"]
-    A --> C["Service-account cleanup"]
-    A --> D["SID history cleanup"]
+    A --> C["Cloud-device cleanup"]
+    A --> D["Service-account cleanup"]
+    A --> E["SID history cleanup"]
 
     B --> B1["Disable"]
     B --> B2["Move"]
     B --> B3["DisableAndMove"]
     B --> B4["Delete after pending age"]
 
-    C --> C1["Disable"]
-    C --> C2["Delete"]
-    C --> C3["Explicit selectors and low limits"]
+    C --> C1["Retire in Intune"]
+    C --> C2["Disable in Entra"]
+    C --> C3["Delete after pending age"]
+    C --> C4["Explicit orphan handling"]
 
-    D --> D1["Discover SID history"]
-    D --> D2["Filter by OU / object type / SID domain"]
-    D --> D3["Remove with small limits"]
+    D --> D1["Disable"]
+    D --> D2["Delete"]
+    D --> D3["Explicit selectors and low limits"]
+
+    E --> E1["Discover SID history"]
+    E --> E2["Filter by OU / object type / SID domain"]
+    E --> E3["Remove with small limits"]
 
     class B,B1,B2,B3,B4 computer;
-    class C,C1,C2,C3 service;
-    class D,D1,D2,D3 sid;
+    class C,C1,C2,C3,C4 cloud;
+    class D,D1,D2,D3 service;
+    class E,E1,E2,E3 sid;
     class A action;
 ```
 
 | Area | Cmdlet | Best for | Typical actions | Recommended mindset |
 | --- | --- | --- | --- | --- |
 | Computer cleanup | `Invoke-ADComputersCleanup` | Stale computer lifecycle management in AD, optionally cross-checked against Azure AD, Intune, and Jamf | Disable, move, disable-and-move, delete | Stage changes across multiple runs |
-| Cloud device cleanup | `Invoke-CloudDevicesCleanup` | Stale AzureAD registered mobile devices that need Intune retire and Entra cleanup | Retire, disable, delete | Retire first, then enforce grace periods |
+| Cloud device cleanup | `Invoke-CloudDevicesCleanup` | Stale Microsoft Entra registered mobile devices that need Intune retire and Entra cleanup | Retire, disable, delete | Retire first, then enforce grace periods |
 | Service-account cleanup | `Invoke-ADServiceAccountsCleanup` | Reviewing and cleaning stale `MSA` / `gMSA` objects with stronger destructive-run guardrails | Disable, delete | Start narrow and require explicit selectors |
 | SID history cleanup | `Invoke-ADSIDHistoryCleanup` | Removing legacy SID history entries with detailed before/after reporting | Report, selective remove | Start with discovery and tiny limits |
 
@@ -201,11 +209,11 @@ Relevant examples:
 
 ### Cloud Device Cleanup 📱
 
-Cloud device cleanup is the Azure-side companion workflow for stale mobile devices. It is intentionally separate from AD computer cleanup because the lifecycle is different: Intune-managed devices should be retired first, while Microsoft Entra directory objects should usually be disabled before final deletion.
+Cloud device cleanup is the Microsoft Entra and Intune companion workflow for stale mobile devices. It is intentionally separate from AD computer cleanup because the lifecycle is different: Intune-managed devices should normally be retired first, while Microsoft Entra directory objects should be disabled and held for a grace period before final deletion.
 
 Use it when you want to:
 
-- review stale AzureAD registered `iOS` and `Android` devices
+- review stale Microsoft Entra registered `iOS` and `Android` devices
 - distinguish matched devices from `EntraOnly` and `IntuneOnly` orphan records
 - retire managed devices first and keep a pending list before later disable/delete steps
 - clean up Intune-only orphan records that no longer have a matching Entra device object
@@ -213,24 +221,34 @@ Use it when you want to:
 Typical lifecycle:
 
 ```mermaid
-flowchart LR
+flowchart TD
     classDef stage fill:#FFF0CC,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
     classDef gate fill:#FFF7E6,stroke:#B7791F,stroke-width:2px,color:#5B3A00;
+    classDef safety fill:#FFE5E5,stroke:#C53030,stroke-width:2px,color:#742A2A;
     classDef outcome fill:#EDF2F7,stroke:#4A5568,stroke-width:1px,color:#1A202C;
 
-    A["Discover cloud device records"] --> B{"Matched or orphan?"}
-    B -- "Matched" --> C["Retire in Intune"]
-    B -- "EntraOnly" --> D["Disable in Entra after grace period"]
-    B -- "IntuneOnly" --> E["Retire or delete orphan Intune record"]
-    C --> F["Add to pending list"]
-    D --> F
-    E --> F
-    F --> G{"Still stale after grace period?"}
-    G -- "Yes" --> H["Delete remaining records"]
-    G -- "No" --> Z["Remain pending / untouched"]
+    A["Discover Entra and Intune records"] --> B{"Activity timestamps present?"}
+    B -- "Missing required activity" --> Z["Exclude from destructive actions"]
+    B -- "Usable activity" --> C{"Matched or orphan?"}
 
-    class A,C,D,E,F,H stage;
-    class B,G gate;
+    C -- "Matched or IntuneOnly allowed" --> D["Retire in Intune"]
+    D --> E["Store real successful action in PendingActions"]
+    E --> F{"Later run: still stale and pending age met?"}
+
+    C -- "Matched or EntraOnly allowed" --> G{"Entra Enabled known?"}
+    G -- "Unknown" --> U["Treat as unsafe"]
+    G -- "Enabled = true" --> H["Disable in Entra"]
+    H --> E
+
+    F -- "Disable gate" --> G
+    F -- "Delete gate" --> I{"Entra Enabled = false or IntuneOnly?"}
+    I -- "No / unknown" --> U
+    I -- "Yes" --> J["Delete Entra object and eligible Intune record"]
+    F -- "Activity changed or disappeared" --> Z
+
+    class A,D,E,H,J stage;
+    class B,C,F,G,I gate;
+    class U safety;
     class Z outcome;
 ```
 
@@ -240,12 +258,19 @@ What matters most:
 - action candidates include a `SelectionReason` so reports explain why a device qualified
 - orphan records are discovered by default, but stage-specific orphan processing now requires explicit switches
 - default scope is mobile-first: `iOS` and `Android`, with company-owned devices excluded unless requested
+- blank current activity is unsafe for destructive selection, including when a pending device had activity before but the current inventory loses it
+- Entra-backed disable requires `Enabled -eq $true`; Entra-backed delete requires `Enabled -eq $false`; unknown enabled state is treated as unsafe
+- `-ReportOnly`, top-level `-WhatIf`, and action-specific preview switches do not add devices to `PendingActions` or persisted `History`
+- `-Confirm` prompts at the top-level action stage before destructive retire, disable, or delete requests are submitted
 
 Recommended production stance:
 
 - discover all record states in the report
 - action matched records first
 - enable `-RetireIncludeIntuneOnly`, `-DisableIncludeEntraOnly`, `-DeleteIncludeEntraOnly`, and `-DeleteIncludeIntuneOnly` only after reviewing orphan behavior in your tenant
+- use `SafetyEntraLimit` and `SafetyIntuneLimit` to stop cleanup when Graph returns suspiciously low inventory
+- keep `RetireLimit`, `DisableLimit`, and `DeleteLimit` low until the report output matches expectations
+- store `DataStorePath` somewhere durable and backed up, because staged cleanup depends on the pending-action history
 
 Relevant examples:
 
@@ -361,7 +386,8 @@ These are good defaults almost everywhere:
 
 - `-ReportOnly` for first-pass validation
 - top-level `-WhatIf` for broad previews
-- action-specific `-WhatIfDisable`, `-WhatIfMove`, and `-WhatIfDelete` when you want mixed behavior
+- top-level `-Confirm` for interactive confirmation before destructive action batches
+- action-specific `-WhatIfRetire`, `-WhatIfDisable`, `-WhatIfMove`, and `-WhatIfDelete` when you want mixed behavior
 - low action limits during rollout, then widen later
 - HTML reporting plus log files for every scheduled run
 
@@ -371,6 +397,7 @@ These help ensure your data sources are healthy before any action happens:
 
 - `SafetyADLimit` to stop if AD returns fewer objects than expected
 - `SafetyAzureADLimit`, `SafetyIntuneLimit`, and `SafetyJamfLimit` when cloud/device-source validation matters
+- `SafetyEntraLimit` and `SafetyIntuneLimit` for cloud-device cleanup to stop on partial Microsoft Graph inventory
 - `TargetServers` when you want deterministic domain-controller selection
 
 ### Workflow guards
@@ -380,6 +407,8 @@ These reduce risk in destructive cleanup patterns:
 - pending-list aging via `DeleteListProcessedMoreThan` or `MoveListProcessedMoreThan`
 - OU quarantine with `-Move` or `-DisableAndMove`
 - exclusions for known-sensitive OUs, names, or systems
+- cloud-device activity and enabled-state checks that treat missing data as unsafe for destructive cleanup
+- explicit orphan switches before cloud cleanup actions touch `EntraOnly` or `IntuneOnly` records
 - service-account explicit selectors before destructive runs
 - protected-from-accidental-deletion checks for move/delete operations
 
@@ -389,7 +418,7 @@ These reduce risk in destructive cleanup patterns:
 | --- | --- |
 | First lab / pilot | `-ReportOnly`, top-level `-WhatIf`, low limits, HTML report, log file |
 | Early production rollout | Explicit exclusions, low limits, AD safety limit, pending-list staging, action-specific `WhatIf` for risky steps |
-| Mature production automation | AD and cloud safety limits, staged disable/delete windows, OU quarantine, reports/logs, explicit target servers where needed |
+| Mature production automation | AD and cloud safety limits, staged disable/delete windows, OU quarantine, durable datastores, reports/logs, explicit target servers where needed |
 
 ## Rollout Pattern 🪜
 
@@ -407,6 +436,14 @@ For service accounts, start even narrower:
 2. keep `DisableLimit` / `DeleteLimit` low
 3. review the report
 4. then automate
+
+For cloud devices, treat missing Graph data as a stop sign:
+
+1. run `Invoke-CloudDevicesCleanup -Retire -Disable -Delete -ReportOnly -WhatIf -ShowHTML`
+2. review `Matched`, `EntraOnly`, and `IntuneOnly` records separately
+3. keep orphan action switches disabled until you understand tenant-specific orphan patterns
+4. set `SafetyEntraLimit` and `SafetyIntuneLimit` before production runs
+5. enable retire first, then disable/delete only after pending-age behavior is proven
 
 For SID history, start by discovering:
 
@@ -618,6 +655,121 @@ $invokeADComputersCleanupSplat = @{
 $Output = Invoke-ADComputersCleanup @invokeADComputersCleanupSplat
 $Output
 ```
+
+### Cloud Device Walkthrough 📱
+
+Cloud-device cleanup has its own datastore and report because the cloud lifecycle is staged differently from AD computers. The safest operating model is to preview first, retire stale Intune-managed devices, then use pending-list age before disable/delete stages.
+
+#### Report only
+
+```powershell
+$Output = Invoke-CloudDevicesCleanup `
+    -Retire `
+    -Disable `
+    -Delete `
+    -ReportOnly `
+    -WhatIf `
+    -ShowHTML `
+    -SafetyEntraLimit 1000 `
+    -SafetyIntuneLimit 1000
+
+$Output.CurrentRun
+```
+
+This reads existing pending actions so staged candidates are visible, but it does not write updated cleanup state.
+
+#### Retire stale Intune devices
+
+```powershell
+$Output = Invoke-CloudDevicesCleanup `
+    -Retire `
+    -RetireLastSeenIntuneMoreThan 120 `
+    -RetireLimit 10 `
+    -DataStorePath "$PSScriptRoot\CloudDevices\ProcessedCloudDevices.xml" `
+    -ReportPath "$PSScriptRoot\Reports\CloudDevicesRetire.html" `
+    -ShowHTML `
+    -Confirm
+
+$Output.CurrentRun | Format-Table Name, RecordState, Action, ActionStatus, SelectionReason
+```
+
+Successful real retire actions are stored in `PendingActions`. Preview actions from `-WhatIf`, `-WhatIfRetire`, or `-ReportOnly` are not promoted to pending state.
+
+#### Disable after a pending grace period
+
+```powershell
+$Output = Invoke-CloudDevicesCleanup `
+    -Disable `
+    -DisableListProcessedMoreThan 30 `
+    -DisableLimit 10 `
+    -DataStorePath "$PSScriptRoot\CloudDevices\ProcessedCloudDevices.xml" `
+    -ReportPath "$PSScriptRoot\Reports\CloudDevicesDisable.html" `
+    -SafetyEntraLimit 1000 `
+    -WhatIfDisable `
+    -ShowHTML
+
+$Output.CurrentRun
+```
+
+Disable is conservative by design. Entra-backed devices are selected only when the current inventory says `Enabled` is exactly `$true`. If Graph omits the enabled state, the device is treated as unsafe and excluded.
+
+#### Delete disabled or Intune-only records
+
+```powershell
+$Output = Invoke-CloudDevicesCleanup `
+    -Delete `
+    -DeleteListProcessedMoreThan 30 `
+    -DeleteLimit 5 `
+    -DeleteIncludeIntuneOnly `
+    -DeleteRemoveIntuneRecord $true `
+    -DataStorePath "$PSScriptRoot\CloudDevices\ProcessedCloudDevices.xml" `
+    -ReportPath "$PSScriptRoot\Reports\CloudDevicesDelete.html" `
+    -WhatIfDelete `
+    -ShowHTML
+
+$Output.CurrentRun | Format-Table Name, RecordState, Action, ActionStatus, ActionError
+```
+
+Entra-backed delete requires the current inventory to say `Enabled` is exactly `$false`. If a pending device previously had activity timestamps but the current inventory loses them, CleanupMonster will not promote it to the next destructive stage.
+
+#### Full staged cloud profile
+
+```powershell
+$invokeCloudDevicesCleanupSplat = @{
+    Retire                         = $true
+    RetireLastSeenIntuneMoreThan   = 120
+    RetireLimit                    = 10
+
+    Disable                        = $true
+    DisableListProcessedMoreThan   = 30
+    DisableLimit                   = 10
+
+    Delete                         = $true
+    DeleteListProcessedMoreThan    = 30
+    DeleteLimit                    = 5
+    DeleteRemoveIntuneRecord       = $true
+
+    IncludeOperatingSystem         = @('iOS*', 'Android*')
+    ExcludeOperatingSystem         = @('*Dedicated*')
+    IncludeCompanyOwned            = $false
+
+    SafetyEntraLimit               = 1000
+    SafetyIntuneLimit              = 1000
+    DataStorePath                  = "$PSScriptRoot\CloudDevices\ProcessedCloudDevices.xml"
+    ReportPath                     = "$PSScriptRoot\Reports\CloudDevices_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
+    LogPath                        = "$PSScriptRoot\Logs\CloudDevices_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log"
+
+    WhatIfRetire                   = $true
+    WhatIfDisable                  = $true
+    WhatIfDelete                   = $true
+    ShowHTML                       = $true
+}
+
+$Output = Invoke-CloudDevicesCleanup @invokeCloudDevicesCleanupSplat
+$Output
+```
+
+Remove the action-specific `WhatIf` switches gradually after reports are reviewed and the pending-action lifecycle is behaving as expected.
 
 ### Service-Account Walkthrough 🔐
 
