@@ -53,7 +53,7 @@ function Get-CloudDevicesToProcess {
                 continue
             }
         } elseif ($Type -eq 'Disable') {
-            if (-not $device.HasEntraRecord -or $device.Enabled -eq $false) {
+            if (-not $device.HasEntraRecord -or $device.Enabled -ne $true) {
                 continue
             }
             if ($device.RecordState -eq 'IntuneOnly') {
@@ -66,7 +66,7 @@ function Get-CloudDevicesToProcess {
             if (-not $device.HasEntraRecord -and -not $device.HasIntuneRecord) {
                 continue
             }
-            if ($device.HasEntraRecord -and $device.Enabled -eq $true) {
+            if ($device.HasEntraRecord -and $device.RecordState -ne 'IntuneOnly' -and $device.Enabled -ne $false) {
                 continue
             }
             if ($device.RecordState -eq 'EntraOnly' -and -not $ActionIf.IncludeEntraOnly) {

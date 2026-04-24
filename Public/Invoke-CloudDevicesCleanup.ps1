@@ -133,6 +133,8 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
+    $confirmActions = $PSBoundParameters.ContainsKey('Confirm') -and [bool] $PSBoundParameters['Confirm']
+
     $retireOnlyIf = [ordered] @{
         LastSeenIntuneMoreThan = $RetireLastSeenIntuneMoreThan
         LastSeenEntraMoreThan  = $RetireLastSeenEntraMoreThan
@@ -184,24 +186,42 @@ function Invoke-CloudDevicesCleanup {
     $reportDeleted = @()
 
     if ($Retire) {
-        $devicesToRetire = Get-CloudDevicesToProcess -Type Retire -Devices $allDevices -ActionIf $retireOnlyIf -ProcessedDevices $processedDevices
+        $devicesToRetire = @(Get-CloudDevicesToProcess -Type Retire -Devices $allDevices -ActionIf $retireOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be retired: ', $devicesToRetire.Count, '. Current retire limit: ', $(if ($RetireLimit -eq 0) { 'Unlimited' } else { $RetireLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
 
-        $reportRetired = Request-CloudDevicesRetire -Devices $devicesToRetire -ProcessedDevices $processedDevices -Today $today -RetireLimit $RetireLimit -ReportOnly:$ReportOnly -WhatIfRetire:$WhatIfRetire -WhatIf:$WhatIfPreference
+        $processRetire = $devicesToRetire.Count -gt 0
+        if ($processRetire -and $confirmActions -and -not ($ReportOnly -or $WhatIfPreference -or $WhatIfRetire)) {
+            $processRetire = $PSCmdlet.ShouldProcess("$($devicesToRetire.Count) cloud device(s)", 'Retire')
+        }
+        if ($processRetire) {
+            $reportRetired = Request-CloudDevicesRetire -Devices $devicesToRetire -ProcessedDevices $processedDevices -Today $today -RetireLimit $RetireLimit -ReportOnly:$ReportOnly -WhatIfRetire:$WhatIfRetire -WhatIf:$WhatIfPreference
+        }
     }
 
     if ($Disable) {
-        $devicesToDisable = Get-CloudDevicesToProcess -Type Disable -Devices $allDevices -ActionIf $disableOnlyIf -ProcessedDevices $processedDevices
+        $devicesToDisable = @(Get-CloudDevicesToProcess -Type Disable -Devices $allDevices -ActionIf $disableOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be disabled: ', $devicesToDisable.Count, '. Current disable limit: ', $(if ($DisableLimit -eq 0) { 'Unlimited' } else { $DisableLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
 
-        $reportDisabled = Request-CloudDevicesDisable -Devices $devicesToDisable -ProcessedDevices $processedDevices -Today $today -DisableLimit $DisableLimit -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -WhatIf:$WhatIfPreference
+        $processDisable = $devicesToDisable.Count -gt 0
+        if ($processDisable -and $confirmActions -and -not ($ReportOnly -or $WhatIfPreference -or $WhatIfDisable)) {
+            $processDisable = $PSCmdlet.ShouldProcess("$($devicesToDisable.Count) cloud device(s)", 'Disable')
+        }
+        if ($processDisable) {
+            $reportDisabled = Request-CloudDevicesDisable -Devices $devicesToDisable -ProcessedDevices $processedDevices -Today $today -DisableLimit $DisableLimit -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -WhatIf:$WhatIfPreference
+        }
     }
 
     if ($Delete) {
-        $devicesToDelete = Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $deleteOnlyIf -ProcessedDevices $processedDevices
+        $devicesToDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $deleteOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be deleted: ', $devicesToDelete.Count, '. Current delete limit: ', $(if ($DeleteLimit -eq 0) { 'Unlimited' } else { $DeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
 
-        $reportDeleted = Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference
+        $processDelete = $devicesToDelete.Count -gt 0
+        if ($processDelete -and $confirmActions -and -not ($ReportOnly -or $WhatIfPreference -or $WhatIfDelete)) {
+            $processDelete = $PSCmdlet.ShouldProcess("$($devicesToDelete.Count) cloud device(s)", 'Delete')
+        }
+        if ($processDelete) {
+            $reportDeleted = Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference
+        }
     }
 
     $export.PendingActions = $processedDevices

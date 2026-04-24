@@ -28,7 +28,7 @@ function Test-CloudDevicePendingActivity {
         }
 
         if ($null -eq $currentActivity) {
-            continue
+            return $false
         }
 
         if ([datetime] $currentActivity -gt [datetime] $processedActivity) {

@@ -37,6 +37,13 @@ Describe 'Invoke-CloudDevicesCleanup' {
             )
         }
         Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
             @(
                 [PSCustomObject] @{
                     Name                = 'iPhone-01'
@@ -48,7 +55,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
                     ProcessedDeviceKey  = 'entra:entra-1'
                 }
             )
-        } -ParameterFilter { $Type -eq 'Retire' }
+        }
         Mock Request-CloudDevicesRetire {
             @(
                 [PSCustomObject] @{
@@ -59,7 +66,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
             )
         }
 
-        Invoke-CloudDevicesCleanup -Retire -Suppress | Out-Null
+        Invoke-CloudDevicesCleanup -Retire -Confirm:$false -Suppress | Out-Null
 
         Assert-MockCalled Request-CloudDevicesRetire -Times 1 -Exactly
     }
@@ -108,7 +115,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
             )
             $script:capturedRetireExcludeCompanyOwned = $ActionIf.ExcludeCompanyOwned
             @()
-        } -ParameterFilter { $Type -eq 'Retire' }
+        }
 
         Invoke-CloudDevicesCleanup -Retire -IncludeCompanyOwned -Suppress | Out-Null
 
@@ -192,4 +199,19 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedDeleteIncludeEntraOnly | Should -BeTrue
         $script:capturedDeleteIncludeIntuneOnly | Should -BeTrue
     }
+
+    It 'skips action request stages when no candidates are selected' {
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess { @() }
+        Mock Request-CloudDevicesRetire { @() }
+        Mock Request-CloudDevicesDisable { @() }
+        Mock Request-CloudDevicesDelete { @() }
+
+        Invoke-CloudDevicesCleanup -Retire -Disable -Delete -Suppress | Out-Null
+
+        Assert-MockCalled Request-CloudDevicesRetire -Times 0 -Exactly
+        Assert-MockCalled Request-CloudDevicesDisable -Times 0 -Exactly
+        Assert-MockCalled Request-CloudDevicesDelete -Times 0 -Exactly
+    }
+
 }
