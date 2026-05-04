@@ -44,6 +44,7 @@ Describe 'Move workflow helpers' {
             'PC1$@contoso.com' = [PSCustomObject] @{
                 SamAccountName      = 'PC1$'
                 DistinguishedName   = $computer.DistinguishedName
+                ActionStatus        = $true
                 ActionDate          = (Get-Date).AddDays(-5)
                 TimeToLeavePendingList = $null
             }

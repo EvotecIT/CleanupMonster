@@ -27,6 +27,16 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $res = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts @($acc1,$acc2) -ActionIf @{ LastLogonDateMoreThan = 30 }
         $res.SamAccountName | Should -Be @('gmsa1')
     }
+    It 'does not treat missing LastLogonDate as stale by default' {
+        $acc = [pscustomobject]@{ SamAccountName='gmsa-missing'; DistinguishedName='CN=gmsa-missing,DC=lab,DC=local'; LastLogonDate=$null; PasswordLastSet=(Get-Date).AddDays(-100); WhenCreated=(Get-Date).AddYears(-1) }
+        $res = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts @($acc) -ActionIf @{ LastLogonDateMoreThan = 30 }
+        $res | Should -BeNullOrEmpty
+    }
+    It 'can explicitly treat missing LastLogonDate as stale' {
+        $acc = [pscustomobject]@{ SamAccountName='gmsa-missing'; DistinguishedName='CN=gmsa-missing,DC=lab,DC=local'; LastLogonDate=$null; PasswordLastSet=(Get-Date).AddDays(-100); WhenCreated=(Get-Date).AddYears(-1) }
+        $res = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts @($acc) -ActionIf @{ LastLogonDateMoreThan = 30; TreatMissingLastLogonDateAsStale = $true }
+        $res.SamAccountName | Should -Be 'gmsa-missing'
+    }
     It 'supports WhatIf' {
         { Invoke-ADServiceAccountsCleanup -Disable -ReportOnly -WhatIfDisable } | Should -Not -Throw
     }
@@ -299,5 +309,26 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $result | Should -BeNullOrEmpty
         Assert-MockCalled Get-ADServiceAccount -Times 0
         Assert-MockCalled Remove-ADObject -Times 0
+    }
+
+    It 'propagates top-level WhatIf to service-account disable reporting' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            @(
+                [pscustomobject]@{
+                    SamAccountName    = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=domain,DC=local'
+                    LastLogonDate     = (Get-Date).AddDays(-120)
+                    PasswordLastSet   = (Get-Date).AddDays(-120)
+                    WhenCreated       = (Get-Date).AddYears(-1)
+                }
+            )
+        }
+        Mock -CommandName Disable-ADAccount {}
+
+        $result = Invoke-ADServiceAccountsCleanup -Disable -DisableLastLogonDateMoreThan 30 -WhatIf
+
+        $result.CurrentRun | Should -HaveCount 1
+        $result.CurrentRun[0].ActionStatus | Should -Be 'WhatIf'
+        Assert-MockCalled Disable-ADAccount -Times 0
     }
 }

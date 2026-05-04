@@ -88,13 +88,15 @@
                     $Computer.ActionStatus = $Success
                 }
 
-                # We add computer to pending list in all cases because otherwise we would be going in circles
-                # if move or delete were not enabled
-                # please use -DoNotAddToPendingList if you don't want to add computer to pending list
-                if (-not $DoNotAddToPendingList) {
+                # Only successful real disable actions should enter the pending list.
+                if ($Success -and -not $WhatIfDisable.IsPresent -and -not $DoNotAddToPendingList) {
                     $FullComputerName = -join ($Computer.SamAccountName, '@', $Domain)
                     # Lets add computer to pending list, and lets set time how long it's there so it can be easily visible in reports
-                    $Computer.TimeOnPendingList = 0
+                    if ($Computer.PSObject.Properties.Name -contains 'TimeOnPendingList') {
+                        $Computer.TimeOnPendingList = 0
+                    } else {
+                        Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'TimeOnPendingList' -Value 0 -Force
+                    }
                     $ProcessedComputers[$FullComputerName] = $Computer
                 }
 

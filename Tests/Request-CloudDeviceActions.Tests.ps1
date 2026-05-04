@@ -52,6 +52,26 @@ Describe 'Request-CloudDevicesRetire' {
         $results[0].ActionStatus | Should -Be 'ReportOnly'
         $processedDevices.Count | Should -Be 0
     }
+
+    It 'counts failed retire attempts toward the retire limit' {
+        Mock Invoke-MyDeviceRetire { [PSCustomObject] @{ Success = $false; Message = 'Retire failed' } }
+
+        $processedDevices = [ordered] @{}
+        $devices = 1..3 | ForEach-Object {
+            [PSCustomObject] @{
+                Name                = "iPhone-Fail-$_"
+                ManagedDeviceId     = "managed-fail-$_"
+                ProcessedDeviceKey  = "intune:managed-fail-$_"
+                ProcessedDeviceKeys = @("intune:managed-fail-$_")
+            }
+        }
+
+        $results = @(Request-CloudDevicesRetire -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -RetireLimit 1)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'False'
+        Assert-MockCalled Invoke-MyDeviceRetire -Times 1 -Exactly
+    }
 }
 
 Describe 'Request-CloudDevicesDisable' {
@@ -93,6 +113,26 @@ Describe 'Request-CloudDevicesDisable' {
         $results.Count | Should -Be 1
         $results[0].ActionStatus | Should -Be 'ReportOnly'
         $processedDevices.Count | Should -Be 0
+    }
+
+    It 'counts failed disable attempts toward the disable limit' {
+        Mock Disable-MyDevice { [PSCustomObject] @{ Success = $false; Message = 'Disable failed' } }
+
+        $processedDevices = [ordered] @{}
+        $devices = 1..3 | ForEach-Object {
+            [PSCustomObject] @{
+                Name                = "iPhone-Fail-$_"
+                ManagedDeviceId     = "managed-fail-$_"
+                ProcessedDeviceKey  = "intune:managed-fail-$_"
+                ProcessedDeviceKeys = @("intune:managed-fail-$_")
+            }
+        }
+
+        $results = @(Request-CloudDevicesDisable -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -DisableLimit 1)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'False'
+        Assert-MockCalled Disable-MyDevice -Times 1 -Exactly
     }
 }
 
@@ -160,5 +200,29 @@ Describe 'Request-CloudDevicesDelete' {
         $results[0].ActionNotes | Should -Match 'Intune: Removed Intune record'
         Assert-MockCalled Remove-MyDevice -Times 0 -Exactly
         Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 1 -Exactly
+    }
+
+    It 'counts failed delete attempts toward the delete limit' {
+        Mock Remove-MyDevice { [PSCustomObject] @{ Success = $false; Message = 'Delete failed' } }
+        Mock Remove-MyDeviceIntuneRecord {}
+
+        $processedDevices = [ordered] @{}
+        $devices = 1..3 | ForEach-Object {
+            [PSCustomObject] @{
+                Name                = "iPhone-Fail-$_"
+                EntraDeviceObjectId = "entra-fail-$_"
+                HasEntraRecord      = $true
+                HasIntuneRecord     = $false
+                RecordState         = 'EntraOnly'
+                ProcessedDeviceKey  = "entra:entra-fail-$_"
+                ProcessedDeviceKeys = @("entra:entra-fail-$_")
+            }
+        }
+
+        $results = @(Request-CloudDevicesDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -DeleteLimit 1)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'False'
+        Assert-MockCalled Remove-MyDevice -Times 1 -Exactly
     }
 }

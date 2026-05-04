@@ -78,3 +78,8 @@ Wildcards are supported.
 ### -ExcludeAccounts
 Exclude matching `SamAccountName` values from processing.
 Wildcards are supported.
+
+### Missing timestamp switches
+Missing `LastLogonDate`, `PasswordLastSet`, or `WhenCreated` values are not treated as stale by default when the matching age filter is used.
+Use `-DisableTreatMissingLastLogonDateAsStale`, `-DisableTreatMissingPasswordLastSetAsStale`,
+`-DisableTreatMissingWhenCreatedAsStale`, and their `Delete*` equivalents only when that is the intended policy.

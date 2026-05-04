@@ -317,6 +317,7 @@ What matters most:
 - `IncludeAccounts` counts as an explicit selector
 - preview scenarios with `-ReportOnly`, `-WhatIf`, `-WhatIfDisable`, or `-WhatIfDelete` are allowed even without destructive selectors
 - accounts scheduled for disable in a run are skipped from delete in that same run
+- missing `LastLogonDate`, `PasswordLastSet`, or `WhenCreated` values are not treated as stale unless you explicitly enable the matching `TreatMissing*AsStale` switch
 
 Good starter profiles:
 

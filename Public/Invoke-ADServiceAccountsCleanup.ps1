@@ -39,6 +39,15 @@ function Invoke-ADServiceAccountsCleanup {
     .PARAMETER DisableWhenCreatedMoreThan
     Disable accounts created more than the specified number of days ago.
 
+    .PARAMETER DisableTreatMissingLastLogonDateAsStale
+    Treat accounts with missing LastLogonDate as matching DisableLastLogonDateMoreThan.
+
+    .PARAMETER DisableTreatMissingPasswordLastSetAsStale
+    Treat accounts with missing PasswordLastSet as matching DisablePasswordLastSetMoreThan.
+
+    .PARAMETER DisableTreatMissingWhenCreatedAsStale
+    Treat accounts with missing WhenCreated as matching DisableWhenCreatedMoreThan.
+
     .PARAMETER DeleteLastLogonDateMoreThan
     Delete accounts that have not logged on for the specified number of days.
 
@@ -47,6 +56,15 @@ function Invoke-ADServiceAccountsCleanup {
 
     .PARAMETER DeleteWhenCreatedMoreThan
     Delete accounts created more than the specified number of days ago.
+
+    .PARAMETER DeleteTreatMissingLastLogonDateAsStale
+    Treat accounts with missing LastLogonDate as matching DeleteLastLogonDateMoreThan.
+
+    .PARAMETER DeleteTreatMissingPasswordLastSetAsStale
+    Treat accounts with missing PasswordLastSet as matching DeletePasswordLastSetMoreThan.
+
+    .PARAMETER DeleteTreatMissingWhenCreatedAsStale
+    Treat accounts with missing WhenCreated as matching DeleteWhenCreatedMoreThan.
 
     .PARAMETER DisableLimit
     Limit the number of service accounts that will be disabled. 0 = unlimited. Default is 1.
@@ -126,10 +144,16 @@ function Invoke-ADServiceAccountsCleanup {
         [int] $DisableLastLogonDateMoreThan,
         [int] $DisablePasswordLastSetMoreThan,
         [int] $DisableWhenCreatedMoreThan,
+        [switch] $DisableTreatMissingLastLogonDateAsStale,
+        [switch] $DisableTreatMissingPasswordLastSetAsStale,
+        [switch] $DisableTreatMissingWhenCreatedAsStale,
         [int] $DisableLimit = 1,
         [int] $DeleteLastLogonDateMoreThan,
         [int] $DeletePasswordLastSetMoreThan,
         [int] $DeleteWhenCreatedMoreThan,
+        [switch] $DeleteTreatMissingLastLogonDateAsStale,
+        [switch] $DeleteTreatMissingPasswordLastSetAsStale,
+        [switch] $DeleteTreatMissingWhenCreatedAsStale,
         [int] $DeleteLimit = 1,
         [nullable[int]] $SafetyADLimit,
         [switch] $ReportOnly,
@@ -157,6 +181,15 @@ function Invoke-ADServiceAccountsCleanup {
 
     Write-Color -Text "[i] ", "Started process of cleaning up service accounts" -Color Yellow, White
     Write-Color -Text "[i] ", "Executed by: ", $Env:USERNAME, ' from domain ', $Env:USERDNSDOMAIN -Color Yellow, White, Green, White
+
+    if ($WhatIfPreference) {
+        if (-not $PSBoundParameters.ContainsKey('WhatIfDisable')) {
+            $WhatIfDisable = $true
+        }
+        if (-not $PSBoundParameters.ContainsKey('WhatIfDelete')) {
+            $WhatIfDelete = $true
+        }
+    }
 
     try {
         $ForestInformation = Get-WinADForestDetails -PreferWritable -Forest $Forest -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains
@@ -206,14 +239,28 @@ function Invoke-ADServiceAccountsCleanup {
     foreach ($Domain in $Report.Keys) {
         $Accounts = $Report[$Domain]['Accounts']
         if ($Disable) {
-            $DisableOnlyIf = @{ LastLogonDateMoreThan = $DisableLastLogonDateMoreThan; PasswordLastSetMoreThan = $DisablePasswordLastSetMoreThan; WhenCreatedMoreThan = $DisableWhenCreatedMoreThan }
+            $DisableOnlyIf = @{
+                LastLogonDateMoreThan             = $DisableLastLogonDateMoreThan
+                PasswordLastSetMoreThan           = $DisablePasswordLastSetMoreThan
+                WhenCreatedMoreThan               = $DisableWhenCreatedMoreThan
+                TreatMissingLastLogonDateAsStale  = $DisableTreatMissingLastLogonDateAsStale.IsPresent
+                TreatMissingPasswordLastSetAsStale = $DisableTreatMissingPasswordLastSetAsStale.IsPresent
+                TreatMissingWhenCreatedAsStale    = $DisableTreatMissingWhenCreatedAsStale.IsPresent
+            }
             $ToDisable = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $Accounts -ActionIf $DisableOnlyIf -Exclusions $ExcludeAccounts
             $ScheduledForDisableByDomain[$Domain] = @($ToDisable | ForEach-Object { $_.DistinguishedName })
             $Report[$Domain]['AccountsToBeDisabled'] = $ToDisable.Count
             $Processed += Request-ADServiceAccountsDisable -Accounts $ToDisable -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -DisableLimit $DisableLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
         }
         if ($Delete) {
-            $DeleteOnlyIf = @{ LastLogonDateMoreThan = $DeleteLastLogonDateMoreThan; PasswordLastSetMoreThan = $DeletePasswordLastSetMoreThan; WhenCreatedMoreThan = $DeleteWhenCreatedMoreThan }
+            $DeleteOnlyIf = @{
+                LastLogonDateMoreThan             = $DeleteLastLogonDateMoreThan
+                PasswordLastSetMoreThan           = $DeletePasswordLastSetMoreThan
+                WhenCreatedMoreThan               = $DeleteWhenCreatedMoreThan
+                TreatMissingLastLogonDateAsStale  = $DeleteTreatMissingLastLogonDateAsStale.IsPresent
+                TreatMissingPasswordLastSetAsStale = $DeleteTreatMissingPasswordLastSetAsStale.IsPresent
+                TreatMissingWhenCreatedAsStale    = $DeleteTreatMissingWhenCreatedAsStale.IsPresent
+            }
             $ToDelete = Get-ADServiceAccountsToProcess -Type 'Delete' -Accounts $Accounts -ActionIf $DeleteOnlyIf -Exclusions $ExcludeAccounts
             if ($ScheduledForDisableByDomain[$Domain].Count -gt 0) {
                 $AccountsScheduledForDisable = $ScheduledForDisableByDomain[$Domain]

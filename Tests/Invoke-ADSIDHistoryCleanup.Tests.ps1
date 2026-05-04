@@ -24,4 +24,38 @@ Describe 'Invoke-ADSIDHistoryCleanup' {
         $result | Should -BeNullOrEmpty
         Assert-MockCalled Get-WinADSIDHistory -Times 0
     }
+
+    It 'does not stop when SID-history inventory equals SafetyADLimit' {
+        Mock Get-WinADSIDHistory {
+            [ordered] @{
+                All        = @([PSCustomObject] @{ Name = 'User1' })
+                DomainSIDs = @{}
+            }
+        }
+        Mock Request-ADSIDHistory {}
+
+        Invoke-ADSIDHistoryCleanup -ReportOnly -SafetyADLimit 1 -Suppress
+
+        Assert-MockCalled Request-ADSIDHistory -Times 1 -Exactly
+    }
+
+    It 'requests version metadata for the SIDHistory cleanup cmdlet' {
+        $script:capturedVersionCmdlet = $null
+        Mock Get-GitHubVersion {
+            param($Cmdlet, $RepositoryOwner, $RepositoryName)
+            $script:capturedVersionCmdlet = $Cmdlet
+            '0.0.0'
+        }
+        Mock Get-WinADSIDHistory {
+            [ordered] @{
+                All        = @()
+                DomainSIDs = @{}
+            }
+        }
+        Mock Request-ADSIDHistory {}
+
+        Invoke-ADSIDHistoryCleanup -ReportOnly -Suppress
+
+        $script:capturedVersionCmdlet | Should -Be 'Invoke-ADSIDHistoryCleanup'
+    }
 }

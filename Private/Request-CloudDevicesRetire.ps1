@@ -18,10 +18,10 @@ function Request-CloudDevicesRetire {
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
-    $processedCount = 0
+    $attemptedCount = 0
 
     foreach ($device in $Devices) {
-        if ($RetireLimit -gt 0 -and $processedCount -ge $RetireLimit) {
+        if ($RetireLimit -gt 0 -and $attemptedCount -ge $RetireLimit) {
             break
         }
 
@@ -40,12 +40,10 @@ function Request-CloudDevicesRetire {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'Retire' -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
+        $attemptedCount++
 
         if ($actionSucceeded -and -not ($WhatIf -or $WhatIfRetire -or $ReportOnly)) {
             Set-ProcessedCloudDeviceRecord -ProcessedDevices $ProcessedDevices -Device $device -Result $result
-            $processedCount++
-        } elseif ($actionSucceeded -or $WhatIf -or $WhatIfRetire -or $ReportOnly) {
-            $processedCount++
         }
     }
 
