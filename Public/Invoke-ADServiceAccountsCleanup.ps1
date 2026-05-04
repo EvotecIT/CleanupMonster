@@ -48,6 +48,9 @@ function Invoke-ADServiceAccountsCleanup {
     .PARAMETER DisableTreatMissingWhenCreatedAsStale
     Treat accounts with missing WhenCreated as matching DisableWhenCreatedMoreThan.
 
+    .PARAMETER DisableNoPrincipalsAllowedToRetrieveManagedPassword
+    Disable only gMSA accounts with no principals allowed to retrieve the managed password.
+
     .PARAMETER DeleteLastLogonDateMoreThan
     Delete accounts that have not logged on for the specified number of days.
 
@@ -65,6 +68,9 @@ function Invoke-ADServiceAccountsCleanup {
 
     .PARAMETER DeleteTreatMissingWhenCreatedAsStale
     Treat accounts with missing WhenCreated as matching DeleteWhenCreatedMoreThan.
+
+    .PARAMETER DeleteNoPrincipalsAllowedToRetrieveManagedPassword
+    Delete only gMSA accounts with no principals allowed to retrieve the managed password.
 
     .PARAMETER DisableLimit
     Limit the number of service accounts that will be disabled. 0 = unlimited. Default is 1.
@@ -147,6 +153,7 @@ function Invoke-ADServiceAccountsCleanup {
         [switch] $DisableTreatMissingLastLogonDateAsStale,
         [switch] $DisableTreatMissingPasswordLastSetAsStale,
         [switch] $DisableTreatMissingWhenCreatedAsStale,
+        [switch] $DisableNoPrincipalsAllowedToRetrieveManagedPassword,
         [int] $DisableLimit = 1,
         [int] $DeleteLastLogonDateMoreThan,
         [int] $DeletePasswordLastSetMoreThan,
@@ -154,6 +161,7 @@ function Invoke-ADServiceAccountsCleanup {
         [switch] $DeleteTreatMissingLastLogonDateAsStale,
         [switch] $DeleteTreatMissingPasswordLastSetAsStale,
         [switch] $DeleteTreatMissingWhenCreatedAsStale,
+        [switch] $DeleteNoPrincipalsAllowedToRetrieveManagedPassword,
         [int] $DeleteLimit = 1,
         [nullable[int]] $SafetyADLimit,
         [switch] $ReportOnly,
@@ -206,10 +214,12 @@ function Invoke-ADServiceAccountsCleanup {
     $DisableHasSelectionCriteria = $DisableLastLogonDateMoreThan -gt 0 -or
         $DisablePasswordLastSetMoreThan -gt 0 -or
         $DisableWhenCreatedMoreThan -gt 0 -or
+        $DisableNoPrincipalsAllowedToRetrieveManagedPassword.IsPresent -or
         $IncludeAccounts.Count -gt 0
     $DeleteHasSelectionCriteria = $DeleteLastLogonDateMoreThan -gt 0 -or
         $DeletePasswordLastSetMoreThan -gt 0 -or
         $DeleteWhenCreatedMoreThan -gt 0 -or
+        $DeleteNoPrincipalsAllowedToRetrieveManagedPassword.IsPresent -or
         $IncludeAccounts.Count -gt 0
     $DisablePreviewOnly = $ReportOnly -or $WhatIfPreference -or $WhatIfDisable.IsPresent
     $DeletePreviewOnly = $ReportOnly -or $WhatIfPreference -or $WhatIfDelete.IsPresent
@@ -246,6 +256,7 @@ function Invoke-ADServiceAccountsCleanup {
                 TreatMissingLastLogonDateAsStale  = $DisableTreatMissingLastLogonDateAsStale.IsPresent
                 TreatMissingPasswordLastSetAsStale = $DisableTreatMissingPasswordLastSetAsStale.IsPresent
                 TreatMissingWhenCreatedAsStale    = $DisableTreatMissingWhenCreatedAsStale.IsPresent
+                NoPrincipalsAllowedToRetrieveManagedPassword = $DisableNoPrincipalsAllowedToRetrieveManagedPassword.IsPresent
             }
             $ToDisable = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $Accounts -ActionIf $DisableOnlyIf -Exclusions $ExcludeAccounts
             $ScheduledForDisableByDomain[$Domain] = @($ToDisable | ForEach-Object { $_.DistinguishedName })
@@ -260,6 +271,7 @@ function Invoke-ADServiceAccountsCleanup {
                 TreatMissingLastLogonDateAsStale  = $DeleteTreatMissingLastLogonDateAsStale.IsPresent
                 TreatMissingPasswordLastSetAsStale = $DeleteTreatMissingPasswordLastSetAsStale.IsPresent
                 TreatMissingWhenCreatedAsStale    = $DeleteTreatMissingWhenCreatedAsStale.IsPresent
+                NoPrincipalsAllowedToRetrieveManagedPassword = $DeleteNoPrincipalsAllowedToRetrieveManagedPassword.IsPresent
             }
             $ToDelete = Get-ADServiceAccountsToProcess -Type 'Delete' -Accounts $Accounts -ActionIf $DeleteOnlyIf -Exclusions $ExcludeAccounts
             if ($ScheduledForDisableByDomain[$Domain].Count -gt 0) {

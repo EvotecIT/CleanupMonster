@@ -58,6 +58,63 @@ Describe 'Invoke-ADServiceAccountsCleanup' {
         $report['lab.local'].Accounts.SamAccountName | Should -Be @('gmsa1')
     }
 
+    It 'requests and reports gMSA password retrieval principals' {
+        Mock -CommandName Get-ADServiceAccount -MockWith {
+            $script:RequestedServiceAccountProperties = $Properties
+            @(
+                [pscustomobject]@{
+                    SamAccountName = 'gmsa1'
+                    DistinguishedName = 'CN=gmsa1,DC=lab,DC=local'
+                    ObjectClass = 'msDS-GroupManagedServiceAccount'
+                    PrincipalsAllowedToRetrieveManagedPassword = @('CN=WEB01,DC=lab,DC=local', 'CN=WEB02,DC=lab,DC=local')
+                    LastLogonDate = $null
+                    PasswordLastSet = $null
+                    WhenCreated = $null
+                }
+            )
+        }
+        $forest = @{ Domains=@('lab.local'); QueryServers=@{ 'lab.local'=@{ HostName=@('dc1') } } }
+        $report = Get-InitialADServiceAccounts -ForestInformation $forest
+
+        $script:RequestedServiceAccountProperties | Should -Contain 'PrincipalsAllowedToRetrieveManagedPassword'
+        $report['lab.local'].Accounts[0].PrincipalsAllowedToRetrieveManagedPasswordCount | Should -Be 2
+    }
+
+    It 'can require a gMSA to have no password retrieval principals' {
+        $accounts = @(
+            [pscustomobject]@{
+                SamAccountName = 'gmsa-assigned'
+                DistinguishedName = 'CN=gmsa-assigned,DC=lab,DC=local'
+                ObjectClass = 'msDS-GroupManagedServiceAccount'
+                PrincipalsAllowedToRetrieveManagedPasswordCount = 1
+                LastLogonDate = (Get-Date).AddDays(-120)
+                PasswordLastSet = (Get-Date).AddDays(-120)
+                WhenCreated = (Get-Date).AddYears(-1)
+            },
+            [pscustomobject]@{
+                SamAccountName = 'gmsa-unassigned'
+                DistinguishedName = 'CN=gmsa-unassigned,DC=lab,DC=local'
+                ObjectClass = 'msDS-GroupManagedServiceAccount'
+                PrincipalsAllowedToRetrieveManagedPasswordCount = 0
+                LastLogonDate = (Get-Date).AddDays(-120)
+                PasswordLastSet = (Get-Date).AddDays(-120)
+                WhenCreated = (Get-Date).AddYears(-1)
+            },
+            [pscustomobject]@{
+                SamAccountName = 'msa1'
+                DistinguishedName = 'CN=msa1,DC=lab,DC=local'
+                ObjectClass = 'msDS-ManagedServiceAccount'
+                LastLogonDate = (Get-Date).AddDays(-120)
+                PasswordLastSet = (Get-Date).AddDays(-120)
+                WhenCreated = (Get-Date).AddYears(-1)
+            }
+        )
+
+        $res = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $accounts -ActionIf @{ LastLogonDateMoreThan = 30; NoPrincipalsAllowedToRetrieveManagedPassword = $true }
+
+        $res.SamAccountName | Should -Be @('gmsa-unassigned')
+    }
+
     It 'does not delete accounts that are already scheduled for disable in the same run' {
         Mock -CommandName Get-ADServiceAccount -MockWith {
             @(

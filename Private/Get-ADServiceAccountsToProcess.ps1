@@ -50,6 +50,21 @@ function Get-ADServiceAccountsToProcess {
                 $Include = $false
             }
         }
+        if ($ActionIf.NoPrincipalsAllowedToRetrieveManagedPassword) {
+            $ObjectClass = @($Account.ObjectClass)[-1]
+            if ($ObjectClass -ne 'msDS-GroupManagedServiceAccount') {
+                $Include = $false
+            } else {
+                if ($null -ne $Account.PSObject.Properties['PrincipalsAllowedToRetrieveManagedPasswordCount']) {
+                    $PrincipalCount = $Account.PrincipalsAllowedToRetrieveManagedPasswordCount
+                } else {
+                    $PrincipalCount = Get-ServiceAccountPrincipalCount -Account $Account
+                }
+                if ($null -eq $PrincipalCount -or $PrincipalCount -gt 0) {
+                    $Include = $false
+                }
+            }
+        }
         if ($Include) {
             $AccountData = [ordered] @{}
             foreach ($Property in $Account.PSObject.Properties) {
