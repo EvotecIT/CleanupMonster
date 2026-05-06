@@ -60,6 +60,13 @@
                     $FullComputerName = "$($Computer.SamAccountName)@$($Computer.DomainName)"
                     $FoundComputer = $ProcessedComputers[$FullComputerName]
                     if ($FoundComputer) {
+                        $ProcessedActionSucceeded = $FoundComputer.ActionStatus -is [bool] -and $FoundComputer.ActionStatus
+                        if (-not $ProcessedActionSucceeded) {
+                            $ProcessedActionSucceeded = [string] $FoundComputer.ActionStatus -eq 'True'
+                        }
+                        if (-not $ProcessedActionSucceeded) {
+                            continue SkipComputer
+                        }
                         if ($FoundComputer.ActionDate -is [DateTime]) {
                             $TimeSpan = New-TimeSpan -Start $FoundComputer.ActionDate -End $Today
                             # Lets calculate how many days it's been on the list

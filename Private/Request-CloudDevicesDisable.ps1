@@ -18,10 +18,10 @@ function Request-CloudDevicesDisable {
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
-    $processedCount = 0
+    $attemptedCount = 0
 
     foreach ($device in $Devices) {
-        if ($DisableLimit -gt 0 -and $processedCount -ge $DisableLimit) {
+        if ($DisableLimit -gt 0 -and $attemptedCount -ge $DisableLimit) {
             break
         }
 
@@ -40,12 +40,10 @@ function Request-CloudDevicesDisable {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'Disable' -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
+        $attemptedCount++
 
         if ($actionSucceeded -and -not ($WhatIf -or $WhatIfDisable -or $ReportOnly)) {
             Set-ProcessedCloudDeviceRecord -ProcessedDevices $ProcessedDevices -Device $device -Result $result
-            $processedCount++
-        } elseif ($actionSucceeded -or $WhatIf -or $WhatIfDisable -or $ReportOnly) {
-            $processedCount++
         }
     }
 

@@ -30,18 +30,39 @@ function Get-ADServiceAccountsToProcess {
             if ($Account.LastLogonDate) {
                 $LastLogonDays = (New-TimeSpan -Start $Account.LastLogonDate -End $Today).Days
                 if ($LastLogonDays -le $ActionIf.LastLogonDateMoreThan) { $Include = $false }
+            } elseif (-not $ActionIf.TreatMissingLastLogonDateAsStale) {
+                $Include = $false
             }
         }
         if ($ActionIf.PasswordLastSetMoreThan) {
             if ($Account.PasswordLastSet) {
                 $PasswordDays = (New-TimeSpan -Start $Account.PasswordLastSet -End $Today).Days
                 if ($PasswordDays -le $ActionIf.PasswordLastSetMoreThan) { $Include = $false }
+            } elseif (-not $ActionIf.TreatMissingPasswordLastSetAsStale) {
+                $Include = $false
             }
         }
         if ($ActionIf.WhenCreatedMoreThan) {
             if ($Account.WhenCreated) {
                 $CreatedDays = (New-TimeSpan -Start $Account.WhenCreated -End $Today).Days
                 if ($CreatedDays -le $ActionIf.WhenCreatedMoreThan) { $Include = $false }
+            } elseif (-not $ActionIf.TreatMissingWhenCreatedAsStale) {
+                $Include = $false
+            }
+        }
+        if ($ActionIf.NoPrincipalsAllowedToRetrieveManagedPassword) {
+            $ObjectClass = @($Account.ObjectClass)[-1]
+            if ($ObjectClass -ne 'msDS-GroupManagedServiceAccount') {
+                $Include = $false
+            } else {
+                if ($null -ne $Account.PSObject.Properties['PrincipalsAllowedToRetrieveManagedPasswordCount']) {
+                    $PrincipalCount = $Account.PrincipalsAllowedToRetrieveManagedPasswordCount
+                } else {
+                    $PrincipalCount = Get-ServiceAccountPrincipalCount -Account $Account
+                }
+                if ($null -eq $PrincipalCount -or $PrincipalCount -gt 0) {
+                    $Include = $false
+                }
             }
         }
         if ($Include) {

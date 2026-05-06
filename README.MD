@@ -317,12 +317,14 @@ What matters most:
 - `IncludeAccounts` counts as an explicit selector
 - preview scenarios with `-ReportOnly`, `-WhatIf`, `-WhatIfDisable`, or `-WhatIfDelete` are allowed even without destructive selectors
 - accounts scheduled for disable in a run are skipped from delete in that same run
+- missing `LastLogonDate`, `PasswordLastSet`, or `WhenCreated` values are not treated as stale unless you explicitly enable the matching `TreatMissing*AsStale` switch
+- gMSA password retrieval principals are reported, and `-DisableNoPrincipalsAllowedToRetrieveManagedPassword` / `-DeleteNoPrincipalsAllowedToRetrieveManagedPassword` can require a gMSA to have no assigned retrieval principals before action
 
 Good starter profiles:
 
 - preview by name pattern: `-Disable -ReportOnly -WhatIf -IncludeAccounts 'gmsa-*'`
 - safer scheduled run: explicit include/exclude patterns plus low `DisableLimit` and `DeleteLimit`
-- age-based hygiene: combine `LastLogonDateMoreThan`, `PasswordLastSetMoreThan`, and `WhenCreatedMoreThan`
+- age-based hygiene: combine `LastLogonDateMoreThan`, `PasswordLastSetMoreThan`, `WhenCreatedMoreThan`, and optional gMSA assignment checks
 
 Relevant examples:
 

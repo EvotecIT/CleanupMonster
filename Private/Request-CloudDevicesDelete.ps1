@@ -20,10 +20,10 @@ function Request-CloudDevicesDelete {
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
-    $processedCount = 0
+    $attemptedCount = 0
 
     foreach ($device in $Devices) {
-        if ($DeleteLimit -gt 0 -and $processedCount -ge $DeleteLimit) {
+        if ($DeleteLimit -gt 0 -and $attemptedCount -ge $DeleteLimit) {
             break
         }
 
@@ -79,12 +79,12 @@ function Request-CloudDevicesDelete {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value ($subActionMessages -join '; ') -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
+        $attemptedCount++
 
         if (($subActionExecuted -and ($subActionSuccess -or $WhatIf -or $WhatIfDelete)) -or $ReportOnly) {
             if (-not ($WhatIf -or $WhatIfDelete -or $ReportOnly)) {
                 Remove-ProcessedCloudDeviceRecord -ProcessedDevices $ProcessedDevices -Device $device
             }
-            $processedCount++
         }
     }
 

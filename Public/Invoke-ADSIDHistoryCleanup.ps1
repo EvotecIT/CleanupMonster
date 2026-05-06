@@ -179,7 +179,7 @@
 
     $Export = [ordered] @{
         Date             = Get-Date
-        Version          = Get-GitHubVersion -Cmdlet 'Invoke-ADComputersCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupMonster'
+        Version          = Get-GitHubVersion -Cmdlet 'Invoke-ADSIDHistoryCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupMonster'
         ObjectsToProcess = $null
         CurrentRun       = $null
         History          = [System.Collections.Generic.List[PSCustomObject]]::new()
@@ -244,7 +244,7 @@
     # Get SID history information
     $Output = Get-WinADSIDHistory -Forest $Forest -IncludeDomains $IncludeDomains -ExcludeDomains $ExcludeDomains -All
 
-    if ($SafetyADLimit -and $Output.All.Count -le $SafetyADLimit) {
+    if ($SafetyADLimit -and $Output.All.Count -lt $SafetyADLimit) {
         Write-Color -Text "[i] ", "Number of objects returned with SIDHistory in AD is less than SafetyADLimit ", $SafetyADLimit, ". Stopping processing." -Color Yellow, White, Green, White
         return
     }
