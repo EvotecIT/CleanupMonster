@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceJoinTypeFromRegistrationState.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceRegistrationScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceInventoryScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKeys.ps1')
@@ -222,6 +223,36 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices.Name | Should -Not -Contain 'Hybrid-Intune'
         $devices.Name | Should -Not -Contain 'Joined-State-Intune'
         $devices.Name | Should -Not -Contain 'Unknown-State-Intune'
+    }
+
+    It 'maps joined Intune-only registration state when AzureAD joined is included' {
+        Mock Get-MyDevice { @() }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Windows-Joined-Orphan'
+                    ManagedDeviceId         = 'managed-joined-orphan'
+                    EntraDeviceObjectId     = $null
+                    AzureAdDeviceId         = 'device-joined-orphan'
+                    OperatingSystem         = 'Windows'
+                    OperatingSystemVersion  = '10.0.22631.5624'
+                    LastSeen                = (Get-Date).AddDays(-190)
+                    LastSeenDays            = 190
+                    FirstSeen               = (Get-Date).AddDays(-400)
+                    ManagedDeviceOwnerType  = 'personal'
+                    DeviceRegistrationState = 'joined'
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'unknown'
+                    ManagementAgent         = 'mdm'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices.Count | Should -Be 1
+        $devices[0].Name | Should -Be 'Windows-Joined-Orphan'
+        $devices[0].TrustType | Should -Be 'AzureAD joined'
     }
 
     It 'applies managed-device exclusions to matched records' {
@@ -517,6 +548,78 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates[0].Name | Should -Be 'Windows-Delete'
         $candidates[0].SelectionReason | Should -Match 'RegisteredDays=500 > 365'
         $candidates[0].SelectionReason | Should -Match 'OwnerState=WithoutOwner'
+    }
+
+    It 'skips Autopilot group-tag exclusion when Autopilot inventory was not loaded' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                     = 'Windows-UnknownTag'
+                EntraDeviceObjectId      = 'entra-unknown-tag'
+                DeviceId                 = 'device-unknown-tag'
+                ManagedDeviceId          = 'managed-unknown-tag'
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ManagedDeviceOwnerType   = 'personal'
+                OperatingSystem          = 'Windows'
+                EntraLastSeenDays        = 300
+                Enabled                  = $true
+                AutopilotInventoryLoaded = $false
+                AutopilotGroupTag        = $null
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan    = 180
+            LastSeenIntuneMoreThan   = $null
+            RegisteredMoreThan       = $null
+            ListProcessedMoreThan    = $null
+            ExcludeCompanyOwned      = $true
+            IncludeEntraOnly         = $false
+            ExcludeAutopilotGroupTag = @('DoNotDelete*')
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'does not treat Windows devices as ownerless when Autopilot inventory was not loaded' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                     = 'Windows-UnknownOwner'
+                EntraDeviceObjectId      = 'entra-unknown-owner'
+                DeviceId                 = 'device-unknown-owner'
+                ManagedDeviceId          = 'managed-unknown-owner'
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ManagedDeviceOwnerType   = 'personal'
+                OperatingSystem          = 'Windows'
+                EntraLastSeenDays        = 300
+                Enabled                  = $true
+                OwnerDisplayName         = @()
+                OwnerUserPrincipalName   = @()
+                IntuneUserDisplayName    = $null
+                IntuneUserPrincipalName  = $null
+                AutopilotInventoryLoaded = $false
+                AutopilotUserPrincipalName = $null
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = $null
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            OwnerState             = 'WithoutOwner'
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 0
     }
 
     It 'allows retire candidates after a WhatIf preview entry exists' {

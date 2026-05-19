@@ -229,6 +229,9 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($ActionIf.OwnerState -and $ActionIf.OwnerState -ne 'Any') {
+            if ($device.OperatingSystem -like 'Windows*' -and $device.AutopilotInventoryLoaded -eq $false) {
+                continue
+            }
             $hasOwner = Test-CloudDeviceOwnerPresence -Device $device
             if ($ActionIf.OwnerState -eq 'WithOwner' -and -not $hasOwner) {
                 continue
@@ -270,6 +273,11 @@ function Get-CloudDevicesToProcess {
         }
 
         if (-not (Test-CloudDeviceValuePattern -Value $device.DeviceRegistrationState -Include $ActionIf.IncludeDeviceRegistrationState -Exclude $ActionIf.ExcludeDeviceRegistrationState)) {
+            continue
+        }
+
+        $hasAutopilotGroupTagFilter = ($ActionIf.IncludeAutopilotGroupTag -and $ActionIf.IncludeAutopilotGroupTag.Count -gt 0) -or ($ActionIf.ExcludeAutopilotGroupTag -and $ActionIf.ExcludeAutopilotGroupTag.Count -gt 0)
+        if ($hasAutopilotGroupTagFilter -and -not $device.AutopilotInventoryLoaded) {
             continue
         }
 

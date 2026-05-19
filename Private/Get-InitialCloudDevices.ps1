@@ -53,9 +53,10 @@ function Get-InitialCloudDevices {
 
     Write-Color -Text '[i] ', 'Cloud devices found in Microsoft Entra ID: ', $entraDevices.Count -Color Yellow, Cyan, Green
 
-    Write-Color -Text '[i] ', 'Getting cloud devices from Intune for join types: ', ($IncludeJoinType -join ', ') -Color Yellow, Cyan, Green
+    $includeIntuneJoinType = @($IncludeJoinType + 'Not available') | Select-Object -Unique
+    Write-Color -Text '[i] ', 'Getting cloud devices from Intune for join types: ', ($includeIntuneJoinType -join ', ') -Color Yellow, Cyan, Green
     $intuneParameters = @{
-        Type          = $IncludeJoinType
+        Type          = $includeIntuneJoinType
         WarningAction = 'SilentlyContinue'
         WarningVariable = 'warningVar'
     }
@@ -204,7 +205,7 @@ function Get-InitialCloudDevices {
             Enabled                 = $null
             OperatingSystem         = $intuneDevice.OperatingSystem
             OperatingSystemVersion  = $intuneDevice.OperatingSystemVersion
-            TrustType               = 'AzureAD registered'
+            TrustType               = Get-CloudDeviceJoinTypeFromRegistrationState -DeviceRegistrationState $intuneDevice.DeviceRegistrationState
             EntraLastSeen           = $null
             EntraLastSeenDays       = $null
             IntuneLastSeen          = $intuneDevice.LastSeen

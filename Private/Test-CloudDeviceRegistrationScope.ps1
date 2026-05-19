@@ -17,7 +17,8 @@ function Test-CloudDeviceRegistrationScope {
     }
 
     if ($Device.PSObject.Properties['DeviceRegistrationState'] -and $Device.DeviceRegistrationState) {
-        return $Device.DeviceRegistrationState -eq 'registered' -and $IncludeJoinType -contains 'AzureAD registered'
+        $joinType = Get-CloudDeviceJoinTypeFromRegistrationState -DeviceRegistrationState $Device.DeviceRegistrationState
+        return $joinType -and $IncludeJoinType -contains $joinType
     }
 
     if ($Device.PSObject.Properties['IsSynchronized'] -and $Device.IsSynchronized -eq $true) {
