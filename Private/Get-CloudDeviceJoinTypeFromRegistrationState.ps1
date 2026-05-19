@@ -7,7 +7,7 @@ function Get-CloudDeviceJoinTypeFromRegistrationState {
     )
 
     if ([string]::IsNullOrWhiteSpace($DeviceRegistrationState)) {
-        return $null
+        return 'Not available'
     }
 
     switch ($DeviceRegistrationState.ToLowerInvariant()) {

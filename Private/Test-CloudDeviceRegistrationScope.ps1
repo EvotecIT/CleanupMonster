@@ -16,7 +16,7 @@ function Test-CloudDeviceRegistrationScope {
         return $IncludeJoinType -contains $Device.TrustType
     }
 
-    if ($Device.PSObject.Properties['DeviceRegistrationState'] -and $Device.DeviceRegistrationState) {
+    if ($Device.PSObject.Properties['DeviceRegistrationState']) {
         $joinType = Get-CloudDeviceJoinTypeFromRegistrationState -DeviceRegistrationState $Device.DeviceRegistrationState
         return $joinType -and $IncludeJoinType -contains $joinType
     }

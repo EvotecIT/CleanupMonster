@@ -229,7 +229,7 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($ActionIf.OwnerState -and $ActionIf.OwnerState -ne 'Any') {
-            if ($device.OperatingSystem -like 'Windows*' -and $device.AutopilotInventoryLoaded -eq $false) {
+            if ($device.OperatingSystem -like 'Windows*' -and $device.AutopilotInventoryLoaded -ne $true) {
                 continue
             }
             $hasOwner = Test-CloudDeviceOwnerPresence -Device $device

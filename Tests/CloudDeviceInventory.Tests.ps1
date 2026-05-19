@@ -255,6 +255,16 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices[0].TrustType | Should -Be 'AzureAD joined'
     }
 
+    It 'maps blank Intune registration state to not available when included' {
+        $device = [PSCustomObject] @{
+            DeviceRegistrationState = $null
+        }
+
+        $result = Test-CloudDeviceRegistrationScope -Device $device -IncludeJoinType 'Not available'
+
+        $result | Should -BeTrue
+    }
+
     It 'applies managed-device exclusions to matched records' {
         Mock Get-MyDevice {
             @(
@@ -584,7 +594,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 0
     }
 
-    It 'does not treat Windows devices as ownerless when Autopilot inventory was not loaded' {
+    It 'does not treat Windows devices as ownerless when Autopilot inventory state is unknown' {
         $devices = @(
             [PSCustomObject] @{
                 Name                     = 'Windows-UnknownOwner'
@@ -602,7 +612,7 @@ Describe 'Cloud device inventory and selection helpers' {
                 OwnerUserPrincipalName   = @()
                 IntuneUserDisplayName    = $null
                 IntuneUserPrincipalName  = $null
-                AutopilotInventoryLoaded = $false
+                AutopilotInventoryLoaded = $null
                 AutopilotUserPrincipalName = $null
             }
         )
