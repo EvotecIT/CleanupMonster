@@ -6,6 +6,10 @@ function Test-CloudDeviceInventoryScope {
         [AllowEmptyString()]
         [string] $OperatingSystem,
 
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string] $OperatingSystemVersion,
+
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
         [Array] $IncludeOperatingSystem,
@@ -13,6 +17,16 @@ function Test-CloudDeviceInventoryScope {
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
         [Array] $ExcludeOperatingSystem,
+
+        [AllowEmptyCollection()]
+        [Array] $IncludeOperatingSystemVersion = @(),
+
+        [AllowEmptyCollection()]
+        [Array] $ExcludeOperatingSystemVersion = @(),
+
+        [switch] $IncludeUnknownOperatingSystem,
+
+        [switch] $IncludeUnknownOperatingSystemVersion,
 
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
@@ -24,13 +38,13 @@ function Test-CloudDeviceInventoryScope {
         [string] $ManagedDeviceId
     )
 
-    if ([string]::IsNullOrWhiteSpace($OperatingSystem)) {
+    if ([string]::IsNullOrWhiteSpace($OperatingSystem) -and -not $IncludeUnknownOperatingSystem) {
         if ($IncludeOperatingSystem.Count -gt 0) {
             return $false
         }
     }
 
-    if ($IncludeOperatingSystem.Count -gt 0) {
+    if ($IncludeOperatingSystem.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($OperatingSystem)) {
         $includeMatch = $false
         foreach ($includePattern in $IncludeOperatingSystem) {
             if ($OperatingSystem -like $includePattern) {
@@ -47,6 +61,34 @@ function Test-CloudDeviceInventoryScope {
     if ($ExcludeOperatingSystem.Count -gt 0) {
         foreach ($excludePattern in $ExcludeOperatingSystem) {
             if ($OperatingSystem -like $excludePattern) {
+                return $false
+            }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($OperatingSystemVersion) -and -not $IncludeUnknownOperatingSystemVersion) {
+        if ($IncludeOperatingSystemVersion.Count -gt 0) {
+            return $false
+        }
+    }
+
+    if ($IncludeOperatingSystemVersion.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($OperatingSystemVersion)) {
+        $includeVersionMatch = $false
+        foreach ($includePattern in $IncludeOperatingSystemVersion) {
+            if ($OperatingSystemVersion -like $includePattern) {
+                $includeVersionMatch = $true
+                break
+            }
+        }
+
+        if (-not $includeVersionMatch) {
+            return $false
+        }
+    }
+
+    if ($ExcludeOperatingSystemVersion.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($OperatingSystemVersion)) {
+        foreach ($excludePattern in $ExcludeOperatingSystemVersion) {
+            if ($OperatingSystemVersion -like $excludePattern) {
                 return $false
             }
         }

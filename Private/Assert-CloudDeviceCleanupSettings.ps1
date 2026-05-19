@@ -8,7 +8,7 @@ function Assert-CloudDeviceCleanupSettings {
         return $false
     }
 
-    $minimumVersion = [version] '0.0.56'
+    $minimumVersion = [version] '0.0.57'
     if ($moduleAvailable.Version -lt $minimumVersion) {
         Write-Color -Text '[e] ', "'GraphEssentials' module is outdated for cloud-device cleanup. Please update to minimum version '$minimumVersion'. Terminating." -Color Yellow, Red
         return $false

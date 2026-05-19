@@ -26,6 +26,36 @@ function Get-CloudDeviceSelectionReason {
         $reasons.Add("IntuneLastSeenDays=$($Device.IntuneLastSeenDays) > $($ActionIf.LastSeenIntuneMoreThan)")
     }
 
+    if ($null -ne $ActionIf.RegisteredMoreThan -and $null -ne $Device.RegisteredDays) {
+        $reasons.Add("RegisteredDays=$($Device.RegisteredDays) > $($ActionIf.RegisteredMoreThan)")
+    }
+
+    if ($ActionIf.EnabledState -and $ActionIf.EnabledState -ne 'Any') {
+        $reasons.Add("EnabledState=$($ActionIf.EnabledState)")
+    }
+
+    if ($ActionIf.AutopilotState -and $ActionIf.AutopilotState -ne 'Any') {
+        $reasons.Add("AutopilotState=$($ActionIf.AutopilotState)")
+    }
+
+    if ($ActionIf.OwnerState -and $ActionIf.OwnerState -ne 'Any') {
+        $reasons.Add("OwnerState=$($ActionIf.OwnerState)")
+    }
+
+    if ($ActionIf.ManagementState -and $ActionIf.ManagementState -ne 'Any') {
+        $reasons.Add("ManagementState=$($ActionIf.ManagementState)")
+    }
+
+    if ($ActionIf.ComplianceState -and $ActionIf.ComplianceState -ne 'Any') {
+        $reasons.Add("ComplianceState=$($ActionIf.ComplianceState)")
+    }
+
+    foreach ($key in @('IncludeManagementAgent', 'ExcludeManagementAgent', 'IncludeEnrollmentType', 'ExcludeEnrollmentType', 'IncludeDeviceRegistrationState', 'ExcludeDeviceRegistrationState', 'IncludeAutopilotGroupTag', 'ExcludeAutopilotGroupTag')) {
+        if ($ActionIf.Contains($key) -and $ActionIf[$key] -and $ActionIf[$key].Count -gt 0) {
+            $reasons.Add("$key=$($ActionIf[$key] -join ',')")
+        }
+    }
+
     if ($null -ne $ActionIf.ListProcessedMoreThan -and $ProcessedDevice -and $ProcessedDevice.ActionDate) {
         $pendingDays = (New-TimeSpan -Start $ProcessedDevice.ActionDate -End (Get-Date)).Days
         $reasons.Add("PendingDays=$pendingDays >= $($ActionIf.ListProcessedMoreThan)")

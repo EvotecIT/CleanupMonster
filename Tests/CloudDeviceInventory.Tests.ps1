@@ -3,6 +3,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceRegistrationScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceInventoryScope.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKeys.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-CloudDevicePropertyValue.ps1')
     . (Get-CleanupMonsterPath 'Private/Find-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialCloudDevices.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKey.ps1')
@@ -401,6 +402,123 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 0
     }
 
+    It 'only treats missing Autopilot as not onboarded when Autopilot inventory was loaded' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                     = 'Windows-UnknownAutopilot'
+                EntraDeviceObjectId      = 'entra-ap-unknown'
+                DeviceId                 = 'device-ap-unknown'
+                ManagedDeviceId          = 'managed-ap-unknown'
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ManagedDeviceOwnerType   = 'personal'
+                EntraLastSeenDays        = 300
+                IntuneLastSeenDays       = 300
+                Enabled                  = $true
+                AutopilotInventoryLoaded = $false
+                AutopilotOnboarded       = $null
+            }
+            [PSCustomObject] @{
+                Name                     = 'Windows-NotAutopilot'
+                EntraDeviceObjectId      = 'entra-ap-no'
+                DeviceId                 = 'device-ap-no'
+                ManagedDeviceId          = 'managed-ap-no'
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ManagedDeviceOwnerType   = 'personal'
+                EntraLastSeenDays        = 300
+                IntuneLastSeenDays       = 300
+                Enabled                  = $true
+                AutopilotInventoryLoaded = $true
+                AutopilotOnboarded       = $false
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = $null
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            AutopilotState         = 'NotOnboarded'
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].Name | Should -Be 'Windows-NotAutopilot'
+    }
+
+    It 'filters action candidates by owner, management, compliance, and registration age' {
+        $oldRegistration = (Get-Date).AddDays(-500)
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'Windows-Delete'
+                EntraDeviceObjectId    = 'entra-delete'
+                DeviceId               = 'device-delete'
+                ManagedDeviceId        = 'managed-delete'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 400
+                IntuneLastSeenDays     = 400
+                FirstSeen              = $oldRegistration
+                RegisteredDays         = 500
+                Enabled                = $false
+                OwnerDisplayName       = @()
+                OwnerUserPrincipalName = @()
+                IsManaged              = $true
+                ManagementAgent        = 'mdm'
+                IsCompliant            = $false
+                ComplianceState        = 'noncompliant'
+            }
+            [PSCustomObject] @{
+                Name                   = 'Windows-Keep-Owner'
+                EntraDeviceObjectId    = 'entra-owner'
+                DeviceId               = 'device-owner'
+                ManagedDeviceId        = 'managed-owner'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 400
+                IntuneLastSeenDays     = 400
+                RegisteredDays         = 500
+                Enabled                = $false
+                OwnerDisplayName       = @('User One')
+                IsManaged              = $true
+                ManagementAgent        = 'mdm'
+                IsCompliant            = $false
+                ComplianceState        = 'noncompliant'
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = 365
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            IncludeIntuneOnly      = $false
+            OwnerState             = 'WithoutOwner'
+            ManagementState        = 'Mdm'
+            ComplianceState        = 'NonCompliant'
+            EnabledState           = 'Disabled'
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].Name | Should -Be 'Windows-Delete'
+        $candidates[0].SelectionReason | Should -Match 'RegisteredDays=500 > 365'
+        $candidates[0].SelectionReason | Should -Match 'OwnerState=WithoutOwner'
+    }
+
     It 'allows retire candidates after a WhatIf preview entry exists' {
         $devices = @(
             [PSCustomObject] @{
@@ -781,6 +899,12 @@ Describe 'Cloud device inventory and selection helpers' {
         $result = Test-CloudDeviceInventoryScope -OperatingSystem $null -IncludeOperatingSystem @('iOS*') -ExcludeOperatingSystem @() -Exclusions @()
 
         $result | Should -BeFalse
+    }
+
+    It 'can keep missing operating system and version values when explicitly allowed' {
+        $result = Test-CloudDeviceInventoryScope -OperatingSystem $null -OperatingSystemVersion $null -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -IncludeOperatingSystemVersion @('10.0*') -ExcludeOperatingSystemVersion @() -IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion -Exclusions @()
+
+        $result | Should -BeTrue
     }
 
     It 'does not include Intune-only records in disable selection' {

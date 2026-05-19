@@ -3,13 +3,38 @@ function Get-InitialCloudDevices {
     param(
         [nullable[int]] $SafetyEntraLimit,
         [nullable[int]] $SafetyIntuneLimit,
+        [ValidateSet('Hybrid AzureAD', 'AzureAD joined', 'AzureAD registered', 'Not available')]
+        [string[]] $IncludeJoinType = @('AzureAD registered'),
         [Array] $IncludeOperatingSystem,
         [Array] $ExcludeOperatingSystem,
-        [Array] $Exclusions
+        [Array] $IncludeOperatingSystemVersion = @(),
+        [Array] $ExcludeOperatingSystemVersion = @(),
+        [switch] $IncludeUnknownOperatingSystem,
+        [switch] $IncludeUnknownOperatingSystemVersion,
+        [Array] $Exclusions,
+        [switch] $IncludeAutopilotInventory
     )
 
-    Write-Color -Text '[i] ', 'Getting AzureAD registered devices from Microsoft Entra ID' -Color Yellow, Cyan, Green
-    [Array] $entraDevices = Get-MyDevice -Type 'AzureAD registered' -WarningAction SilentlyContinue -WarningVariable warningVar
+    $getAgeDays = {
+        param([AllowNull()] $DateValue)
+
+        if ($DateValue) {
+            [math]::Floor((New-TimeSpan -Start $DateValue -End (Get-Date)).TotalDays)
+        } else {
+            $null
+        }
+    }
+
+    Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($IncludeJoinType -join ', ') -Color Yellow, Cyan, Green
+    $entraParameters = @{
+        Type          = $IncludeJoinType
+        WarningAction = 'SilentlyContinue'
+        WarningVariable = 'warningVar'
+    }
+    if ($IncludeAutopilotInventory) {
+        $entraParameters.IncludeAutopilotInventory = $true
+    }
+    [Array] $entraDevices = Get-MyDevice @entraParameters
     if ($warningVar) {
         Write-Color -Text '[e] ', 'Error getting devices from Microsoft Entra ID: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
         return $false
@@ -26,10 +51,18 @@ function Get-InitialCloudDevices {
         return $false
     }
 
-    Write-Color -Text '[i] ', 'AzureAD registered devices found in Microsoft Entra ID: ', $entraDevices.Count -Color Yellow, Cyan, Green
+    Write-Color -Text '[i] ', 'Cloud devices found in Microsoft Entra ID: ', $entraDevices.Count -Color Yellow, Cyan, Green
 
-    Write-Color -Text '[i] ', 'Getting AzureAD registered devices from Intune' -Color Yellow, Cyan, Green
-    [Array] $intuneDevices = Get-MyDeviceIntune -Type 'AzureAD registered' -WarningAction SilentlyContinue -WarningVariable warningVar
+    Write-Color -Text '[i] ', 'Getting cloud devices from Intune for join types: ', ($IncludeJoinType -join ', ') -Color Yellow, Cyan, Green
+    $intuneParameters = @{
+        Type          = $IncludeJoinType
+        WarningAction = 'SilentlyContinue'
+        WarningVariable = 'warningVar'
+    }
+    if ($IncludeAutopilotInventory) {
+        $intuneParameters.IncludeAutopilotInventory = $true
+    }
+    [Array] $intuneDevices = Get-MyDeviceIntune @intuneParameters
     if ($warningVar) {
         Write-Color -Text '[e] ', 'Error getting devices from Intune: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
         return $false
@@ -40,7 +73,7 @@ function Get-InitialCloudDevices {
         return $false
     }
 
-    Write-Color -Text '[i] ', 'AzureAD registered devices found in Intune: ', $intuneDevices.Count -Color Yellow, Cyan, Green
+    Write-Color -Text '[i] ', 'Cloud devices found in Intune: ', $intuneDevices.Count -Color Yellow, Cyan, Green
 
     $intuneByAzureDeviceId = [ordered] @{}
     $matchedIntuneManagedDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -52,7 +85,7 @@ function Get-InitialCloudDevices {
 
     $outputDevices = [System.Collections.Generic.List[object]]::new()
     foreach ($entraDevice in $entraDevices) {
-        if (-not (Test-CloudDeviceRegistrationScope -Device $entraDevice)) {
+        if (-not (Test-CloudDeviceRegistrationScope -Device $entraDevice -IncludeJoinType $IncludeJoinType)) {
             continue
         }
 
@@ -67,13 +100,31 @@ function Get-InitialCloudDevices {
         } else {
             $entraDevice.OperatingSystem
         }
-        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions -Name $entraDevice.Name -DeviceId $entraDevice.DeviceId -EntraDeviceObjectId $entraDevice.EntraDeviceObjectId -ManagedDeviceId $(if ($intuneDevice) { $intuneDevice.ManagedDeviceId } else { $null })
+        $operatingSystemVersion = if ($intuneDevice -and $intuneDevice.OperatingSystemVersion) {
+            $intuneDevice.OperatingSystemVersion
+        } else {
+            $entraDevice.OperatingSystemVersion
+        }
+        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -OperatingSystemVersion $operatingSystemVersion -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -Name $entraDevice.Name -DeviceId $entraDevice.DeviceId -EntraDeviceObjectId $entraDevice.EntraDeviceObjectId -ManagedDeviceId $(if ($intuneDevice) { $intuneDevice.ManagedDeviceId } else { $null })
         if (-not $deviceInScope) {
             continue
         }
 
         if ($intuneDevice -and $intuneDevice.ManagedDeviceId) {
             $null = $matchedIntuneManagedDeviceIds.Add($intuneDevice.ManagedDeviceId)
+        }
+
+        $entraRegisteredDays = & $getAgeDays $entraDevice.FirstSeen
+        $intuneRegisteredDays = if ($intuneDevice) { & $getAgeDays $intuneDevice.FirstSeen } else { $null }
+        $autopilotInventoryLoaded = if ($intuneDevice -and $intuneDevice.PSObject.Properties['AutopilotInventoryLoaded']) {
+            $intuneDevice.AutopilotInventoryLoaded
+        } else {
+            Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotInventoryLoaded'
+        }
+        $autopilotOnboarded = if ($intuneDevice -and $intuneDevice.PSObject.Properties['AutopilotOnboarded']) {
+            $intuneDevice.AutopilotOnboarded
+        } else {
+            Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotOnboarded'
         }
 
         $outputDevices.Add([PSCustomObject] [ordered] @{
@@ -87,17 +138,21 @@ function Get-InitialCloudDevices {
             RecordSource            = if ($intuneDevice) { 'Microsoft Entra ID + Intune' } else { 'Microsoft Entra ID only' }
             Enabled                 = $entraDevice.Enabled
             OperatingSystem         = if ($intuneDevice -and $intuneDevice.OperatingSystem) { $intuneDevice.OperatingSystem } else { $entraDevice.OperatingSystem }
-            OperatingSystemVersion  = if ($intuneDevice -and $intuneDevice.OperatingSystemVersion) { $intuneDevice.OperatingSystemVersion } else { $entraDevice.OperatingSystemVersion }
+            OperatingSystemVersion  = $operatingSystemVersion
             TrustType               = $entraDevice.TrustType
             EntraLastSeen           = $entraDevice.LastSeen
             EntraLastSeenDays       = $entraDevice.LastSeenDays
             IntuneLastSeen          = if ($intuneDevice) { $intuneDevice.LastSeen } else { $null }
             IntuneLastSeenDays      = if ($intuneDevice) { $intuneDevice.LastSeenDays } else { $null }
             FirstSeen               = $entraDevice.FirstSeen
+            RegisteredDays          = if ($null -ne $entraRegisteredDays) { $entraRegisteredDays } else { $intuneRegisteredDays }
+            EntraRegisteredDays     = $entraRegisteredDays
+            IntuneRegisteredDays    = $intuneRegisteredDays
             IsManaged               = $entraDevice.IsManaged
             IsCompliant             = $entraDevice.IsCompliant
             ManagementType          = $entraDevice.ManagementType
             EnrollmentType          = $entraDevice.EnrollmentType
+            DeviceEnrollmentType    = if ($intuneDevice) { $intuneDevice.DeviceEnrollmentType } else { $null }
             OwnerDisplayName        = $entraDevice.OwnerDisplayName
             OwnerUserPrincipalName  = $entraDevice.OwnerUserPrincipalName
             IntuneUserDisplayName   = if ($intuneDevice) { $intuneDevice.UserDisplayName } else { $null }
@@ -108,12 +163,20 @@ function Get-InitialCloudDevices {
             AzureAdRegistered       = if ($intuneDevice) { $intuneDevice.AzureAdRegistered } else { $null }
             ComplianceState         = if ($intuneDevice) { $intuneDevice.ComplianceState } else { $null }
             ManagementAgent         = if ($intuneDevice) { $intuneDevice.ManagementAgent } else { $null }
+            AutopilotInventoryLoaded = $autopilotInventoryLoaded
+            AutopilotOnboarded      = $autopilotOnboarded
+            AutopilotDeviceId       = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotDeviceId' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotDeviceId' }
+            AutopilotGroupTag       = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotGroupTag' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotGroupTag' }
+            AutopilotSerialNumber   = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotSerialNumber' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotSerialNumber' }
+            AutopilotEnrollmentState = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotEnrollmentState' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotEnrollmentState' }
+            AutopilotLastContacted  = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContacted' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotLastContacted' }
+            AutopilotUserPrincipalName = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotUserPrincipalName' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotUserPrincipalName' }
             SelectionReason         = $null
         })
     }
 
     foreach ($intuneDevice in $intuneDevices) {
-        if (-not (Test-CloudDeviceRegistrationScope -Device $intuneDevice)) {
+        if (-not (Test-CloudDeviceRegistrationScope -Device $intuneDevice -IncludeJoinType $IncludeJoinType)) {
             continue
         }
 
@@ -122,10 +185,12 @@ function Get-InitialCloudDevices {
         }
 
         $operatingSystem = $intuneDevice.OperatingSystem
-        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -Exclusions $Exclusions -Name $intuneDevice.Name -DeviceId $intuneDevice.AzureAdDeviceId -EntraDeviceObjectId $intuneDevice.EntraDeviceObjectId -ManagedDeviceId $intuneDevice.ManagedDeviceId
+        $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -OperatingSystemVersion $intuneDevice.OperatingSystemVersion -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -Name $intuneDevice.Name -DeviceId $intuneDevice.AzureAdDeviceId -EntraDeviceObjectId $intuneDevice.EntraDeviceObjectId -ManagedDeviceId $intuneDevice.ManagedDeviceId
         if (-not $deviceInScope) {
             continue
         }
+
+        $intuneRegisteredDays = & $getAgeDays $intuneDevice.FirstSeen
 
         $outputDevices.Add([PSCustomObject] [ordered] @{
             Name                    = $intuneDevice.Name
@@ -145,10 +210,14 @@ function Get-InitialCloudDevices {
             IntuneLastSeen          = $intuneDevice.LastSeen
             IntuneLastSeenDays      = $intuneDevice.LastSeenDays
             FirstSeen               = $intuneDevice.FirstSeen
+            RegisteredDays          = $intuneRegisteredDays
+            EntraRegisteredDays     = $null
+            IntuneRegisteredDays    = $intuneRegisteredDays
             IsManaged               = $true
             IsCompliant             = $null
             ManagementType          = $null
             EnrollmentType          = $null
+            DeviceEnrollmentType    = $intuneDevice.DeviceEnrollmentType
             OwnerDisplayName        = $null
             OwnerUserPrincipalName  = $null
             IntuneUserDisplayName   = $intuneDevice.UserDisplayName
@@ -159,6 +228,14 @@ function Get-InitialCloudDevices {
             AzureAdRegistered       = $intuneDevice.AzureAdRegistered
             ComplianceState         = $intuneDevice.ComplianceState
             ManagementAgent         = $intuneDevice.ManagementAgent
+            AutopilotInventoryLoaded = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotInventoryLoaded'
+            AutopilotOnboarded      = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotOnboarded'
+            AutopilotDeviceId       = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotDeviceId'
+            AutopilotGroupTag       = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotGroupTag'
+            AutopilotSerialNumber   = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotSerialNumber'
+            AutopilotEnrollmentState = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotEnrollmentState'
+            AutopilotLastContacted  = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContacted'
+            AutopilotUserPrincipalName = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotUserPrincipalName'
             SelectionReason         = $null
         })
     }
