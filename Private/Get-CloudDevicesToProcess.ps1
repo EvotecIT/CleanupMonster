@@ -97,6 +97,14 @@ function Get-CloudDevicesToProcess {
     function Get-CloudDeviceComplianceState {
         param([Parameter(Mandatory)] [object] $Device)
 
+        if (-not [string]::IsNullOrWhiteSpace([string] $Device.ComplianceState)) {
+            switch ([string] $Device.ComplianceState) {
+                'compliant' { return 'Compliant' }
+                { $_ -in @('noncompliant', 'inGracePeriod', 'configManager') } { return 'NonCompliant' }
+                default { return 'Unknown' }
+            }
+        }
+
         if ($Device.IsCompliant -eq $true -or [string] $Device.ComplianceState -eq 'compliant') {
             return 'Compliant'
         }

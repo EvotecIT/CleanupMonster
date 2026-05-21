@@ -29,5 +29,5 @@ function Test-CloudDeviceRegistrationScope {
         return $false
     }
 
-    $false
+    $IncludeJoinType -contains 'Not available'
 }

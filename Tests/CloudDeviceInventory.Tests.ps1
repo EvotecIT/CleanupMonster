@@ -265,6 +265,16 @@ Describe 'Cloud device inventory and selection helpers' {
         $result | Should -BeTrue
     }
 
+    It 'maps missing Intune registration state to not available when included' {
+        $device = [PSCustomObject] @{
+            Name = 'Unknown-State-Intune'
+        }
+
+        $result = Test-CloudDeviceRegistrationScope -Device $device -IncludeJoinType 'Not available'
+
+        $result | Should -BeTrue
+    }
+
     It 'applies managed-device exclusions to matched records' {
         Mock Get-MyDevice {
             @(
@@ -558,6 +568,42 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates[0].Name | Should -Be 'Windows-Delete'
         $candidates[0].SelectionReason | Should -Match 'RegisteredDays=500 > 365'
         $candidates[0].SelectionReason | Should -Match 'OwnerState=WithoutOwner'
+    }
+
+    It 'prefers Intune compliance state over Entra compliance flag' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'Windows-ConflictingCompliance'
+                EntraDeviceObjectId    = 'entra-conflict'
+                DeviceId               = 'device-conflict'
+                ManagedDeviceId        = 'managed-conflict'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $true
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = 400
+                RegisteredDays         = 500
+                Enabled                = $false
+                IsCompliant            = $true
+                ComplianceState        = 'noncompliant'
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = $null
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            IncludeIntuneOnly      = $false
+            ComplianceState        = 'NonCompliant'
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].Name | Should -Be 'Windows-ConflictingCompliance'
     }
 
     It 'skips Autopilot group-tag exclusion when Autopilot inventory was not loaded' {
