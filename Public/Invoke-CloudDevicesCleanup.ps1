@@ -101,6 +101,11 @@ function Invoke-CloudDevicesCleanup {
     Controls whether delete-stage processing also removes eligible Intune managed-device records.
     Defaults to $true.
 
+    .PARAMETER DeleteAutopilotIdentity
+    Removes Windows Autopilot device identities before deleting Intune or Entra records.
+    When enabled, Autopilot inventory must load successfully. If an onboarded device cannot
+    have its Autopilot identity removed, the Intune and Entra record delete sub-actions are skipped.
+
     .PARAMETER IncludeOperatingSystem
     Operating-system patterns to include when building cloud-device inventory.
     Defaults to iOS and Android patterns. Wildcards are supported.
@@ -273,6 +278,7 @@ function Invoke-CloudDevicesCleanup {
         [switch] $DeleteIncludeIntuneOnly,
         [int] $DeleteLimit = 10,
         [bool] $DeleteRemoveIntuneRecord = $true,
+        [switch] $DeleteAutopilotIdentity,
 
         [ValidateSet('Hybrid AzureAD', 'AzureAD joined', 'AzureAD registered', 'Not available')]
         [string[]] $IncludeJoinType = @('AzureAD registered'),
@@ -435,7 +441,7 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
-    $includeAutopilotInventory = $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0
+    $includeAutopilotInventory = $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0
     $allDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $IncludeJoinType -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory:$includeAutopilotInventory
     if ($allDevices -eq $false) {
         return
@@ -481,7 +487,7 @@ function Invoke-CloudDevicesCleanup {
             $processDelete = $PSCmdlet.ShouldProcess("$($devicesToDelete.Count) cloud device(s)", 'Delete')
         }
         if ($processDelete) {
-            $reportDeleted = @(Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference)
+            $reportDeleted = @(Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -DeleteAutopilotIdentity:$DeleteAutopilotIdentity -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference)
         }
     }
 

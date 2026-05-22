@@ -14,6 +14,8 @@ function Request-CloudDevicesDelete {
 
         [bool] $DeleteRemoveIntuneRecord = $true,
 
+        [switch] $DeleteAutopilotIdentity,
+
         [switch] $ReportOnly,
         [switch] $WhatIfDelete,
         [switch] $WhatIf
@@ -30,9 +32,35 @@ function Request-CloudDevicesDelete {
         $subActionMessages = [System.Collections.Generic.List[string]]::new()
         $subActionSuccess = $true
         $subActionExecuted = $false
+        $continueRecordDelete = $true
 
         if (-not $ReportOnly) {
-            if ($DeleteRemoveIntuneRecord -and $device.HasIntuneRecord) {
+            if ($DeleteAutopilotIdentity) {
+                if ($device.AutopilotInventoryLoaded -ne $true) {
+                    $subActionExecuted = $true
+                    $subActionSuccess = $false
+                    $continueRecordDelete = $false
+                    $subActionMessages.Add('Autopilot: Inventory was not loaded; record delete was skipped.')
+                } elseif ($device.AutopilotOnboarded -eq $true) {
+                    $subActionExecuted = $true
+                    if ([string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
+                        $subActionSuccess = $false
+                        $continueRecordDelete = $false
+                        $subActionMessages.Add('Autopilot: Device is onboarded but AutopilotDeviceId is missing; record delete was skipped.')
+                    } else {
+                        $removeAutopilotResult = Remove-MyAutopilotDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
+                        if ($removeAutopilotResult.Message) {
+                            $subActionMessages.Add("Autopilot: $($removeAutopilotResult.Message)")
+                        }
+                        if (-not $removeAutopilotResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
+                            $subActionSuccess = $false
+                            $continueRecordDelete = $false
+                        }
+                    }
+                }
+            }
+
+            if ($continueRecordDelete -and $DeleteRemoveIntuneRecord -and $device.HasIntuneRecord) {
                 $subActionExecuted = $true
                 $removeIntuneResult = Remove-MyDeviceIntuneRecord -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeIntuneResult.Message) {
@@ -43,7 +71,7 @@ function Request-CloudDevicesDelete {
                 }
             }
 
-            if ($device.HasEntraRecord -and $device.RecordState -ne 'IntuneOnly') {
+            if ($continueRecordDelete -and $device.HasEntraRecord -and $device.RecordState -ne 'IntuneOnly') {
                 $subActionExecuted = $true
                 $removeEntraResult = Remove-MyDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeEntraResult.Message) {

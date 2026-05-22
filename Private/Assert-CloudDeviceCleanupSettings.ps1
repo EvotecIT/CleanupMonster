@@ -8,7 +8,7 @@ function Assert-CloudDeviceCleanupSettings {
         return $false
     }
 
-    $minimumVersion = [version] '0.0.57'
+    $minimumVersion = [version] '0.0.58'
     if ($moduleAvailable.Version -lt $minimumVersion) {
         Write-Color -Text '[e] ', "'GraphEssentials' module is outdated for cloud-device cleanup. Please update to minimum version '$minimumVersion'. Terminating." -Color Yellow, Red
         return $false
@@ -19,6 +19,7 @@ function Assert-CloudDeviceCleanupSettings {
         'Get-MyDeviceIntune'
         'Invoke-MyDeviceRetire'
         'Disable-MyDevice'
+        'Remove-MyAutopilotDevice'
         'Remove-MyDevice'
         'Remove-MyDeviceIntuneRecord'
     )

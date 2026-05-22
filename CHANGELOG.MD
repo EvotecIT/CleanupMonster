@@ -1,4 +1,9 @@
-﻿### 3.1.11 - 2026.05.18
+﻿### 3.1.12 - 2026.05.22
+
+- Added opt-in Autopilot identity removal during cloud-device delete cleanup through `-DeleteAutopilotIdentity`.
+- Bumped the required `GraphEssentials` version for cloud-device cleanup to `0.0.58` so Autopilot identity deletion is available.
+
+### 3.1.11 - 2026.05.18
 
 - Added advanced cloud-device cleanup filters for join type, OS version, Autopilot state/group tag, owner presence, management/MDM state, compliance state, enabled state, enrollment type, device registration state, and registration age.
 - Bumped the required `GraphEssentials` version for cloud-device cleanup to `0.0.57` so Autopilot-aware filtering can rely on enriched inventory.

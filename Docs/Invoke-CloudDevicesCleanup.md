@@ -39,6 +39,7 @@ Destructive cloud cleanup treats missing Graph data as unsafe:
 - Entra-backed delete requires `Enabled -eq $false`
 - unknown Entra enabled state is excluded from disable/delete
 - `-AutopilotState NotOnboarded` only matches when Autopilot inventory was loaded successfully
+- `-DeleteAutopilotIdentity` requires Autopilot inventory and removes the Autopilot identity before Intune/Entra records
 
 ## EXAMPLES
 
@@ -86,6 +87,7 @@ Invoke-CloudDevicesCleanup `
     -IncludeOperatingSystem 'Windows*' `
     -DeleteLastSeenEntraMoreThan 180 `
     -DeleteRegisteredMoreThan 365 `
+    -DeleteAutopilotIdentity `
     -AutopilotState Onboarded `
     -OwnerState WithoutOwner `
     -ManagementState Mdm `
@@ -96,7 +98,7 @@ Invoke-CloudDevicesCleanup `
     -ShowHTML
 ```
 
-Preview deletion of disabled, old, inactive Windows cloud-joined devices that are Autopilot onboarded, MDM-managed, noncompliant, and have no owner.
+Preview deletion of disabled, old, inactive Windows cloud-joined devices that are Autopilot onboarded, MDM-managed, noncompliant, and have no owner, including the Autopilot identity delete sub-action.
 
 ### Example 5
 ```powershell
@@ -119,4 +121,5 @@ Preview disabling Windows 10 22H2 cloud-joined devices that are inactive, ownerl
 - Designed primarily for `iOS` and `Android` Microsoft Entra registered devices, with explicit opt-in filters for Windows and AzureAD joined devices.
 - Inventory includes `Matched`, `EntraOnly`, and `IntuneOnly` record states.
 - Default behavior excludes company-owned devices unless explicitly included.
+- Autopilot identity removal is opt-in via `-DeleteAutopilotIdentity`; use `-WhatIfDelete` to preview the full delete stage.
 - Use `-Confirm` when running interactively and keep `RetireLimit`, `DisableLimit`, and `DeleteLimit` low during rollout.
