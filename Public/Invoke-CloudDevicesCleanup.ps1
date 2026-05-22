@@ -139,6 +139,10 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER IncludeUnknownOperatingSystemVersion
     Allows records with blank operating-system-version values when version filters are set.
 
+    .PARAMETER IncludeUnknownActivity
+    Allows blank Entra and Intune activity timestamps to satisfy configured LastSeen*MoreThan filters.
+    By default, unknown activity is treated as unsafe and excluded from destructive action selection.
+
     .PARAMETER AutopilotState
     Filters action candidates by Windows Autopilot inventory state: Any, Onboarded, or NotOnboarded.
     NotOnboarded only matches when Autopilot inventory was loaded successfully.
@@ -303,6 +307,7 @@ function Invoke-CloudDevicesCleanup {
         [Array] $ExcludeOperatingSystemVersion = @(),
         [switch] $IncludeUnknownOperatingSystem,
         [switch] $IncludeUnknownOperatingSystemVersion,
+        [switch] $IncludeUnknownActivity,
         [ValidateSet('Any', 'Onboarded', 'NotOnboarded')]
         [string] $AutopilotState = 'Any',
         [ValidateSet('Any', 'WithOwner', 'WithoutOwner')]
@@ -386,6 +391,7 @@ function Invoke-CloudDevicesCleanup {
         LastSeenIntuneMoreThan = $RetireLastSeenIntuneMoreThan
         LastSeenEntraMoreThan  = $RetireLastSeenEntraMoreThan
         RegisteredMoreThan     = $RetireRegisteredMoreThan
+        IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
         IncludeIntuneOnly      = $RetireIncludeIntuneOnly.IsPresent
         AutopilotState         = $AutopilotState
@@ -408,6 +414,7 @@ function Invoke-CloudDevicesCleanup {
         LastSeenIntuneMoreThan = $DisableLastSeenIntuneMoreThan
         RegisteredMoreThan     = $DisableRegisteredMoreThan
         ListProcessedMoreThan  = $DisableListProcessedMoreThan
+        IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
         IncludeEntraOnly       = $DisableIncludeEntraOnly.IsPresent
         AutopilotState         = $AutopilotState
@@ -430,6 +437,7 @@ function Invoke-CloudDevicesCleanup {
         LastSeenIntuneMoreThan = $DeleteLastSeenIntuneMoreThan
         RegisteredMoreThan     = $DeleteRegisteredMoreThan
         ListProcessedMoreThan  = $DeleteListProcessedMoreThan
+        IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
         IncludeEntraOnly       = $DeleteIncludeEntraOnly.IsPresent
         IncludeIntuneOnly      = $DeleteIncludeIntuneOnly.IsPresent

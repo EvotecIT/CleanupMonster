@@ -20,10 +20,14 @@ function Get-CloudDeviceSelectionReason {
 
     if ($null -ne $ActionIf.LastSeenEntraMoreThan -and $null -ne $Device.EntraLastSeenDays) {
         $reasons.Add("EntraLastSeenDays=$($Device.EntraLastSeenDays) > $($ActionIf.LastSeenEntraMoreThan)")
+    } elseif ($null -ne $ActionIf.LastSeenEntraMoreThan -and $ActionIf.IncludeUnknownActivity -and $null -eq $Device.EntraLastSeenDays) {
+        $reasons.Add("EntraLastSeenDays=Unknown allowed")
     }
 
     if ($null -ne $ActionIf.LastSeenIntuneMoreThan -and $null -ne $Device.IntuneLastSeenDays) {
         $reasons.Add("IntuneLastSeenDays=$($Device.IntuneLastSeenDays) > $($ActionIf.LastSeenIntuneMoreThan)")
+    } elseif ($null -ne $ActionIf.LastSeenIntuneMoreThan -and $ActionIf.IncludeUnknownActivity -and $null -eq $Device.IntuneLastSeenDays) {
+        $reasons.Add("IntuneLastSeenDays=Unknown allowed")
     }
 
     if ($null -ne $ActionIf.RegisteredMoreThan -and $null -ne $Device.RegisteredDays) {

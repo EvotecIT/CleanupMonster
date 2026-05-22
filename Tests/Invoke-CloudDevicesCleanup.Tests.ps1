@@ -123,6 +123,29 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedRetireExcludeCompanyOwned | Should -BeFalse
     }
 
+    It 'passes unknown activity inclusion to candidate selection' {
+        $script:capturedIncludeUnknownActivity = $null
+
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            if ($Type -eq 'Disable') {
+                $script:capturedIncludeUnknownActivity = $ActionIf.IncludeUnknownActivity
+            }
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -IncludeUnknownActivity -Suppress | Out-Null
+
+        $script:capturedIncludeUnknownActivity | Should -BeTrue
+    }
+
     It 'does not include orphan states for actions unless explicitly requested' {
         $script:capturedRetireIncludeIntuneOnly = $null
         $script:capturedDisableIncludeEntraOnly = $null

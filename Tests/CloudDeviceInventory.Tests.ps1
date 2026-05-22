@@ -904,6 +904,68 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 0
     }
 
+    It 'does not treat unknown activity as stale unless explicitly included' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'Windows-UnknownActivity'
+                EntraDeviceObjectId    = 'entra-unknown-activity'
+                DeviceId               = 'device-unknown-activity'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $false
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = $null
+                RegisteredDays         = 200
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 90
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = 90
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 0
+    }
+
+    It 'allows unknown activity to satisfy stale filters when explicitly included' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                   = 'Windows-UnknownActivityIncluded'
+                EntraDeviceObjectId    = 'entra-unknown-activity-included'
+                DeviceId               = 'device-unknown-activity-included'
+                HasEntraRecord         = $true
+                HasIntuneRecord        = $false
+                RecordState            = 'Matched'
+                ManagedDeviceOwnerType = 'personal'
+                EntraLastSeenDays      = $null
+                RegisteredDays         = 200
+                Enabled                = $true
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 90
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = 90
+            IncludeUnknownActivity = $true
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].SelectionReason | Should -Match 'EntraLastSeenDays=Unknown allowed'
+    }
+
     It 'promotes pending-aged devices when activity has not advanced' {
         $staleEntraLastSeen = (Get-Date).AddDays(-200)
         $staleIntuneLastSeen = (Get-Date).AddDays(-200)

@@ -35,6 +35,7 @@ Orphan records are still discovered by default, but actioning them is intentiona
 Destructive cloud cleanup treats missing Graph data as unsafe:
 
 - blank activity timestamps are excluded from destructive action selection
+- add `-IncludeUnknownActivity` only when blank activity should be treated like "never synced/seen"
 - only `AzureAD registered` records are included by default; add `-IncludeJoinType 'AzureAD joined'` explicitly for Windows cloud-joined cleanup
 - pending devices are not promoted if current inventory loses activity that existed when staged
 - Entra-backed disable requires `Enabled -eq $true`
@@ -88,6 +89,8 @@ Invoke-CloudDevicesCleanup `
     -StageDisabledForDeleteLimit 25 `
     -IncludeJoinType 'AzureAD joined','AzureAD registered' `
     -IncludeOperatingSystem '*' `
+    -IncludeUnknownOperatingSystem `
+    -IncludeUnknownActivity `
     -DeleteLastSeenEntraMoreThan 90 `
     -DeleteAutopilotIdentity `
     -WhatIfStageDelete `
@@ -140,5 +143,6 @@ Preview disabling Windows 10 22H2 cloud-joined devices that are inactive, ownerl
 - Inventory includes `Matched`, `EntraOnly`, and `IntuneOnly` record states.
 - Default behavior excludes company-owned devices unless explicitly included.
 - Stage already-disabled devices with `-StageDisabledForDelete` when they were disabled outside CleanupMonster but should still wait before deletion.
+- Use `-IncludeUnknownActivity` to intentionally treat blank Entra/Intune activity as stale, matching "never synced/seen" hybrid cleanup semantics.
 - Autopilot identity removal is opt-in via `-DeleteAutopilotIdentity`; use `-WhatIfDelete` to preview the full delete stage.
 - Use `-Confirm` when running interactively and keep `RetireLimit`, `DisableLimit`, and `DeleteLimit` low during rollout.

@@ -195,13 +195,21 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($null -ne $ActionIf.LastSeenEntraMoreThan) {
-            if ($null -eq $device.EntraLastSeenDays -or $device.EntraLastSeenDays -le $ActionIf.LastSeenEntraMoreThan) {
+            if ($null -eq $device.EntraLastSeenDays) {
+                if (-not $ActionIf.IncludeUnknownActivity) {
+                    continue
+                }
+            } elseif ($device.EntraLastSeenDays -le $ActionIf.LastSeenEntraMoreThan) {
                 continue
             }
         }
 
         if ($null -ne $ActionIf.LastSeenIntuneMoreThan) {
-            if ($null -eq $device.IntuneLastSeenDays -or $device.IntuneLastSeenDays -le $ActionIf.LastSeenIntuneMoreThan) {
+            if ($null -eq $device.IntuneLastSeenDays) {
+                if (-not $ActionIf.IncludeUnknownActivity) {
+                    continue
+                }
+            } elseif ($device.IntuneLastSeenDays -le $ActionIf.LastSeenIntuneMoreThan) {
                 continue
             }
         }
