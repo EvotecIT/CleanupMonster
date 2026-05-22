@@ -1,6 +1,7 @@
 ﻿### 3.1.12 - 2026.05.22
 
 - Added opt-in Autopilot identity removal during cloud-device delete cleanup through `-DeleteAutopilotIdentity`.
+- Added `-StageDisabledForDelete` so already-disabled stale devices can enter the pending-action queue before deletion.
 - Bumped the required `GraphEssentials` version for cloud-device cleanup to `0.0.58` so Autopilot identity deletion is available.
 
 ### 3.1.11 - 2026.05.18

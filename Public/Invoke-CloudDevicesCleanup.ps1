@@ -73,6 +73,15 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER Delete
     Enables the final delete stage.
 
+    .PARAMETER StageDisabledForDelete
+    Adds already-disabled delete candidates to PendingActions without deleting them.
+    Use this for daily automation where pre-disabled stale devices should wait the
+    same DeleteListProcessedMoreThan grace period as devices disabled by CleanupMonster.
+
+    .PARAMETER StageDisabledForDeleteLimit
+    Maximum number of already-disabled devices to stage for later delete in one run.
+    0 means unlimited. Default is 10.
+
     .PARAMETER DeleteLastSeenEntraMoreThan
     Delete devices only when the Entra LastSeenDays value is greater than this number.
     Entra-backed devices must have Enabled equal to $false; unknown enabled state is treated as unsafe.
@@ -190,6 +199,9 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER WhatIfDisable
     Previews disable actions only. Preview results are shown in the current report but are not stored as pending actions or history.
 
+    .PARAMETER WhatIfStageDelete
+    Previews staging already-disabled delete candidates without updating the pending-action datastore.
+
     .PARAMETER WhatIfDelete
     Previews delete actions only. Preview results are shown in the current report but are not stored as pending actions or history.
 
@@ -269,6 +281,9 @@ function Invoke-CloudDevicesCleanup {
         [switch] $DisableIncludeEntraOnly,
         [int] $DisableLimit = 10,
 
+        [switch] $StageDisabledForDelete,
+        [int] $StageDisabledForDeleteLimit = 10,
+
         [switch] $Delete,
         [nullable[int]] $DeleteLastSeenEntraMoreThan,
         [nullable[int]] $DeleteLastSeenIntuneMoreThan,
@@ -313,6 +328,7 @@ function Invoke-CloudDevicesCleanup {
         [switch] $ReportOnly,
         [switch] $WhatIfRetire,
         [switch] $WhatIfDisable,
+        [switch] $WhatIfStageDelete,
         [switch] $WhatIfDelete,
         [string] $LogPath,
         [int] $LogMaximum = 5,
@@ -332,6 +348,9 @@ function Invoke-CloudDevicesCleanup {
         }
         if (-not $PSBoundParameters.ContainsKey('WhatIfDisable')) {
             $WhatIfDisable = $true
+        }
+        if (-not $PSBoundParameters.ContainsKey('WhatIfStageDelete')) {
+            $WhatIfStageDelete = $true
         }
         if (-not $PSBoundParameters.ContainsKey('WhatIfDelete')) {
             $WhatIfDelete = $true
@@ -356,8 +375,8 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
-    if (-not $Retire -and -not $Disable -and -not $Delete) {
-        Write-Color -Text '[i] ', 'No action can be taken. You need to enable Retire, Disable or Delete.' -Color Yellow, Red
+    if (-not $Retire -and -not $Disable -and -not $StageDisabledForDelete -and -not $Delete) {
+        Write-Color -Text '[i] ', 'No action can be taken. You need to enable Retire, Disable, StageDisabledForDelete or Delete.' -Color Yellow, Red
         return
     }
 
@@ -429,6 +448,12 @@ function Invoke-CloudDevicesCleanup {
         ExcludeAutopilotGroupTag = $ExcludeAutopilotGroupTag
     }
 
+    $stageDeleteOnlyIf = [ordered] @{}
+    foreach ($key in $deleteOnlyIf.Keys) {
+        $stageDeleteOnlyIf[$key] = $deleteOnlyIf[$key]
+    }
+    $stageDeleteOnlyIf.ListProcessedMoreThan = $null
+
     $export = [ordered] @{
         Version        = Get-GitHubVersion -Cmdlet 'Invoke-CloudDevicesCleanup' -RepositoryOwner 'evotecit' -RepositoryName 'CleanupMonster'
         CurrentRun     = @()
@@ -450,6 +475,7 @@ function Invoke-CloudDevicesCleanup {
     $today = Get-Date
     $reportRetired = @()
     $reportDisabled = @()
+    $reportStagedForDelete = @()
     $reportDeleted = @()
 
     if ($Retire) {
@@ -478,6 +504,19 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
+    if ($StageDisabledForDelete) {
+        $devicesToStageForDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $stageDeleteOnlyIf -ProcessedDevices $processedDevices)
+        Write-Color -Text '[i] ', 'Devices to be staged for delete: ', $devicesToStageForDelete.Count, '. Current stage limit: ', $(if ($StageDisabledForDeleteLimit -eq 0) { 'Unlimited' } else { $StageDisabledForDeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
+
+        $processStageDelete = $devicesToStageForDelete.Count -gt 0
+        if ($processStageDelete -and $confirmActions -and -not ($ReportOnly -or $WhatIfPreference -or $WhatIfStageDelete)) {
+            $processStageDelete = $PSCmdlet.ShouldProcess("$($devicesToStageForDelete.Count) cloud device(s)", 'Stage for delete')
+        }
+        if ($processStageDelete) {
+            $reportStagedForDelete = @(Request-CloudDevicesStageDelete -Devices $devicesToStageForDelete -ProcessedDevices $processedDevices -Today $today -StageLimit $StageDisabledForDeleteLimit -ReportOnly:$ReportOnly -WhatIfStageDelete:$WhatIfStageDelete -WhatIf:$WhatIfPreference)
+        }
+    }
+
     if ($Delete) {
         $devicesToDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $deleteOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be deleted: ', $devicesToDelete.Count, '. Current delete limit: ', $(if ($DeleteLimit -eq 0) { 'Unlimited' } else { $DeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
@@ -495,6 +534,7 @@ function Invoke-CloudDevicesCleanup {
     $export.CurrentRun = @(
         if ($reportRetired.Count -gt 0) { $reportRetired }
         if ($reportDisabled.Count -gt 0) { $reportDisabled }
+        if ($reportStagedForDelete.Count -gt 0) { $reportStagedForDelete }
         if ($reportDeleted.Count -gt 0) { $reportDeleted }
     )
     $persistedRun = @()
@@ -503,6 +543,9 @@ function Invoke-CloudDevicesCleanup {
     }
     if ($reportDisabled.Count -gt 0) {
         $persistedRun += @($reportDisabled | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
+    }
+    if ($reportStagedForDelete.Count -gt 0) {
+        $persistedRun += @($reportStagedForDelete | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
     }
     if ($reportDeleted.Count -gt 0) {
         $persistedRun += @($reportDeleted | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })

@@ -12,6 +12,7 @@ BeforeAll {
     function Get-CloudDevicesToProcess { @() }
     function Request-CloudDevicesRetire { @() }
     function Request-CloudDevicesDisable { @() }
+    function Request-CloudDevicesStageDelete { @() }
     function Request-CloudDevicesDelete { @() }
     function New-HTMLProcessedCloudDevices {}
     function New-EmailBodyCloudDevices { param($CurrentRun) '' }
@@ -258,6 +259,61 @@ Describe 'Invoke-CloudDevicesCleanup' {
 
         $script:capturedIncludeAutopilotInventory | Should -BeTrue
         $script:capturedDeleteAutopilotIdentity | Should -BeTrue
+    }
+
+    It 'stages already disabled delete candidates without running delete' {
+        $script:stageDeleteCalled = $false
+        $script:deleteCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                = 'Windows-AlreadyDisabled'
+                    EntraDeviceObjectId = 'entra-stage'
+                    HasEntraRecord      = $true
+                    Enabled             = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                = 'Windows-AlreadyDisabled'
+                    EntraDeviceObjectId = 'entra-stage'
+                    HasEntraRecord      = $true
+                    Enabled             = $false
+                    ProcessedDeviceKey  = 'entra:entra-stage'
+                    ProcessedDeviceKeys = @('entra:entra-stage')
+                }
+            )
+        }
+        Mock Request-CloudDevicesStageDelete {
+            param(
+                $StageLimit,
+                [switch] $WhatIfStageDelete,
+                [switch] $WhatIf
+            )
+
+            $script:stageDeleteCalled = $true
+            $StageLimit | Should -Be 7
+            $WhatIfStageDelete.IsPresent | Should -BeTrue
+            @(
+                [PSCustomObject] @{
+                    Name         = 'Windows-AlreadyDisabled'
+                    Action       = 'StageDelete'
+                    ActionStatus = 'WhatIf'
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            $script:deleteCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -StageDisabledForDelete -StageDisabledForDeleteLimit 7 -WhatIfStageDelete -Suppress | Out-Null
+
+        $script:stageDeleteCalled | Should -BeTrue
+        $script:deleteCalled | Should -BeFalse
     }
 
     It 'skips action request stages when no candidates are selected' {

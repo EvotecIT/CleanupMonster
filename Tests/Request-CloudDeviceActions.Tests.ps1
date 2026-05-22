@@ -4,6 +4,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Set-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesRetire.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDisable.ps1')
+    . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesStageDelete.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDelete.ps1')
 
     function Invoke-MyDeviceRetire {}
@@ -134,6 +135,71 @@ Describe 'Request-CloudDevicesDisable' {
         $results | Should -HaveCount 1
         $results[0].ActionStatus | Should -Be 'False'
         Assert-MockCalled Disable-MyDevice -Times 1 -Exactly
+    }
+}
+
+Describe 'Request-CloudDevicesStageDelete' {
+    It 'stages already disabled candidates into pending actions' {
+        $processedDevices = [ordered] @{}
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'Windows-AlreadyDisabled'
+                EntraDeviceObjectId = 'entra-stage'
+                HasEntraRecord      = $true
+                Enabled             = $false
+                ProcessedDeviceKey  = 'entra:entra-stage'
+                ProcessedDeviceKeys = @('entra:entra-stage')
+            }
+        )
+
+        $results = @(Request-CloudDevicesStageDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date))
+
+        $results | Should -HaveCount 1
+        $results[0].Action | Should -Be 'StageDelete'
+        $results[0].ActionStatus | Should -Be 'True'
+        $processedDevices.Contains('entra:entra-stage') | Should -BeTrue
+    }
+
+    It 'does not store WhatIf stage-delete results in pending actions' {
+        $processedDevices = [ordered] @{}
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'Windows-StagePreview'
+                EntraDeviceObjectId = 'entra-stage-preview'
+                ProcessedDeviceKey  = 'entra:entra-stage-preview'
+                ProcessedDeviceKeys = @('entra:entra-stage-preview')
+            }
+        )
+
+        $results = @(Request-CloudDevicesStageDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -WhatIfStageDelete)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'WhatIf'
+        $processedDevices.Count | Should -Be 0
+    }
+
+    It 'skips candidates that are already pending' {
+        $processedDevices = [ordered] @{
+            'entra:entra-stage-existing' = [PSCustomObject] @{
+                Action       = 'StageDelete'
+                ActionStatus = 'True'
+                ActionDate   = (Get-Date).AddDays(-5)
+            }
+        }
+        $devices = @(
+            [PSCustomObject] @{
+                Name                      = 'Windows-AlreadyPending'
+                EntraDeviceObjectId       = 'entra-stage-existing'
+                ProcessedDeviceKey        = 'entra:entra-stage-existing'
+                MatchedProcessedDeviceKey = 'entra:entra-stage-existing'
+                ProcessedDeviceKeys       = @('entra:entra-stage-existing')
+            }
+        )
+
+        $results = @(Request-CloudDevicesStageDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date))
+
+        $results | Should -HaveCount 0
+        $processedDevices.Count | Should -Be 1
     }
 }
 

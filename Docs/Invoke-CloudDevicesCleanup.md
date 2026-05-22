@@ -22,6 +22,8 @@ classifies records as matched or orphaned, and supports staged actions:
 The workflow keeps its own pending datastore so actions can be separated across multiple runs.
 Real successful retire and disable actions are stored in `PendingActions`; `-ReportOnly`,
 top-level `-WhatIf`, and action-specific preview switches do not mutate pending cleanup state.
+Use `-StageDisabledForDelete` to add already-disabled stale devices to the same pending queue
+without deleting them immediately.
 
 Orphan records are still discovered by default, but actioning them is intentionally explicit:
 
@@ -40,6 +42,7 @@ Destructive cloud cleanup treats missing Graph data as unsafe:
 - unknown Entra enabled state is excluded from disable/delete
 - `-AutopilotState NotOnboarded` only matches when Autopilot inventory was loaded successfully
 - `-DeleteAutopilotIdentity` requires Autopilot inventory and removes the Autopilot identity before Intune/Entra records
+- `-StageDisabledForDelete` lets already-disabled devices wait the normal delete grace period instead of bypassing pending state
 
 ## EXAMPLES
 
@@ -81,6 +84,21 @@ Preview all stages, stop on suspiciously low Graph inventory, and generate an HT
 ### Example 4
 ```powershell
 Invoke-CloudDevicesCleanup `
+    -StageDisabledForDelete `
+    -StageDisabledForDeleteLimit 25 `
+    -IncludeJoinType 'AzureAD joined','AzureAD registered' `
+    -IncludeOperatingSystem '*' `
+    -DeleteLastSeenEntraMoreThan 90 `
+    -DeleteAutopilotIdentity `
+    -WhatIfStageDelete `
+    -ShowHTML
+```
+
+Preview staging already-disabled stale devices into `PendingActions` so daily automation can delete them after the configured grace period.
+
+### Example 5
+```powershell
+Invoke-CloudDevicesCleanup `
     -Delete `
     -WhatIfDelete `
     -IncludeJoinType 'AzureAD joined' `
@@ -100,7 +118,7 @@ Invoke-CloudDevicesCleanup `
 
 Preview deletion of disabled, old, inactive Windows cloud-joined devices that are Autopilot onboarded, MDM-managed, noncompliant, and have no owner, including the Autopilot identity delete sub-action.
 
-### Example 5
+### Example 6
 ```powershell
 Invoke-CloudDevicesCleanup `
     -Disable `
@@ -121,5 +139,6 @@ Preview disabling Windows 10 22H2 cloud-joined devices that are inactive, ownerl
 - Designed primarily for `iOS` and `Android` Microsoft Entra registered devices, with explicit opt-in filters for Windows and AzureAD joined devices.
 - Inventory includes `Matched`, `EntraOnly`, and `IntuneOnly` record states.
 - Default behavior excludes company-owned devices unless explicitly included.
+- Stage already-disabled devices with `-StageDisabledForDelete` when they were disabled outside CleanupMonster but should still wait before deletion.
 - Autopilot identity removal is opt-in via `-DeleteAutopilotIdentity`; use `-WhatIfDelete` to preview the full delete stage.
 - Use `-Confirm` when running interactively and keep `RetireLimit`, `DisableLimit`, and `DeleteLimit` low during rollout.
