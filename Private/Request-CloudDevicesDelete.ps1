@@ -36,12 +36,9 @@ function Request-CloudDevicesDelete {
 
         if (-not $ReportOnly) {
             if ($DeleteAutopilotIdentity) {
-                if ($device.AutopilotInventoryLoaded -ne $true) {
-                    $subActionExecuted = $true
-                    $subActionSuccess = $false
-                    $continueRecordDelete = $false
-                    $subActionMessages.Add('Autopilot: Inventory was not loaded; record delete was skipped.')
-                } elseif ($device.AutopilotOnboarded -eq $true) {
+                $operatingSystem = [string] $device.OperatingSystem
+                $autopilotMayApply = [string]::IsNullOrWhiteSpace($operatingSystem) -or $operatingSystem -eq 'Unknown' -or $operatingSystem -like 'Windows*'
+                if ($device.AutopilotOnboarded -eq $true) {
                     $subActionExecuted = $true
                     if ([string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
                         $subActionSuccess = $false
@@ -57,6 +54,11 @@ function Request-CloudDevicesDelete {
                             $continueRecordDelete = $false
                         }
                     }
+                } elseif ($autopilotMayApply -and $device.AutopilotInventoryLoaded -ne $true -and $device.AutopilotOnboarded -ne $false) {
+                    $subActionExecuted = $true
+                    $subActionSuccess = $false
+                    $continueRecordDelete = $false
+                    $subActionMessages.Add('Autopilot: Inventory was not loaded; record delete was skipped.')
                 }
             }
 

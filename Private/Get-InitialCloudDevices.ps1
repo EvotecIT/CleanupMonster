@@ -25,6 +25,23 @@ function Get-InitialCloudDevices {
         }
     }
 
+    $getFirstPropertyValue = {
+        param(
+            [AllowEmptyCollection()]
+            [object[]] $InputObject,
+            [string[]] $Name
+        )
+
+        foreach ($source in $InputObject) {
+            $value = Get-CloudDevicePropertyValue -InputObject $source -Name $Name
+            if (-not [string]::IsNullOrWhiteSpace([string] $value)) {
+                return $value
+            }
+        }
+
+        $null
+    }
+
     Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($IncludeJoinType -join ', ') -Color Yellow, Cyan, Green
     $entraParameters = @{
         Type          = $IncludeJoinType
@@ -166,12 +183,12 @@ function Get-InitialCloudDevices {
             ManagementAgent         = if ($intuneDevice) { $intuneDevice.ManagementAgent } else { $null }
             AutopilotInventoryLoaded = $autopilotInventoryLoaded
             AutopilotOnboarded      = $autopilotOnboarded
-            AutopilotDeviceId       = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotDeviceId' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotDeviceId' }
-            AutopilotGroupTag       = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotGroupTag' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotGroupTag' }
-            AutopilotSerialNumber   = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotSerialNumber' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotSerialNumber' }
-            AutopilotEnrollmentState = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotEnrollmentState' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotEnrollmentState' }
-            AutopilotLastContacted  = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContacted' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotLastContacted' }
-            AutopilotUserPrincipalName = if ($intuneDevice) { Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotUserPrincipalName' } else { Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotUserPrincipalName' }
+            AutopilotDeviceId       = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotDeviceId'
+            AutopilotGroupTag       = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotGroupTag'
+            AutopilotSerialNumber   = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotSerialNumber'
+            AutopilotEnrollmentState = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotEnrollmentState'
+            AutopilotLastContacted  = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContacted'
+            AutopilotUserPrincipalName = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotUserPrincipalName'
             SelectionReason         = $null
         })
     }

@@ -124,6 +124,54 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices[0].ManagedDeviceId | Should -Be 'managed-2'
     }
 
+    It 'keeps Entra Autopilot metadata when matched Intune fields are missing' {
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                       = 'Windows-Autopilot-Matched'
+                    EntraDeviceObjectId        = 'entra-ap'
+                    DeviceId                   = 'device-ap'
+                    Enabled                    = $false
+                    OperatingSystem            = 'Windows'
+                    TrustType                  = 'AzureAD joined'
+                    LastSeenDays               = 250
+                    FirstSeen                  = (Get-Date).AddDays(-500)
+                    AutopilotInventoryLoaded   = $true
+                    AutopilotOnboarded         = $true
+                    AutopilotDeviceId          = 'entra-autopilot-id'
+                    AutopilotGroupTag          = 'DoNotDelete-Ring'
+                    AutopilotUserPrincipalName = 'assigned.user@contoso.com'
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Windows-Autopilot-Matched'
+                    ManagedDeviceId         = 'managed-ap'
+                    EntraDeviceObjectId     = 'entra-ap'
+                    AzureAdDeviceId         = 'device-ap'
+                    OperatingSystem         = 'Windows'
+                    OperatingSystemVersion  = '10.0.22631.5624'
+                    LastSeenDays            = 250
+                    FirstSeen               = (Get-Date).AddDays(-500)
+                    ManagedDeviceOwnerType  = 'company'
+                    DeviceRegistrationState = 'joined'
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'unknown'
+                    ManagementAgent         = 'mdm'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 1
+        $devices[0].AutopilotDeviceId | Should -Be 'entra-autopilot-id'
+        $devices[0].AutopilotGroupTag | Should -Be 'DoNotDelete-Ring'
+        $devices[0].AutopilotUserPrincipalName | Should -Be 'assigned.user@contoso.com'
+    }
+
     It 'excludes hybrid and joined records from cloud cleanup inventory' {
         Mock Get-MyDevice {
             @(
@@ -676,6 +724,41 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
 
         $candidates.Count | Should -Be 0
+    }
+
+    It 'allows Windows devices with direct owner data through WithOwner when Autopilot inventory is unavailable' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                     = 'Windows-WithOwner'
+                EntraDeviceObjectId      = 'entra-with-owner'
+                DeviceId                 = 'device-with-owner'
+                ManagedDeviceId          = 'managed-with-owner'
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ManagedDeviceOwnerType   = 'personal'
+                OperatingSystem          = 'Windows'
+                EntraLastSeenDays        = 300
+                Enabled                  = $true
+                OwnerDisplayName         = @('User One')
+                AutopilotInventoryLoaded = $false
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan  = 180
+            LastSeenIntuneMoreThan = $null
+            RegisteredMoreThan     = $null
+            ListProcessedMoreThan  = $null
+            ExcludeCompanyOwned    = $true
+            IncludeEntraOnly       = $false
+            OwnerState             = 'WithOwner'
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates.Count | Should -Be 1
+        $candidates[0].Name | Should -Be 'Windows-WithOwner'
     }
 
     It 'allows retire candidates after a WhatIf preview entry exists' {

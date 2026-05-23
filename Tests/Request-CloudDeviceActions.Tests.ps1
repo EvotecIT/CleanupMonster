@@ -295,6 +295,7 @@ Describe 'Request-CloudDevicesDelete' {
                 Name                     = 'Windows-UnknownAutopilot'
                 EntraDeviceObjectId      = 'entra-unknown-ap'
                 ManagedDeviceId          = 'managed-unknown-ap'
+                OperatingSystem          = 'Windows'
                 AutopilotInventoryLoaded = $false
                 AutopilotOnboarded       = $null
                 HasEntraRecord           = $true
@@ -314,6 +315,45 @@ Describe 'Request-CloudDevicesDelete' {
         Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 0 -Exactly
         Assert-MockCalled Remove-MyDevice -Times 0 -Exactly
         $processedDevices.Contains('entra:entra-unknown-ap') | Should -BeTrue
+    }
+
+    It 'does not require Autopilot inventory before deleting non-Windows records' {
+        Mock Remove-MyDeviceIntuneRecord { [PSCustomObject] @{ Success = $true; Message = 'Removed Intune record' } }
+        Mock Remove-MyDevice { [PSCustomObject] @{ Success = $true; Message = 'Removed Entra record' } }
+
+        $processedDevices = [ordered] @{
+            'entra:entra-ios' = [PSCustomObject] @{
+                Action       = 'Disable'
+                ActionStatus = 'True'
+                ActionDate   = (Get-Date).AddDays(-35)
+            }
+        }
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                     = 'iPhone-Old'
+                EntraDeviceObjectId      = 'entra-ios'
+                ManagedDeviceId          = 'managed-ios'
+                OperatingSystem          = 'iOS'
+                AutopilotInventoryLoaded = $false
+                AutopilotOnboarded       = $null
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ProcessedDeviceKey       = 'entra:entra-ios'
+                ProcessedDeviceKeys      = @('entra:entra-ios', 'intune:managed-ios')
+            }
+        )
+
+        $results = @(Request-CloudDevicesDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -DeleteAutopilotIdentity)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'True'
+        $results[0].ActionNotes | Should -Not -Match 'Autopilot: Inventory was not loaded'
+        Assert-MockCalled Remove-MyAutopilotDevice -Times 0 -Exactly
+        Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 1 -Exactly
+        Assert-MockCalled Remove-MyDevice -Times 1 -Exactly
+        $processedDevices.Contains('entra:entra-ios') | Should -BeFalse
     }
 
     It 'does not delete records when an onboarded Autopilot identity cannot be removed' {
