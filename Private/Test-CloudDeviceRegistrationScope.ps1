@@ -16,17 +16,17 @@ function Test-CloudDeviceRegistrationScope {
         return $IncludeJoinType -contains $Device.TrustType
     }
 
-    if ($Device.PSObject.Properties['DeviceRegistrationState']) {
-        $joinType = Get-CloudDeviceJoinTypeFromRegistrationState -DeviceRegistrationState $Device.DeviceRegistrationState
-        return $joinType -and $IncludeJoinType -contains $joinType
-    }
-
     if ($Device.PSObject.Properties['IsSynchronized'] -and $Device.IsSynchronized -eq $true) {
         return $false
     }
 
     if ($Device.PSObject.Properties['AzureAdRegistered'] -and $Device.AzureAdRegistered -eq $false) {
         return $false
+    }
+
+    if ($Device.PSObject.Properties['DeviceRegistrationState']) {
+        $joinType = Get-CloudDeviceJoinTypeFromRegistrationState -DeviceRegistrationState $Device.DeviceRegistrationState
+        return $joinType -and $IncludeJoinType -contains $joinType
     }
 
     $IncludeJoinType -contains 'Not available'

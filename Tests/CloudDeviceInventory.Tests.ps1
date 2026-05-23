@@ -323,6 +323,21 @@ Describe 'Cloud device inventory and selection helpers' {
         $result | Should -BeTrue
     }
 
+    It 'keeps synchronized or non-registered records out before mapping missing join metadata' {
+        $synchronized = [PSCustomObject] @{
+            DeviceRegistrationState = ''
+            IsSynchronized          = $true
+            AzureAdRegistered       = $true
+        }
+        $nonRegistered = [PSCustomObject] @{
+            DeviceRegistrationState = ''
+            AzureAdRegistered       = $false
+        }
+
+        Test-CloudDeviceRegistrationScope -Device $synchronized -IncludeJoinType 'Not available' | Should -BeFalse
+        Test-CloudDeviceRegistrationScope -Device $nonRegistered -IncludeJoinType 'Not available' | Should -BeFalse
+    }
+
     It 'applies managed-device exclusions to matched records' {
         Mock Get-MyDevice {
             @(
