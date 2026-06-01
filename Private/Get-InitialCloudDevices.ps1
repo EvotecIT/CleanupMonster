@@ -42,30 +42,37 @@ function Get-InitialCloudDevices {
         $null
     }
 
-    Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($IncludeJoinType -join ', ') -Color Yellow, Cyan, Green
-    $entraParameters = @{
-        Type          = $IncludeJoinType
-        WarningAction = 'SilentlyContinue'
-        WarningVariable = 'warningVar'
-    }
-    if ($IncludeAutopilotInventory) {
-        $entraParameters.IncludeAutopilotInventory = $true
-    }
-    [Array] $entraDevices = Get-MyDevice @entraParameters
-    if ($warningVar) {
-        Write-Color -Text '[e] ', 'Error getting devices from Microsoft Entra ID: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
-        return $false
-    }
+    [Array] $entraJoinType = @($IncludeJoinType | Where-Object { $_ -ne 'Not available' })
+    [Array] $entraDevices = @()
+    if ($entraJoinType.Count -gt 0) {
+        Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($entraJoinType -join ', ') -Color Yellow, Cyan, Green
+        $entraParameters = @{
+            Type            = $entraJoinType
+            WarningAction   = 'SilentlyContinue'
+            WarningVariable = 'warningVar'
+        }
+        if ($IncludeAutopilotInventory) {
+            $entraParameters.IncludeAutopilotInventory = $true
+        }
+        $warningVar = $null
+        [Array] $entraDevices = Get-MyDevice @entraParameters
+        if ($warningVar) {
+            Write-Color -Text '[e] ', 'Error getting devices from Microsoft Entra ID: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
+            return $false
+        }
 
-    if ($entraDevices.Count -eq 0) {
-        if ($null -ne $SafetyEntraLimit -and $SafetyEntraLimit -gt 0) {
+        if ($entraDevices.Count -eq 0) {
+            if ($null -ne $SafetyEntraLimit -and $SafetyEntraLimit -gt 0) {
+                Write-Color -Text '[e] ', 'Only ', $entraDevices.Count, ' devices found in Microsoft Entra ID, this is less than the safety limit of ', $SafetyEntraLimit, '. Terminating!' -Color Yellow, Cyan, Red, Cyan
+                return $false
+            }
+            Write-Color -Text '[i] ', 'No scoped devices found in Microsoft Entra ID. Continuing with Intune inventory to discover orphan records.' -Color Yellow, Yellow
+        } elseif ($null -ne $SafetyEntraLimit -and $entraDevices.Count -lt $SafetyEntraLimit) {
             Write-Color -Text '[e] ', 'Only ', $entraDevices.Count, ' devices found in Microsoft Entra ID, this is less than the safety limit of ', $SafetyEntraLimit, '. Terminating!' -Color Yellow, Cyan, Red, Cyan
             return $false
         }
-        Write-Color -Text '[i] ', 'No AzureAD registered devices found in Microsoft Entra ID. Continuing with Intune inventory to discover orphan records.' -Color Yellow, Yellow
-    } elseif ($null -ne $SafetyEntraLimit -and $entraDevices.Count -lt $SafetyEntraLimit) {
-        Write-Color -Text '[e] ', 'Only ', $entraDevices.Count, ' devices found in Microsoft Entra ID, this is less than the safety limit of ', $SafetyEntraLimit, '. Terminating!' -Color Yellow, Cyan, Red, Cyan
-        return $false
+    } else {
+        Write-Color -Text '[i] ', 'Skipping Microsoft Entra ID inventory because requested join type is only Not available. Continuing with Intune inventory.' -Color Yellow, Yellow
     }
 
     Write-Color -Text '[i] ', 'Cloud devices found in Microsoft Entra ID: ', $entraDevices.Count -Color Yellow, Cyan, Green

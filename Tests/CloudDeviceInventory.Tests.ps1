@@ -323,6 +323,48 @@ Describe 'Cloud device inventory and selection helpers' {
         $result | Should -BeTrue
     }
 
+    It 'does not pass Not available to the Entra inventory query' {
+        $script:CapturedEntraJoinType = $null
+        Mock Get-MyDevice {
+            param([string[]] $Type)
+            $script:CapturedEntraJoinType = @($Type)
+            @()
+        }
+        Mock Get-MyDeviceIntune { @() }
+
+        Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered', 'Not available' -IncludeOperatingSystem @('*') -ExcludeOperatingSystem @() -Exclusions @() | Out-Null
+
+        $script:CapturedEntraJoinType | Should -Be @('AzureAD registered')
+    }
+
+    It 'skips Entra inventory when only Not available join type is requested' {
+        Mock Get-MyDevice { throw 'Entra inventory should not be queried' }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'Unknown-State-Intune'
+                    ManagedDeviceId         = 'managed-unknown-state'
+                    AzureAdDeviceId         = 'device-unknown-state'
+                    OperatingSystem         = 'Unknown'
+                    OperatingSystemVersion  = 'Unknown'
+                    LastSeenDays            = 400
+                    FirstSeen               = (Get-Date).AddDays(-500)
+                    ManagedDeviceOwnerType  = 'personal'
+                    DeviceRegistrationState = ''
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'unknown'
+                    ManagementAgent         = 'mdm'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'Not available' -IncludeOperatingSystem @('*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        Assert-MockCalled Get-MyDevice -Times 0 -Exactly
+        $devices | Should -HaveCount 1
+        $devices[0].Name | Should -Be 'Unknown-State-Intune'
+    }
+
     It 'keeps synchronized or non-registered records out before mapping missing join metadata' {
         $synchronized = [PSCustomObject] @{
             DeviceRegistrationState = ''
