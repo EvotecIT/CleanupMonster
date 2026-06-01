@@ -380,7 +380,13 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
-    if (-not $Retire -and -not $Disable -and -not $StageDisabledForDelete -and -not $Delete) {
+    $processStageDisabledForDelete = $StageDisabledForDelete.IsPresent
+    if ($processStageDisabledForDelete -and $null -eq $DeleteLastSeenEntraMoreThan -and $null -eq $DeleteLastSeenIntuneMoreThan -and $null -eq $DeleteRegisteredMoreThan) {
+        Write-Color -Text '[e] ', 'StageDisabledForDelete requires at least one stale delete filter: DeleteLastSeenEntraMoreThan, DeleteLastSeenIntuneMoreThan, or DeleteRegisteredMoreThan.' -Color Yellow, Red
+        $processStageDisabledForDelete = $false
+    }
+
+    if (-not $Retire -and -not $Disable -and -not $processStageDisabledForDelete -and -not $Delete) {
         Write-Color -Text '[i] ', 'No action can be taken. You need to enable Retire, Disable, StageDisabledForDelete or Delete.' -Color Yellow, Red
         return
     }
@@ -512,7 +518,7 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
-    if ($StageDisabledForDelete) {
+    if ($processStageDisabledForDelete) {
         $devicesToStageForDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $stageDeleteOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be staged for delete: ', $devicesToStageForDelete.Count, '. Current stage limit: ', $(if ($StageDisabledForDeleteLimit -eq 0) { 'Unlimited' } else { $StageDisabledForDeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
 

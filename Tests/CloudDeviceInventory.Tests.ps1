@@ -160,6 +160,8 @@ Describe 'Cloud device inventory and selection helpers' {
                     AzureAdRegistered       = $true
                     ComplianceState         = 'unknown'
                     ManagementAgent         = 'mdm'
+                    AutopilotInventoryLoaded = $null
+                    AutopilotOnboarded       = $null
                 }
             )
         }
@@ -167,9 +169,52 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
 
         $devices | Should -HaveCount 1
+        $devices[0].AutopilotInventoryLoaded | Should -BeTrue
+        $devices[0].AutopilotOnboarded | Should -BeTrue
         $devices[0].AutopilotDeviceId | Should -Be 'entra-autopilot-id'
         $devices[0].AutopilotGroupTag | Should -Be 'DoNotDelete-Ring'
         $devices[0].AutopilotUserPrincipalName | Should -Be 'assigned.user@contoso.com'
+    }
+
+    It 'preserves explicit false Intune Autopilot state over Entra fallback' {
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                     = 'Windows-NotAutopilot'
+                    EntraDeviceObjectId      = 'entra-not-ap'
+                    DeviceId                 = 'device-not-ap'
+                    Enabled                  = $false
+                    OperatingSystem          = 'Windows'
+                    TrustType                = 'AzureAD joined'
+                    LastSeenDays             = 250
+                    FirstSeen                = (Get-Date).AddDays(-500)
+                    AutopilotInventoryLoaded = $true
+                    AutopilotOnboarded       = $true
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                     = 'Windows-NotAutopilot'
+                    ManagedDeviceId          = 'managed-not-ap'
+                    AzureAdDeviceId          = 'device-not-ap'
+                    OperatingSystem          = 'Windows'
+                    OperatingSystemVersion   = '10.0.22631.5624'
+                    DeviceRegistrationState  = 'joined'
+                    AzureAdRegistered        = $true
+                    ManagementAgent          = 'mdm'
+                    AutopilotInventoryLoaded = $false
+                    AutopilotOnboarded       = $false
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 1
+        $devices[0].AutopilotInventoryLoaded | Should -BeFalse
+        $devices[0].AutopilotOnboarded | Should -BeFalse
     }
 
     It 'excludes hybrid and joined records from cloud cleanup inventory' {

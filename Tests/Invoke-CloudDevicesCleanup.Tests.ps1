@@ -333,10 +333,20 @@ Describe 'Invoke-CloudDevicesCleanup' {
             @()
         }
 
-        Invoke-CloudDevicesCleanup -StageDisabledForDelete -StageDisabledForDeleteLimit 7 -WhatIfStageDelete -Suppress | Out-Null
+        Invoke-CloudDevicesCleanup -StageDisabledForDelete -StageDisabledForDeleteLimit 7 -DeleteLastSeenEntraMoreThan 180 -WhatIfStageDelete -Suppress | Out-Null
 
         $script:stageDeleteCalled | Should -BeTrue
         $script:deleteCalled | Should -BeFalse
+    }
+
+    It 'does not stage disabled devices without stale delete criteria' {
+        Mock Get-InitialCloudDevices { throw 'Inventory should not be queried' }
+        Mock Request-CloudDevicesStageDelete { throw 'Stage delete should not run' }
+
+        Invoke-CloudDevicesCleanup -StageDisabledForDelete -Suppress | Out-Null
+
+        Assert-MockCalled Get-InitialCloudDevices -Times 0 -Exactly
+        Assert-MockCalled Request-CloudDevicesStageDelete -Times 0 -Exactly
     }
 
     It 'skips action request stages when no candidates are selected' {

@@ -42,6 +42,23 @@ function Get-InitialCloudDevices {
         $null
     }
 
+    $getFirstNonNullPropertyValue = {
+        param(
+            [AllowEmptyCollection()]
+            [object[]] $InputObject,
+            [string[]] $Name
+        )
+
+        foreach ($source in $InputObject) {
+            $value = Get-CloudDevicePropertyValue -InputObject $source -Name $Name
+            if ($null -ne $value) {
+                return $value
+            }
+        }
+
+        $null
+    }
+
     [Array] $entraJoinType = @($IncludeJoinType | Where-Object { $_ -ne 'Not available' })
     [Array] $entraDevices = @()
     if ($entraJoinType.Count -gt 0) {
@@ -141,16 +158,8 @@ function Get-InitialCloudDevices {
 
         $entraRegisteredDays = & $getAgeDays $entraDevice.FirstSeen
         $intuneRegisteredDays = if ($intuneDevice) { & $getAgeDays $intuneDevice.FirstSeen } else { $null }
-        $autopilotInventoryLoaded = if ($intuneDevice -and $intuneDevice.PSObject.Properties['AutopilotInventoryLoaded']) {
-            $intuneDevice.AutopilotInventoryLoaded
-        } else {
-            Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotInventoryLoaded'
-        }
-        $autopilotOnboarded = if ($intuneDevice -and $intuneDevice.PSObject.Properties['AutopilotOnboarded']) {
-            $intuneDevice.AutopilotOnboarded
-        } else {
-            Get-CloudDevicePropertyValue -InputObject $entraDevice -Name 'AutopilotOnboarded'
-        }
+        $autopilotInventoryLoaded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotInventoryLoaded'
+        $autopilotOnboarded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotOnboarded'
 
         $outputDevices.Add([PSCustomObject] [ordered] @{
             Name                    = $entraDevice.Name
