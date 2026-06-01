@@ -12,6 +12,7 @@ BeforeAll {
     function Get-CloudDevicesToProcess { @() }
     function Request-CloudDevicesRetire { @() }
     function Request-CloudDevicesDisable { @() }
+    function Request-CloudDevicesStageDelete { @() }
     function Request-CloudDevicesDelete { @() }
     function New-HTMLProcessedCloudDevices {}
     function New-EmailBodyCloudDevices { param($CurrentRun) '' }
@@ -122,6 +123,29 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedRetireExcludeCompanyOwned | Should -BeFalse
     }
 
+    It 'passes unknown activity inclusion to candidate selection' {
+        $script:capturedIncludeUnknownActivity = $null
+
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            if ($Type -eq 'Disable') {
+                $script:capturedIncludeUnknownActivity = $ActionIf.IncludeUnknownActivity
+            }
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -IncludeUnknownActivity -Suppress | Out-Null
+
+        $script:capturedIncludeUnknownActivity | Should -BeTrue
+    }
+
     It 'does not include orphan states for actions unless explicitly requested' {
         $script:capturedRetireIncludeIntuneOnly = $null
         $script:capturedDisableIncludeEntraOnly = $null
@@ -198,6 +222,131 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedDisableIncludeEntraOnly | Should -BeTrue
         $script:capturedDeleteIncludeEntraOnly | Should -BeTrue
         $script:capturedDeleteIncludeIntuneOnly | Should -BeTrue
+    }
+
+    It 'loads Autopilot inventory and passes Autopilot delete through when requested' {
+        $script:capturedIncludeAutopilotInventory = $null
+        $script:capturedDeleteAutopilotIdentity = $null
+
+        Mock Get-InitialCloudDevices {
+            param(
+                [switch] $IncludeAutopilotInventory
+            )
+
+            $script:capturedIncludeAutopilotInventory = $IncludeAutopilotInventory.IsPresent
+            @(
+                [PSCustomObject] @{
+                    Name                     = 'Windows-Autopilot'
+                    EntraDeviceObjectId      = 'entra-ap'
+                    ManagedDeviceId          = 'managed-ap'
+                    AutopilotInventoryLoaded = $true
+                    AutopilotOnboarded       = $true
+                    AutopilotDeviceId        = 'autopilot-ap'
+                    HasEntraRecord           = $true
+                    HasIntuneRecord          = $true
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                     = 'Windows-Autopilot'
+                    EntraDeviceObjectId      = 'entra-ap'
+                    ManagedDeviceId          = 'managed-ap'
+                    AutopilotInventoryLoaded = $true
+                    AutopilotOnboarded       = $true
+                    AutopilotDeviceId        = 'autopilot-ap'
+                    HasEntraRecord           = $true
+                    HasIntuneRecord          = $true
+                    ProcessedDeviceKey       = 'entra:entra-ap'
+                    ProcessedDeviceKeys      = @('entra:entra-ap', 'intune:managed-ap')
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            param(
+                [switch] $DeleteAutopilotIdentity
+            )
+
+            $script:capturedDeleteAutopilotIdentity = $DeleteAutopilotIdentity.IsPresent
+            @(
+                [PSCustomObject] @{
+                    Name         = 'Windows-Autopilot'
+                    Action       = 'Delete'
+                    ActionStatus = 'WhatIf'
+                }
+            )
+        }
+
+        Invoke-CloudDevicesCleanup -Delete -DeleteAutopilotIdentity -WhatIfDelete -Suppress | Out-Null
+
+        $script:capturedIncludeAutopilotInventory | Should -BeTrue
+        $script:capturedDeleteAutopilotIdentity | Should -BeTrue
+    }
+
+    It 'stages already disabled delete candidates without running delete' {
+        $script:stageDeleteCalled = $false
+        $script:deleteCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                = 'Windows-AlreadyDisabled'
+                    EntraDeviceObjectId = 'entra-stage'
+                    HasEntraRecord      = $true
+                    Enabled             = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                = 'Windows-AlreadyDisabled'
+                    EntraDeviceObjectId = 'entra-stage'
+                    HasEntraRecord      = $true
+                    Enabled             = $false
+                    ProcessedDeviceKey  = 'entra:entra-stage'
+                    ProcessedDeviceKeys = @('entra:entra-stage')
+                }
+            )
+        }
+        Mock Request-CloudDevicesStageDelete {
+            param(
+                $StageLimit,
+                [switch] $WhatIfStageDelete,
+                [switch] $WhatIf
+            )
+
+            $script:stageDeleteCalled = $true
+            $StageLimit | Should -Be 7
+            $WhatIfStageDelete.IsPresent | Should -BeTrue
+            @(
+                [PSCustomObject] @{
+                    Name         = 'Windows-AlreadyDisabled'
+                    Action       = 'StageDelete'
+                    ActionStatus = 'WhatIf'
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            $script:deleteCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -StageDisabledForDelete -StageDisabledForDeleteLimit 7 -DeleteLastSeenEntraMoreThan 180 -WhatIfStageDelete -Suppress | Out-Null
+
+        $script:stageDeleteCalled | Should -BeTrue
+        $script:deleteCalled | Should -BeFalse
+    }
+
+    It 'does not stage disabled devices without stale delete criteria' {
+        Mock Get-InitialCloudDevices { throw 'Inventory should not be queried' }
+        Mock Request-CloudDevicesStageDelete { throw 'Stage delete should not run' }
+
+        Invoke-CloudDevicesCleanup -StageDisabledForDelete -Suppress | Out-Null
+
+        Assert-MockCalled Get-InitialCloudDevices -Times 0 -Exactly
+        Assert-MockCalled Request-CloudDevicesStageDelete -Times 0 -Exactly
     }
 
     It 'skips action request stages when no candidates are selected' {

@@ -15,6 +15,106 @@ function Get-CloudDevicesToProcess {
         [System.Collections.IDictionary] $ProcessedDevices
     )
 
+    function Test-CloudDeviceValuePattern {
+        param(
+            [AllowNull()]
+            [object[]] $Value,
+            [AllowEmptyCollection()]
+            [Array] $Include,
+            [AllowEmptyCollection()]
+            [Array] $Exclude
+        )
+
+        $values = @($Value | Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) })
+        if ($Include -and $Include.Count -gt 0) {
+            $matched = $false
+            foreach ($includePattern in $Include) {
+                foreach ($deviceValue in $values) {
+                    if ([string] $deviceValue -like $includePattern) {
+                        $matched = $true
+                        break
+                    }
+                }
+                if ($matched) { break }
+            }
+            if (-not $matched) {
+                return $false
+            }
+        }
+
+        if ($Exclude -and $Exclude.Count -gt 0) {
+            foreach ($excludePattern in $Exclude) {
+                foreach ($deviceValue in $values) {
+                    if ([string] $deviceValue -like $excludePattern) {
+                        return $false
+                    }
+                }
+            }
+        }
+
+        $true
+    }
+
+    function Test-CloudDeviceOwnerPresence {
+        param([Parameter(Mandatory)] [object] $Device)
+
+        $ownerValues = @(
+            $Device.OwnerDisplayName
+            $Device.OwnerUserPrincipalName
+            $Device.IntuneUserDisplayName
+            $Device.IntuneUserPrincipalName
+            $Device.IntuneEmailAddress
+            $Device.AutopilotUserPrincipalName
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) }
+
+        $ownerValues.Count -gt 0
+    }
+
+    function Test-CloudDeviceManagedState {
+        param([Parameter(Mandatory)] [object] $Device)
+
+        if ($Device.IsManaged -eq $true) {
+            return $true
+        }
+
+        $managementValues = @($Device.ManagementType, $Device.ManagementAgent) | Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) -and [string] $_ -ne 'none' -and [string] $_ -ne 'unknown' }
+        $managementValues.Count -gt 0
+    }
+
+    function Test-CloudDeviceMdmState {
+        param([Parameter(Mandatory)] [object] $Device)
+
+        $managementValues = @($Device.ManagementType, $Device.ManagementAgent) | Where-Object { -not [string]::IsNullOrWhiteSpace([string] $_) }
+        foreach ($managementValue in $managementValues) {
+            if ([string] $managementValue -like '*mdm*' -or [string] $managementValue -like '*intune*') {
+                return $true
+            }
+        }
+
+        $false
+    }
+
+    function Get-CloudDeviceComplianceState {
+        param([Parameter(Mandatory)] [object] $Device)
+
+        if (-not [string]::IsNullOrWhiteSpace([string] $Device.ComplianceState)) {
+            switch ([string] $Device.ComplianceState) {
+                'compliant' { return 'Compliant' }
+                { $_ -in @('noncompliant', 'inGracePeriod', 'configManager') } { return 'NonCompliant' }
+                default { return 'Unknown' }
+            }
+        }
+
+        if ($Device.IsCompliant -eq $true -or [string] $Device.ComplianceState -eq 'compliant') {
+            return 'Compliant'
+        }
+        if ($Device.IsCompliant -eq $false -or [string] $Device.ComplianceState -in @('noncompliant', 'inGracePeriod', 'configManager')) {
+            return 'NonCompliant'
+        }
+
+        'Unknown'
+    }
+
     Write-Color -Text '[i] ', "Applying following rules to $Type action:" -Color Yellow, Cyan, Green
     foreach ($key in $ActionIf.Keys) {
         if ($null -eq $ActionIf[$key] -or ($ActionIf[$key] -is [System.Array] -and $ActionIf[$key].Count -eq 0)) {
@@ -95,15 +195,110 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($null -ne $ActionIf.LastSeenEntraMoreThan) {
-            if ($null -eq $device.EntraLastSeenDays -or $device.EntraLastSeenDays -le $ActionIf.LastSeenEntraMoreThan) {
+            if ($null -eq $device.EntraLastSeenDays) {
+                if (-not $ActionIf.IncludeUnknownActivity) {
+                    continue
+                }
+            } elseif ($device.EntraLastSeenDays -le $ActionIf.LastSeenEntraMoreThan) {
                 continue
             }
         }
 
         if ($null -ne $ActionIf.LastSeenIntuneMoreThan) {
-            if ($null -eq $device.IntuneLastSeenDays -or $device.IntuneLastSeenDays -le $ActionIf.LastSeenIntuneMoreThan) {
+            if ($null -eq $device.IntuneLastSeenDays) {
+                if (-not $ActionIf.IncludeUnknownActivity) {
+                    continue
+                }
+            } elseif ($device.IntuneLastSeenDays -le $ActionIf.LastSeenIntuneMoreThan) {
                 continue
             }
+        }
+
+        if ($null -ne $ActionIf.RegisteredMoreThan) {
+            if ($null -eq $device.RegisteredDays -or $device.RegisteredDays -le $ActionIf.RegisteredMoreThan) {
+                continue
+            }
+        }
+
+        if ($ActionIf.EnabledState -and $ActionIf.EnabledState -ne 'Any') {
+            if ($ActionIf.EnabledState -eq 'Enabled' -and $device.Enabled -ne $true) {
+                continue
+            }
+            if ($ActionIf.EnabledState -eq 'Disabled' -and $device.Enabled -ne $false) {
+                continue
+            }
+            if ($ActionIf.EnabledState -eq 'Unknown' -and $null -ne $device.Enabled) {
+                continue
+            }
+        }
+
+        if ($ActionIf.AutopilotState -and $ActionIf.AutopilotState -ne 'Any') {
+            if (-not $device.AutopilotInventoryLoaded) {
+                continue
+            }
+            if ($ActionIf.AutopilotState -eq 'Onboarded' -and $device.AutopilotOnboarded -ne $true) {
+                continue
+            }
+            if ($ActionIf.AutopilotState -eq 'NotOnboarded' -and $device.AutopilotOnboarded -ne $false) {
+                continue
+            }
+        }
+
+        if ($ActionIf.OwnerState -and $ActionIf.OwnerState -ne 'Any') {
+            if ($ActionIf.OwnerState -eq 'WithoutOwner' -and $device.OperatingSystem -like 'Windows*' -and $device.AutopilotInventoryLoaded -ne $true) {
+                continue
+            }
+            $hasOwner = Test-CloudDeviceOwnerPresence -Device $device
+            if ($ActionIf.OwnerState -eq 'WithOwner' -and -not $hasOwner) {
+                continue
+            }
+            if ($ActionIf.OwnerState -eq 'WithoutOwner' -and $hasOwner) {
+                continue
+            }
+        }
+
+        if ($ActionIf.ManagementState -and $ActionIf.ManagementState -ne 'Any') {
+            $isManaged = Test-CloudDeviceManagedState -Device $device
+            $isMdm = Test-CloudDeviceMdmState -Device $device
+            if ($ActionIf.ManagementState -eq 'Managed' -and -not $isManaged) {
+                continue
+            }
+            if ($ActionIf.ManagementState -eq 'Unmanaged' -and $isManaged) {
+                continue
+            }
+            if ($ActionIf.ManagementState -eq 'Mdm' -and -not $isMdm) {
+                continue
+            }
+            if ($ActionIf.ManagementState -eq 'NotMdm' -and $isMdm) {
+                continue
+            }
+        }
+
+        if ($ActionIf.ComplianceState -and $ActionIf.ComplianceState -ne 'Any') {
+            if ((Get-CloudDeviceComplianceState -Device $device) -ne $ActionIf.ComplianceState) {
+                continue
+            }
+        }
+
+        if (-not (Test-CloudDeviceValuePattern -Value $device.ManagementAgent -Include $ActionIf.IncludeManagementAgent -Exclude $ActionIf.ExcludeManagementAgent)) {
+            continue
+        }
+
+        if (-not (Test-CloudDeviceValuePattern -Value @($device.EnrollmentType, $device.DeviceEnrollmentType) -Include $ActionIf.IncludeEnrollmentType -Exclude $ActionIf.ExcludeEnrollmentType)) {
+            continue
+        }
+
+        if (-not (Test-CloudDeviceValuePattern -Value $device.DeviceRegistrationState -Include $ActionIf.IncludeDeviceRegistrationState -Exclude $ActionIf.ExcludeDeviceRegistrationState)) {
+            continue
+        }
+
+        $hasAutopilotGroupTagFilter = ($ActionIf.IncludeAutopilotGroupTag -and $ActionIf.IncludeAutopilotGroupTag.Count -gt 0) -or ($ActionIf.ExcludeAutopilotGroupTag -and $ActionIf.ExcludeAutopilotGroupTag.Count -gt 0)
+        if ($hasAutopilotGroupTagFilter -and -not $device.AutopilotInventoryLoaded) {
+            continue
+        }
+
+        if (-not (Test-CloudDeviceValuePattern -Value $device.AutopilotGroupTag -Include $ActionIf.IncludeAutopilotGroupTag -Exclude $ActionIf.ExcludeAutopilotGroupTag)) {
+            continue
         }
 
         $candidate = $device | Select-Object *
