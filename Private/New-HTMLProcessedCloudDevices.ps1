@@ -16,6 +16,8 @@ function New-HTMLProcessedCloudDevices {
         [Parameter(Mandatory)]
         [System.Collections.IDictionary] $DeleteOnlyIf,
 
+        [System.Collections.IDictionary] $RemoveAutopilotIdentityOnlyIf,
+
         [Parameter(Mandatory)]
         [string] $FilePath,
 
@@ -47,12 +49,14 @@ function New-HTMLProcessedCloudDevices {
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Retire' -BackgroundColor EnergyYellow
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor Yellow
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAutopilotIdentity' -BackgroundColor LightCyan
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
                 New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'ReportOnly' -BackgroundColor Lavender
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
+                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
             } -WarningAction SilentlyContinue
         }
 
@@ -61,8 +65,10 @@ function New-HTMLProcessedCloudDevices {
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Retire' -BackgroundColor EnergyYellow
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor Yellow
                 New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAutopilotIdentity' -BackgroundColor LightCyan
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
+                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
             } -WarningAction SilentlyContinue
         }
 
@@ -70,6 +76,7 @@ function New-HTMLProcessedCloudDevices {
             New-HTMLTable -DataTable $Export.PendingActions.Values -Filtering -ScrollX {
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
+                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
             } -WarningAction SilentlyContinue
         }
 
@@ -81,6 +88,7 @@ function New-HTMLProcessedCloudDevices {
                 New-HTMLPanel { New-HTMLToast -TextHeader 'Matched' -Text "Matched records: $(@($Devices | Where-Object { $_.RecordState -eq 'Matched' }).Count)" -BarColorLeft SeaGreen -IconSolid info-circle -IconColor SeaGreen } -Invisible
                 New-HTMLPanel { New-HTMLToast -TextHeader 'Entra only' -Text "Entra-only records: $(@($Devices | Where-Object { $_.RecordState -eq 'EntraOnly' }).Count)" -BarColorLeft CornflowerBlue -IconSolid info-circle -IconColor CornflowerBlue } -Invisible
                 New-HTMLPanel { New-HTMLToast -TextHeader 'Intune only' -Text "Intune-only records: $(@($Devices | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel } -Invisible
+                New-HTMLPanel { New-HTMLToast -TextHeader 'Broken Intune links' -Text "Broken Intune links: $(@($Devices | Where-Object { $_.IntuneLinkState -eq 'Broken' }).Count)" -BarColorLeft Salmon -IconSolid unlink -IconColor Salmon } -Invisible
             } -Invisible
 
             New-HTMLSection -HeaderText 'Rules' {
@@ -96,12 +104,19 @@ function New-HTMLProcessedCloudDevices {
                     New-HTMLText -Text 'Delete rules' -FontWeight bold
                     New-HTMLTable -DataTable @([PSCustomObject] $DeleteOnlyIf)
                 }
+                if ($RemoveAutopilotIdentityOnlyIf) {
+                    New-HTMLPanel {
+                        New-HTMLText -Text 'Remove Autopilot identity rules' -FontWeight bold
+                        New-HTMLTable -DataTable @([PSCustomObject] $RemoveAutopilotIdentityOnlyIf)
+                    }
+                }
             }
 
             New-HTMLTable -DataTable $Devices -Filtering -ScrollX {
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'Matched' -BackgroundColor Honeydew
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
                 New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
+                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
             } -WarningAction SilentlyContinue
         }
 

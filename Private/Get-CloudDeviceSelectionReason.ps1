@@ -5,7 +5,7 @@ function Get-CloudDeviceSelectionReason {
         [PSObject] $Device,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Retire', 'Disable', 'Delete')]
+        [ValidateSet('Retire', 'Disable', 'Delete', 'RemoveAutopilotIdentity')]
         [string] $Type,
 
         [Parameter(Mandatory)]
@@ -17,6 +17,14 @@ function Get-CloudDeviceSelectionReason {
     $reasons = [System.Collections.Generic.List[string]]::new()
 
     $reasons.Add("RecordState=$($Device.RecordState)")
+
+    if ($Device.PSObject.Properties['IntuneLinkState'] -and $Device.IntuneLinkState) {
+        $reasons.Add("IntuneLinkState=$($Device.IntuneLinkState)")
+    }
+
+    if ($ActionIf.IntuneLinkState -and $ActionIf.IntuneLinkState -ne 'Any') {
+        $reasons.Add("RequiredIntuneLinkState=$($ActionIf.IntuneLinkState)")
+    }
 
     if ($null -ne $ActionIf.LastSeenEntraMoreThan -and $null -ne $Device.EntraLastSeenDays) {
         $reasons.Add("EntraLastSeenDays=$($Device.EntraLastSeenDays) > $($ActionIf.LastSeenEntraMoreThan)")
@@ -40,6 +48,20 @@ function Get-CloudDeviceSelectionReason {
 
     if ($ActionIf.AutopilotState -and $ActionIf.AutopilotState -ne 'Any') {
         $reasons.Add("AutopilotState=$($ActionIf.AutopilotState)")
+    }
+
+    if ($null -ne $ActionIf.AutopilotLastContactMoreThan -and $null -ne $Device.AutopilotLastContactedDays) {
+        $reasons.Add("AutopilotLastContactedDays=$($Device.AutopilotLastContactedDays) > $($ActionIf.AutopilotLastContactMoreThan)")
+    } elseif ($null -ne $ActionIf.AutopilotLastContactMoreThan -and $ActionIf.IncludeUnknownActivity -and $null -eq $Device.AutopilotLastContactedDays) {
+        $reasons.Add("AutopilotLastContactedDays=Unknown allowed")
+    }
+
+    if ($ActionIf.AutopilotIntuneAssociationState -and $ActionIf.AutopilotIntuneAssociationState -ne 'Any') {
+        $reasons.Add("AutopilotIntuneAssociationState=$($ActionIf.AutopilotIntuneAssociationState)")
+    }
+
+    if ($ActionIf.AutopilotEntraAssociationState -and $ActionIf.AutopilotEntraAssociationState -ne 'Any') {
+        $reasons.Add("AutopilotEntraAssociationState=$($ActionIf.AutopilotEntraAssociationState)")
     }
 
     if ($ActionIf.OwnerState -and $ActionIf.OwnerState -ne 'Any') {
@@ -98,6 +120,10 @@ function Get-CloudDeviceSelectionReason {
             $reasons.Add('Delete Entra orphan record')
             $reasons.Add("IncludeEntraOnly=$($ActionIf.IncludeEntraOnly)")
         }
+    }
+
+    if ($Type -eq 'RemoveAutopilotIdentity') {
+        $reasons.Add('Remove Windows Autopilot device identity only')
     }
 
     $reasons -join '; '

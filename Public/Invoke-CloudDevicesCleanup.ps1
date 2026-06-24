@@ -13,6 +13,7 @@ function Invoke-CloudDevicesCleanup {
     - Retire: retires stale Intune managed devices.
     - Disable: disables stale Microsoft Entra devices after matching criteria or pending-list age.
     - Delete: removes stale Microsoft Entra devices and, by default, eligible Intune records.
+    - RemoveAutopilotIdentity: removes stale Windows Autopilot identities without deleting Entra or Intune records.
 
     The cmdlet keeps a datastore with PendingActions and History so staged actions
     can be reviewed over multiple runs. ReportOnly and WhatIf/action-specific
@@ -115,6 +116,25 @@ function Invoke-CloudDevicesCleanup {
     When enabled, Autopilot inventory must load successfully. If an onboarded device cannot
     have its Autopilot identity removed, the Intune and Entra record delete sub-actions are skipped.
 
+    .PARAMETER RemoveAutopilotIdentity
+    Removes selected Windows Autopilot device identities without deleting matching Intune or Entra records.
+    Defaults to requiring a missing associated Intune managed-device id and a last-contact age greater than 90 days.
+
+    .PARAMETER RemoveAutopilotIdentityLastContactMoreThan
+    Removes Autopilot identities only when the Autopilot LastContacted age is greater than this number of days.
+    Defaults to 90 days. Blank Autopilot last-contact values are excluded unless IncludeUnknownActivity is set.
+
+    .PARAMETER RemoveAutopilotIdentityIntuneAssociationState
+    Filters Autopilot identity removal by the Autopilot associated Intune managed-device id.
+    Defaults to Missing.
+
+    .PARAMETER RemoveAutopilotIdentityEntraAssociationState
+    Filters Autopilot identity removal by the Autopilot associated Microsoft Entra device value.
+    EqualsSerialNumber and NotEqualsSerialNumber compare the Autopilot resource/display name with the Autopilot serial number.
+
+    .PARAMETER RemoveAutopilotIdentityLimit
+    Maximum number of Autopilot identities to remove in one run. 0 means unlimited. Default is 10.
+
     .PARAMETER IncludeOperatingSystem
     Operating-system patterns to include when building cloud-device inventory.
     Defaults to iOS and Android patterns. Wildcards are supported.
@@ -142,6 +162,10 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER IncludeUnknownActivity
     Allows blank Entra and Intune activity timestamps to satisfy configured LastSeen*MoreThan filters.
     By default, unknown activity is treated as unsafe and excluded from destructive action selection.
+
+    .PARAMETER IntuneLinkState
+    Filters action candidates by the relationship between Microsoft Entra MDM metadata and Intune managed-device inventory.
+    Broken means the Entra device claims Intune/MDM management but no matching Intune managed-device record exists.
 
     .PARAMETER AutopilotState
     Filters action candidates by Windows Autopilot inventory state: Any, Onboarded, or NotOnboarded.
@@ -209,6 +233,9 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER WhatIfDelete
     Previews delete actions only. Preview results are shown in the current report but are not stored as pending actions or history.
 
+    .PARAMETER WhatIfRemoveAutopilotIdentity
+    Previews standalone Autopilot identity removal only. Preview results are shown in the current report but are not stored in history.
+
     .PARAMETER LogPath
     Path to a log file. When omitted, file logging is not enabled.
 
@@ -263,6 +290,16 @@ function Invoke-CloudDevicesCleanup {
     Previews cleanup of stale Intune-only orphan records without deleting anything or updating the pending-action datastore.
 
     .EXAMPLE
+    Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem '*' -IncludeUnknownOperatingSystem -RemoveAutopilotIdentityIntuneAssociationState Missing -RemoveAutopilotIdentityLastContactMoreThan 90 -WhatIfRemoveAutopilotIdentity -ShowHTML
+
+    Previews removing stale Windows Autopilot identities whose associated Intune managed-device id is missing.
+
+    .EXAMPLE
+    Invoke-CloudDevicesCleanup -Disable -DisableIncludeEntraOnly -IntuneLinkState Broken -DisableLastSeenEntraMoreThan 90 -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem '*' -IncludeUnknownOperatingSystem -WhatIfDisable -ShowHTML
+
+    Previews disabling Entra devices older than 90 days that claim Intune/MDM management but have no matching Intune managed-device record.
+
+    .EXAMPLE
     $cloudCleanup = Invoke-CloudDevicesCleanup -Disable -DisableLastSeenEntraMoreThan 180 -IncludeOperatingSystem 'Android*' -ExcludeOperatingSystem '*Dedicated*' -Confirm
     $cloudCleanup.CurrentRun | Format-Table Name, Action, ActionStatus, ActionDate
 
@@ -299,6 +336,14 @@ function Invoke-CloudDevicesCleanup {
         [bool] $DeleteRemoveIntuneRecord = $true,
         [switch] $DeleteAutopilotIdentity,
 
+        [switch] $RemoveAutopilotIdentity,
+        [nullable[int]] $RemoveAutopilotIdentityLastContactMoreThan = 90,
+        [ValidateSet('Any', 'Missing', 'Present')]
+        [string] $RemoveAutopilotIdentityIntuneAssociationState = 'Missing',
+        [ValidateSet('Any', 'Missing', 'Present', 'EqualsSerialNumber', 'NotEqualsSerialNumber')]
+        [string] $RemoveAutopilotIdentityEntraAssociationState = 'Any',
+        [int] $RemoveAutopilotIdentityLimit = 10,
+
         [ValidateSet('Hybrid AzureAD', 'AzureAD joined', 'AzureAD registered', 'Not available')]
         [string[]] $IncludeJoinType = @('AzureAD registered'),
         [Array] $IncludeOperatingSystem = @('iOS*', 'Android*'),
@@ -308,6 +353,8 @@ function Invoke-CloudDevicesCleanup {
         [switch] $IncludeUnknownOperatingSystem,
         [switch] $IncludeUnknownOperatingSystemVersion,
         [switch] $IncludeUnknownActivity,
+        [ValidateSet('Any', 'Healthy', 'Broken', 'NotClaimed', 'IntuneOnly')]
+        [string] $IntuneLinkState = 'Any',
         [ValidateSet('Any', 'Onboarded', 'NotOnboarded')]
         [string] $AutopilotState = 'Any',
         [ValidateSet('Any', 'WithOwner', 'WithoutOwner')]
@@ -335,6 +382,7 @@ function Invoke-CloudDevicesCleanup {
         [switch] $WhatIfDisable,
         [switch] $WhatIfStageDelete,
         [switch] $WhatIfDelete,
+        [switch] $WhatIfRemoveAutopilotIdentity,
         [string] $LogPath,
         [int] $LogMaximum = 5,
         [switch] $LogShowTime,
@@ -359,6 +407,9 @@ function Invoke-CloudDevicesCleanup {
         }
         if (-not $PSBoundParameters.ContainsKey('WhatIfDelete')) {
             $WhatIfDelete = $true
+        }
+        if (-not $PSBoundParameters.ContainsKey('WhatIfRemoveAutopilotIdentity')) {
+            $WhatIfRemoveAutopilotIdentity = $true
         }
     }
 
@@ -386,8 +437,8 @@ function Invoke-CloudDevicesCleanup {
         $processStageDisabledForDelete = $false
     }
 
-    if (-not $Retire -and -not $Disable -and -not $processStageDisabledForDelete -and -not $Delete) {
-        Write-Color -Text '[i] ', 'No action can be taken. You need to enable Retire, Disable, StageDisabledForDelete or Delete.' -Color Yellow, Red
+    if (-not $Retire -and -not $Disable -and -not $processStageDisabledForDelete -and -not $Delete -and -not $RemoveAutopilotIdentity) {
+        Write-Color -Text '[i] ', 'No action can be taken. You need to enable Retire, Disable, StageDisabledForDelete, Delete or RemoveAutopilotIdentity.' -Color Yellow, Red
         return
     }
 
@@ -399,6 +450,7 @@ function Invoke-CloudDevicesCleanup {
         RegisteredMoreThan     = $RetireRegisteredMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
+        IntuneLinkState        = $IntuneLinkState
         IncludeIntuneOnly      = $RetireIncludeIntuneOnly.IsPresent
         AutopilotState         = $AutopilotState
         OwnerState             = $OwnerState
@@ -422,6 +474,7 @@ function Invoke-CloudDevicesCleanup {
         ListProcessedMoreThan  = $DisableListProcessedMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
+        IntuneLinkState        = $IntuneLinkState
         IncludeEntraOnly       = $DisableIncludeEntraOnly.IsPresent
         AutopilotState         = $AutopilotState
         OwnerState             = $OwnerState
@@ -445,6 +498,7 @@ function Invoke-CloudDevicesCleanup {
         ListProcessedMoreThan  = $DeleteListProcessedMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
+        IntuneLinkState        = $IntuneLinkState
         IncludeEntraOnly       = $DeleteIncludeEntraOnly.IsPresent
         IncludeIntuneOnly      = $DeleteIncludeIntuneOnly.IsPresent
         AutopilotState         = $AutopilotState
@@ -460,6 +514,28 @@ function Invoke-CloudDevicesCleanup {
         ExcludeDeviceRegistrationState = $ExcludeDeviceRegistrationState
         IncludeAutopilotGroupTag = $IncludeAutopilotGroupTag
         ExcludeAutopilotGroupTag = $ExcludeAutopilotGroupTag
+    }
+
+    $removeAutopilotIdentityOnlyIf = [ordered] @{
+        AutopilotLastContactMoreThan = $RemoveAutopilotIdentityLastContactMoreThan
+        IncludeUnknownActivity       = $IncludeUnknownActivity.IsPresent
+        ExcludeCompanyOwned          = -not $IncludeCompanyOwned
+        IntuneLinkState              = $IntuneLinkState
+        AutopilotState               = 'Onboarded'
+        AutopilotIntuneAssociationState = $RemoveAutopilotIdentityIntuneAssociationState
+        AutopilotEntraAssociationState = $RemoveAutopilotIdentityEntraAssociationState
+        OwnerState                   = $OwnerState
+        ManagementState              = $ManagementState
+        ComplianceState              = $ComplianceState
+        EnabledState                 = $EnabledState
+        IncludeManagementAgent       = $IncludeManagementAgent
+        ExcludeManagementAgent       = $ExcludeManagementAgent
+        IncludeEnrollmentType        = $IncludeEnrollmentType
+        ExcludeEnrollmentType        = $ExcludeEnrollmentType
+        IncludeDeviceRegistrationState = $IncludeDeviceRegistrationState
+        ExcludeDeviceRegistrationState = $ExcludeDeviceRegistrationState
+        IncludeAutopilotGroupTag     = $IncludeAutopilotGroupTag
+        ExcludeAutopilotGroupTag     = $ExcludeAutopilotGroupTag
     }
 
     $stageDeleteOnlyIf = [ordered] @{}
@@ -480,7 +556,7 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
-    $includeAutopilotInventory = $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0
+    $includeAutopilotInventory = $RemoveAutopilotIdentity -or $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0
     $allDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $IncludeJoinType -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory:$includeAutopilotInventory
     if ($allDevices -eq $false) {
         return
@@ -491,6 +567,7 @@ function Invoke-CloudDevicesCleanup {
     $reportDisabled = @()
     $reportStagedForDelete = @()
     $reportDeleted = @()
+    $reportAutopilotIdentityRemoved = @()
 
     if ($Retire) {
         $devicesToRetire = @(Get-CloudDevicesToProcess -Type Retire -Devices $allDevices -ActionIf $retireOnlyIf -ProcessedDevices $processedDevices)
@@ -544,12 +621,26 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
+    if ($RemoveAutopilotIdentity) {
+        $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $allDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices)
+        Write-Color -Text '[i] ', 'Autopilot identities to be removed: ', $devicesToRemoveAutopilotIdentity.Count, '. Current remove limit: ', $(if ($RemoveAutopilotIdentityLimit -eq 0) { 'Unlimited' } else { $RemoveAutopilotIdentityLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
+
+        $processRemoveAutopilotIdentity = $devicesToRemoveAutopilotIdentity.Count -gt 0
+        if ($processRemoveAutopilotIdentity -and $confirmActions -and -not ($ReportOnly -or $WhatIfPreference -or $WhatIfRemoveAutopilotIdentity)) {
+            $processRemoveAutopilotIdentity = $PSCmdlet.ShouldProcess("$($devicesToRemoveAutopilotIdentity.Count) Windows Autopilot device identity(s)", 'Remove Autopilot identity')
+        }
+        if ($processRemoveAutopilotIdentity) {
+            $reportAutopilotIdentityRemoved = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devicesToRemoveAutopilotIdentity -Today $today -RemoveAutopilotIdentityLimit $RemoveAutopilotIdentityLimit -ReportOnly:$ReportOnly -WhatIfRemoveAutopilotIdentity:$WhatIfRemoveAutopilotIdentity)
+        }
+    }
+
     $export.PendingActions = $processedDevices
     $export.CurrentRun = @(
         if ($reportRetired.Count -gt 0) { $reportRetired }
         if ($reportDisabled.Count -gt 0) { $reportDisabled }
         if ($reportStagedForDelete.Count -gt 0) { $reportStagedForDelete }
         if ($reportDeleted.Count -gt 0) { $reportDeleted }
+        if ($reportAutopilotIdentityRemoved.Count -gt 0) { $reportAutopilotIdentityRemoved }
     )
     $persistedRun = @()
     if ($reportRetired.Count -gt 0) {
@@ -564,6 +655,9 @@ function Invoke-CloudDevicesCleanup {
     if ($reportDeleted.Count -gt 0) {
         $persistedRun += @($reportDeleted | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
     }
+    if ($reportAutopilotIdentityRemoved.Count -gt 0) {
+        $persistedRun += @($reportAutopilotIdentityRemoved | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
+    }
     $export.History = @(
         if ($export.History) { $export.History }
         if ($persistedRun.Count -gt 0) { $persistedRun }
@@ -577,7 +671,7 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
-    New-HTMLProcessedCloudDevices -Export $export -Devices $allDevices -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    New-HTMLProcessedCloudDevices -Export $export -Devices $allDevices -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 

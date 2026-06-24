@@ -735,6 +735,49 @@ $Output.CurrentRun | Format-Table Name, RecordState, Action, ActionStatus, Actio
 
 Entra-backed delete requires the current inventory to say `Enabled` is exactly `$false`. If a pending device previously had activity timestamps but the current inventory loses them, CleanupMonster will not promote it to the next destructive stage.
 
+#### Remove stale Autopilot identities only
+
+```powershell
+$Output = Invoke-CloudDevicesCleanup `
+    -RemoveAutopilotIdentity `
+    -RemoveAutopilotIdentityLastContactMoreThan 90 `
+    -RemoveAutopilotIdentityIntuneAssociationState Missing `
+    -RemoveAutopilotIdentityEntraAssociationState EqualsSerialNumber `
+    -RemoveAutopilotIdentityLimit 5 `
+    -IncludeJoinType 'AzureAD joined', 'AzureAD registered' `
+    -IncludeOperatingSystem '*' `
+    -IncludeUnknownOperatingSystem `
+    -SafetyEntraLimit 1000 `
+    -SafetyIntuneLimit 1000 `
+    -WhatIfRemoveAutopilotIdentity `
+    -ShowHTML
+
+$Output.CurrentRun | Format-Table Name, AutopilotSerialNumber, AutopilotManagedDeviceId, AutopilotResourceName, AutopilotLastContactedDays, ActionStatus
+```
+
+This stage removes only the Windows Autopilot identity. It does not delete the matching Intune managed-device record or Microsoft Entra device object. By default it requires the Autopilot associated Intune managed-device id to be missing and the Autopilot last-contact age to be older than 90 days.
+
+#### Detect broken Intune links
+
+```powershell
+$Output = Invoke-CloudDevicesCleanup `
+    -Disable `
+    -DisableIncludeEntraOnly `
+    -DisableLastSeenEntraMoreThan 90 `
+    -IntuneLinkState Broken `
+    -IncludeJoinType 'AzureAD joined', 'AzureAD registered' `
+    -IncludeOperatingSystem '*' `
+    -IncludeUnknownOperatingSystem `
+    -SafetyEntraLimit 1000 `
+    -SafetyIntuneLimit 1000 `
+    -WhatIfDisable `
+    -ShowHTML
+
+$Output.CurrentRun | Format-Table Name, Enabled, IntuneLinkState, ClaimsIntuneManagement, EntraLastSeenDays, ActionStatus, SelectionReason
+```
+
+`IntuneLinkState = Broken` means the Microsoft Entra device claims Intune/MDM management, but current Intune managed-device inventory has no matching record. Use this to make cleanup reports read like the real operator intent instead of relying on portal 404s.
+
 #### Full staged cloud profile
 
 ```powershell

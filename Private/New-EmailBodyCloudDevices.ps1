@@ -9,6 +9,7 @@ function New-EmailBodyCloudDevices {
     [Array] $retiredDevices = $CurrentRun | Where-Object { $_.Action -eq 'Retire' }
     [Array] $disabledDevices = $CurrentRun | Where-Object { $_.Action -eq 'Disable' }
     [Array] $deletedDevices = $CurrentRun | Where-Object { $_.Action -eq 'Delete' }
+    [Array] $autopilotIdentitiesRemoved = $CurrentRun | Where-Object { $_.Action -eq 'RemoveAutopilotIdentity' }
 
     $emailBody = EmailBody -EmailBody {
         EmailText -Text 'Hello,'
@@ -20,6 +21,7 @@ function New-EmailBodyCloudDevices {
             EmailListItem -Text 'Objects retired: ', $retiredDevices.Count -Color None, Orange -FontWeight normal, bold
             EmailListItem -Text 'Objects disabled: ', $disabledDevices.Count -Color None, Orange -FontWeight normal, bold
             EmailListItem -Text 'Objects deleted: ', $deletedDevices.Count -Color None, Salmon -FontWeight normal, bold
+            EmailListItem -Text 'Autopilot identities removed: ', $autopilotIdentitiesRemoved.Count -Color None, Salmon -FontWeight normal, bold
         }
         EmailTable -DataTable $CurrentRun -HideFooter
         EmailText -LineBreak

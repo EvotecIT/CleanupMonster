@@ -6,6 +6,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDisable.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesStageDelete.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDelete.ps1')
+    . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesRemoveAutopilotIdentity.ps1')
 
     function Invoke-MyDeviceRetire {}
     function Disable-MyDevice {}
@@ -449,5 +450,53 @@ Describe 'Request-CloudDevicesDelete' {
         $results | Should -HaveCount 1
         $results[0].ActionStatus | Should -Be 'False'
         Assert-MockCalled Remove-MyDevice -Times 1 -Exactly
+    }
+}
+
+Describe 'Request-CloudDevicesRemoveAutopilotIdentity' {
+    BeforeEach {
+        Mock Remove-MyAutopilotDevice {}
+        Mock Remove-MyDevice {}
+        Mock Remove-MyDeviceIntuneRecord {}
+    }
+
+    It 'removes only the Autopilot identity for selected devices' {
+        Mock Remove-MyAutopilotDevice { [PSCustomObject] @{ Success = $true; Message = 'Removed Autopilot identity' } }
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'Windows-Autopilot-Orphan'
+                AutopilotDeviceId   = 'autopilot-orphan'
+                ProcessedDeviceKeys = @('autopilot:autopilot-orphan')
+            }
+        )
+
+        $results = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devices -Today (Get-Date))
+
+        $results | Should -HaveCount 1
+        $results[0].Action | Should -Be 'RemoveAutopilotIdentity'
+        $results[0].ActionStatus | Should -Be 'True'
+        $results[0].ActionNotes | Should -Match 'Removed Autopilot identity'
+        Assert-MockCalled Remove-MyAutopilotDevice -Times 1 -Exactly
+        Assert-MockCalled Remove-MyDevice -Times 0 -Exactly
+        Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 0 -Exactly
+    }
+
+    It 'previews Autopilot identity removal without treating it as a real action' {
+        Mock Remove-MyAutopilotDevice { [PSCustomObject] @{ Success = $false; Message = 'Operation skipped by ShouldProcess.' } }
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                = 'Windows-Autopilot-Preview'
+                AutopilotDeviceId   = 'autopilot-preview'
+                ProcessedDeviceKeys = @('autopilot:autopilot-preview')
+            }
+        )
+
+        $results = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devices -Today (Get-Date) -WhatIfRemoveAutopilotIdentity)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'WhatIf'
+        Assert-MockCalled Remove-MyAutopilotDevice -Times 1 -Exactly
     }
 }
