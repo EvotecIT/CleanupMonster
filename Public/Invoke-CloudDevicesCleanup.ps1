@@ -413,6 +413,10 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
+    if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeOperatingSystem')) {
+        $IncludeOperatingSystem = @($IncludeOperatingSystem + 'Windows*') | Select-Object -Unique
+    }
+
     Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
 
     if (-not $DataStorePath) {

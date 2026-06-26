@@ -120,17 +120,31 @@ Describe 'Cloud device inventory and selection helpers' {
                     IsManaged           = $false
                     ManagementType      = 'none'
                 }
+                [PSCustomObject] @{
+                    Name                = 'Windows-OtherMdm'
+                    EntraDeviceObjectId = 'entra-other-mdm'
+                    DeviceId            = 'device-other-mdm'
+                    Enabled             = $true
+                    OperatingSystem     = 'Windows'
+                    TrustType           = 'AzureAD joined'
+                    LastSeenDays        = 120
+                    FirstSeen           = (Get-Date).AddDays(-300)
+                    IsManaged           = $true
+                    ManagementType      = 'jamf'
+                }
             )
         }
         Mock Get-MyDeviceIntune { @() }
 
         $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
 
-        $devices | Should -HaveCount 2
+        $devices | Should -HaveCount 3
         ($devices | Where-Object { $_.Name -eq 'Windows-BrokenIntuneLink' }).IntuneLinkState | Should -Be 'Broken'
         ($devices | Where-Object { $_.Name -eq 'Windows-BrokenIntuneLink' }).ClaimsIntuneManagement | Should -BeTrue
         ($devices | Where-Object { $_.Name -eq 'Windows-NotClaimed' }).IntuneLinkState | Should -Be 'NotClaimed'
         ($devices | Where-Object { $_.Name -eq 'Windows-NotClaimed' }).ClaimsIntuneManagement | Should -BeFalse
+        ($devices | Where-Object { $_.Name -eq 'Windows-OtherMdm' }).IntuneLinkState | Should -Be 'NotClaimed'
+        ($devices | Where-Object { $_.Name -eq 'Windows-OtherMdm' }).ClaimsIntuneManagement | Should -BeFalse
     }
 
     It 'continues with Intune inventory when Entra inventory is empty' {
@@ -789,6 +803,60 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates[0].Name | Should -Be 'Windows-Autopilot-Orphan'
         $candidates[0].SelectionReason | Should -Match 'AutopilotIntuneAssociationState=Missing'
         $candidates[0].SelectionReason | Should -Match 'AutopilotEntraAssociationState=EqualsSerialNumber'
+    }
+
+    It 'treats Autopilot Entra association as missing when only the resource name is present' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                          = 'Windows-Autopilot-MissingEntra'
+                EntraDeviceObjectId           = 'entra-missing-entra'
+                DeviceId                      = 'device-missing-entra'
+                HasEntraRecord                = $true
+                HasIntuneRecord               = $false
+                RecordState                   = 'EntraOnly'
+                ManagedDeviceOwnerType        = 'personal'
+                AutopilotInventoryLoaded      = $true
+                AutopilotOnboarded            = $true
+                AutopilotDeviceId             = 'autopilot-missing-entra'
+                AutopilotManagedDeviceId      = $null
+                AutopilotAzureAdDeviceId      = $null
+                AutopilotResourceName         = 'SERIAL-MISSING-ENTRA'
+                AutopilotSerialNumber         = 'SERIAL-MISSING-ENTRA'
+                AutopilotLastContactedDays    = 120
+            }
+            [PSCustomObject] @{
+                Name                          = 'Windows-Autopilot-AssociatedEntra'
+                EntraDeviceObjectId           = 'entra-associated-entra'
+                DeviceId                      = 'device-associated-entra'
+                HasEntraRecord                = $true
+                HasIntuneRecord               = $false
+                RecordState                   = 'EntraOnly'
+                ManagedDeviceOwnerType        = 'personal'
+                AutopilotInventoryLoaded      = $true
+                AutopilotOnboarded            = $true
+                AutopilotDeviceId             = 'autopilot-associated-entra'
+                AutopilotManagedDeviceId      = $null
+                AutopilotAzureAdDeviceId      = 'device-associated-entra'
+                AutopilotResourceName         = 'SERIAL-ASSOCIATED-ENTRA'
+                AutopilotSerialNumber         = 'SERIAL-ASSOCIATED-ENTRA'
+                AutopilotLastContactedDays    = 120
+            }
+        )
+
+        $actionIf = [ordered] @{
+            AutopilotLastContactMoreThan      = 90
+            IncludeUnknownActivity            = $false
+            ExcludeCompanyOwned               = $true
+            AutopilotState                    = 'Onboarded'
+            AutopilotIntuneAssociationState   = 'Missing'
+            AutopilotEntraAssociationState    = 'Missing'
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates | Should -HaveCount 1
+        $candidates[0].Name | Should -Be 'Windows-Autopilot-MissingEntra'
+        $candidates[0].SelectionReason | Should -Match 'AutopilotEntraAssociationState=Missing'
     }
 
     It 'filters action candidates to broken Intune links older than the configured threshold' {

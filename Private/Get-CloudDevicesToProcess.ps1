@@ -147,7 +147,7 @@ function Get-CloudDevicesToProcess {
         }
 
         $associationValue = [string] $Device.AutopilotResourceName
-        $hasAssociation = -not [string]::IsNullOrWhiteSpace($associationValue) -or -not [string]::IsNullOrWhiteSpace([string] $Device.AutopilotAzureAdDeviceId)
+        $hasAssociation = -not [string]::IsNullOrWhiteSpace([string] $Device.AutopilotAzureAdDeviceId)
         $serialNumber = [string] $Device.AutopilotSerialNumber
         if ($State -eq 'Missing') {
             return -not $hasAssociation

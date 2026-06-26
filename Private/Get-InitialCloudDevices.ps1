@@ -66,10 +66,6 @@ function Get-InitialCloudDevices {
             return $false
         }
 
-        if ($Device.IsManaged -eq $true) {
-            return $true
-        }
-
         $managementValues = @(
             Get-CloudDevicePropertyValue -InputObject $Device -Name 'ManagementType'
             Get-CloudDevicePropertyValue -InputObject $Device -Name 'ManagementAgent'

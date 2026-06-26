@@ -389,6 +389,26 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:deleteCalled | Should -BeFalse
     }
 
+    It 'adds Windows to the default inventory scope for standalone Autopilot identity removal' {
+        $script:capturedAutopilotOperatingSystemScope = @()
+
+        Mock Get-InitialCloudDevices {
+            param(
+                [Array] $IncludeOperatingSystem
+            )
+
+            $script:capturedAutopilotOperatingSystemScope = @($IncludeOperatingSystem)
+            @()
+        }
+        Mock Get-CloudDevicesToProcess { @() }
+
+        Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -Suppress | Out-Null
+
+        $script:capturedAutopilotOperatingSystemScope | Should -Contain 'iOS*'
+        $script:capturedAutopilotOperatingSystemScope | Should -Contain 'Android*'
+        $script:capturedAutopilotOperatingSystemScope | Should -Contain 'Windows*'
+    }
+
     It 'propagates global WhatIf to standalone Autopilot identity removal' {
         $script:capturedGlobalWhatIfForAutopilotRemoval = $false
 
