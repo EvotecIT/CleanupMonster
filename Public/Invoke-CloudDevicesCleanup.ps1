@@ -413,13 +413,6 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
-    if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeOperatingSystem')) {
-        $IncludeOperatingSystem = @($IncludeOperatingSystem + 'Windows*') | Select-Object -Unique
-    }
-    if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeJoinType')) {
-        $IncludeJoinType = @($IncludeJoinType + 'AzureAD joined') | Select-Object -Unique
-    }
-
     Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
 
     if (-not $DataStorePath) {
@@ -448,6 +441,20 @@ function Invoke-CloudDevicesCleanup {
         Write-Color -Text '[i] ', 'No action can be taken. You need to enable Retire, Disable, StageDisabledForDelete, Delete or RemoveAutopilotIdentity.' -Color Yellow, Red
         return
     }
+
+    $otherCloudActionsEnabled = $Retire -or $Disable -or $processStageDisabledForDelete -or $Delete
+    $autopilotRemovalIncludeOperatingSystem = @($IncludeOperatingSystem)
+    if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeOperatingSystem')) {
+        $autopilotRemovalIncludeOperatingSystem = @($autopilotRemovalIncludeOperatingSystem + 'Windows*') | Select-Object -Unique
+    }
+    $autopilotRemovalIncludeJoinType = @($IncludeJoinType)
+    if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeJoinType')) {
+        $autopilotRemovalIncludeJoinType = @($autopilotRemovalIncludeJoinType + 'AzureAD joined') | Select-Object -Unique
+    }
+    $autopilotRemovalUsesWidenedScope = $RemoveAutopilotIdentity -and (-not $PSBoundParameters.ContainsKey('IncludeOperatingSystem') -or -not $PSBoundParameters.ContainsKey('IncludeJoinType'))
+    $useSeparateAutopilotRemovalInventory = $otherCloudActionsEnabled -and $autopilotRemovalUsesWidenedScope
+    $primaryIncludeOperatingSystem = if ($RemoveAutopilotIdentity -and -not $otherCloudActionsEnabled) { $autopilotRemovalIncludeOperatingSystem } else { $IncludeOperatingSystem }
+    $primaryIncludeJoinType = if ($RemoveAutopilotIdentity -and -not $otherCloudActionsEnabled) { $autopilotRemovalIncludeJoinType } else { $IncludeJoinType }
 
     $confirmActions = $PSBoundParameters.ContainsKey('Confirm') -and [bool] $PSBoundParameters['Confirm']
 
@@ -564,9 +571,16 @@ function Invoke-CloudDevicesCleanup {
     }
 
     $includeAutopilotInventory = $RemoveAutopilotIdentity -or $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0
-    $allDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $IncludeJoinType -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory:$includeAutopilotInventory
+    $allDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $primaryIncludeJoinType -IncludeOperatingSystem $primaryIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory:$includeAutopilotInventory
     if ($allDevices -eq $false) {
         return
+    }
+    $autopilotRemovalDevices = $allDevices
+    if ($useSeparateAutopilotRemovalInventory) {
+        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory
+        if ($autopilotRemovalDevices -eq $false) {
+            return
+        }
     }
 
     $today = Get-Date
@@ -629,9 +643,9 @@ function Invoke-CloudDevicesCleanup {
     }
 
     if ($RemoveAutopilotIdentity) {
-        $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $allDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices)
+        $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $autopilotRemovalDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices)
         $autopilotDeviceIdsHandledByDelete = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        foreach ($deletedDevice in @($reportDeleted | Where-Object { $_.ActionStatus -in 'True', 'WhatIf', 'ReportOnly' })) {
+        foreach ($deletedDevice in @($reportDeleted | Where-Object { $DeleteAutopilotIdentity -and $_.ActionStatus -eq 'True' })) {
             if (-not [string]::IsNullOrWhiteSpace([string] $deletedDevice.AutopilotDeviceId)) {
                 $null = $autopilotDeviceIdsHandledByDelete.Add([string] $deletedDevice.AutopilotDeviceId)
             }
