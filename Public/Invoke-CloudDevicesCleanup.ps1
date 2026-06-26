@@ -416,6 +416,9 @@ function Invoke-CloudDevicesCleanup {
     if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeOperatingSystem')) {
         $IncludeOperatingSystem = @($IncludeOperatingSystem + 'Windows*') | Select-Object -Unique
     }
+    if ($RemoveAutopilotIdentity -and -not $PSBoundParameters.ContainsKey('IncludeJoinType')) {
+        $IncludeJoinType = @($IncludeJoinType + 'AzureAD joined') | Select-Object -Unique
+    }
 
     Set-LoggingCapabilities -LogPath $LogPath -LogMaximum $LogMaximum -ShowTime:$LogShowTime -TimeFormat $LogTimeFormat -ScriptPath $MyInvocation.ScriptName
 
@@ -627,6 +630,17 @@ function Invoke-CloudDevicesCleanup {
 
     if ($RemoveAutopilotIdentity) {
         $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $allDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices)
+        $autopilotDeviceIdsHandledByDelete = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($deletedDevice in @($reportDeleted | Where-Object { $_.ActionStatus -in 'True', 'WhatIf', 'ReportOnly' })) {
+            if (-not [string]::IsNullOrWhiteSpace([string] $deletedDevice.AutopilotDeviceId)) {
+                $null = $autopilotDeviceIdsHandledByDelete.Add([string] $deletedDevice.AutopilotDeviceId)
+            }
+        }
+        if ($autopilotDeviceIdsHandledByDelete.Count -gt 0) {
+            $devicesToRemoveAutopilotIdentity = @($devicesToRemoveAutopilotIdentity | Where-Object {
+                    [string]::IsNullOrWhiteSpace([string] $_.AutopilotDeviceId) -or -not $autopilotDeviceIdsHandledByDelete.Contains([string] $_.AutopilotDeviceId)
+                })
+        }
         Write-Color -Text '[i] ', 'Autopilot identities to be removed: ', $devicesToRemoveAutopilotIdentity.Count, '. Current remove limit: ', $(if ($RemoveAutopilotIdentityLimit -eq 0) { 'Unlimited' } else { $RemoveAutopilotIdentityLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
 
         $processRemoveAutopilotIdentity = $devicesToRemoveAutopilotIdentity.Count -gt 0
