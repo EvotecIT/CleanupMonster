@@ -493,8 +493,59 @@ Describe 'Invoke-CloudDevicesCleanup' {
                 [PSCustomObject] @{
                     Name              = 'Windows-Autopilot-Delete'
                     AutopilotDeviceId = 'autopilot-delete-ap'
+                    AutopilotIdentityRemoved = $true
                     Action            = 'Delete'
                     ActionStatus      = 'True'
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            $script:standaloneAutopilotRemovalCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Delete -DeleteAutopilotIdentity -RemoveAutopilotIdentity -Confirm:$false -Suppress | Out-Null
+
+        $script:standaloneAutopilotRemovalCalled | Should -BeFalse
+    }
+
+    It 'does not remove the same Autopilot identity after delete removed it but later failed' {
+        $script:standaloneAutopilotRemovalCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-PartialDelete'
+                    EntraDeviceObjectId           = 'entra-partial-delete-ap'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-partial-delete-ap'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $true
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-PartialDelete'
+                    EntraDeviceObjectId           = 'entra-partial-delete-ap'
+                    AutopilotDeviceId             = 'autopilot-partial-delete-ap'
+                    AutopilotOnboarded            = $true
+                    ProcessedDeviceKeys           = @('entra:entra-partial-delete-ap')
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            @(
+                [PSCustomObject] @{
+                    Name                       = 'Windows-Autopilot-PartialDelete'
+                    AutopilotDeviceId          = 'autopilot-partial-delete-ap'
+                    AutopilotIdentityRemoved   = $true
+                    Action                     = 'Delete'
+                    ActionStatus               = 'False'
                 }
             )
         }

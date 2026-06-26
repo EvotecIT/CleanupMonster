@@ -645,7 +645,7 @@ function Invoke-CloudDevicesCleanup {
     if ($RemoveAutopilotIdentity) {
         $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $autopilotRemovalDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices)
         $autopilotDeviceIdsHandledByDelete = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        foreach ($deletedDevice in @($reportDeleted | Where-Object { $DeleteAutopilotIdentity -and $_.ActionStatus -eq 'True' })) {
+        foreach ($deletedDevice in @($reportDeleted | Where-Object { $_.AutopilotIdentityRemoved -eq $true })) {
             if (-not [string]::IsNullOrWhiteSpace([string] $deletedDevice.AutopilotDeviceId)) {
                 $null = $autopilotDeviceIdsHandledByDelete.Add([string] $deletedDevice.AutopilotDeviceId)
             }

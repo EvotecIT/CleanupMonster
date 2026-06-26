@@ -395,6 +395,46 @@ Describe 'Request-CloudDevicesDelete' {
         $processedDevices.Contains('entra:entra-ap-fail') | Should -BeTrue
     }
 
+    It 'marks Autopilot identity removed even when a later delete sub-action fails' {
+        Mock Remove-MyAutopilotDevice { [PSCustomObject] @{ Success = $true; Message = 'Removed Autopilot identity' } }
+        Mock Remove-MyDeviceIntuneRecord { [PSCustomObject] @{ Success = $false; Message = 'Intune removal failed' } }
+        Mock Remove-MyDevice { [PSCustomObject] @{ Success = $true; Message = 'Removed Entra record' } }
+
+        $processedDevices = [ordered] @{
+            'entra:entra-ap-partial' = [PSCustomObject] @{
+                Action       = 'Disable'
+                ActionStatus = 'True'
+                ActionDate   = (Get-Date).AddDays(-35)
+            }
+        }
+
+        $devices = @(
+            [PSCustomObject] @{
+                Name                     = 'Windows-Autopilot-Partial'
+                EntraDeviceObjectId      = 'entra-ap-partial'
+                ManagedDeviceId          = 'managed-ap-partial'
+                AutopilotInventoryLoaded = $true
+                AutopilotOnboarded       = $true
+                AutopilotDeviceId        = 'autopilot-ap-partial'
+                HasEntraRecord           = $true
+                HasIntuneRecord          = $true
+                RecordState              = 'Matched'
+                ProcessedDeviceKey       = 'entra:entra-ap-partial'
+                ProcessedDeviceKeys      = @('entra:entra-ap-partial', 'intune:managed-ap-partial')
+            }
+        )
+
+        $results = @(Request-CloudDevicesDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date) -DeleteAutopilotIdentity)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'False'
+        $results[0].AutopilotIdentityRemoved | Should -BeTrue
+        $results[0].ActionNotes | Should -Match 'Autopilot: Removed Autopilot identity'
+        $results[0].ActionNotes | Should -Match 'Intune: Intune removal failed'
+        Assert-MockCalled Remove-MyAutopilotDevice -Times 1 -Exactly
+        Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 1 -Exactly
+    }
+
     It 'does not remove Entra objects for Intune-only delete candidates' {
         Mock Remove-MyDeviceIntuneRecord { [PSCustomObject] @{ Success = $true; Message = 'Removed Intune record' } }
 
