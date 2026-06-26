@@ -295,7 +295,7 @@ function Invoke-CloudDevicesCleanup {
     Previews removing stale Windows Autopilot identities whose associated Intune managed-device id is missing.
 
     .EXAMPLE
-    Invoke-CloudDevicesCleanup -Disable -DisableIncludeEntraOnly -IntuneLinkState Broken -DisableLastSeenEntraMoreThan 90 -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem '*' -IncludeUnknownOperatingSystem -WhatIfDisable -ShowHTML
+    Invoke-CloudDevicesCleanup -Disable -DisableIncludeEntraOnly -DisableListProcessedMoreThan $null -IntuneLinkState Broken -DisableLastSeenEntraMoreThan 90 -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem '*' -IncludeUnknownOperatingSystem -WhatIfDisable -ShowHTML
 
     Previews disabling Entra devices older than 90 days that claim Intune/MDM management but have no matching Intune managed-device record.
 
@@ -630,7 +630,7 @@ function Invoke-CloudDevicesCleanup {
             $processRemoveAutopilotIdentity = $PSCmdlet.ShouldProcess("$($devicesToRemoveAutopilotIdentity.Count) Windows Autopilot device identity(s)", 'Remove Autopilot identity')
         }
         if ($processRemoveAutopilotIdentity) {
-            $reportAutopilotIdentityRemoved = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devicesToRemoveAutopilotIdentity -Today $today -RemoveAutopilotIdentityLimit $RemoveAutopilotIdentityLimit -ReportOnly:$ReportOnly -WhatIfRemoveAutopilotIdentity:$WhatIfRemoveAutopilotIdentity)
+            $reportAutopilotIdentityRemoved = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devicesToRemoveAutopilotIdentity -Today $today -RemoveAutopilotIdentityLimit $RemoveAutopilotIdentityLimit -ReportOnly:$ReportOnly -WhatIfRemoveAutopilotIdentity:$WhatIfRemoveAutopilotIdentity -GlobalWhatIf:$WhatIfPreference)
         }
     }
 

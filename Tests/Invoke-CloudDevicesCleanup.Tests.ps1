@@ -389,6 +389,57 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:deleteCalled | Should -BeFalse
     }
 
+    It 'propagates global WhatIf to standalone Autopilot identity removal' {
+        $script:capturedGlobalWhatIfForAutopilotRemoval = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    ProcessedDeviceKeys           = @('autopilot:autopilot-ap-orphan')
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            param(
+                [switch] $GlobalWhatIf,
+                [switch] $WhatIfRemoveAutopilotIdentity
+            )
+
+            $script:capturedGlobalWhatIfForAutopilotRemoval = $GlobalWhatIf.IsPresent
+            @(
+                [PSCustomObject] @{
+                    Name         = 'Windows-Autopilot-Orphan'
+                    Action       = 'RemoveAutopilotIdentity'
+                    ActionStatus = 'WhatIf'
+                }
+            )
+        }
+
+        Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -WhatIf -WhatIfRemoveAutopilotIdentity:$false -Suppress | Out-Null
+
+        $script:capturedGlobalWhatIfForAutopilotRemoval | Should -BeTrue
+    }
+
     It 'stages already disabled delete candidates without running delete' {
         $script:stageDeleteCalled = $false
         $script:deleteCalled = $false

@@ -763,6 +763,7 @@ This stage removes only the Windows Autopilot identity. It does not delete the m
 $Output = Invoke-CloudDevicesCleanup `
     -Disable `
     -DisableIncludeEntraOnly `
+    -DisableListProcessedMoreThan $null `
     -DisableLastSeenEntraMoreThan 90 `
     -IntuneLinkState Broken `
     -IncludeJoinType 'AzureAD joined', 'AzureAD registered' `

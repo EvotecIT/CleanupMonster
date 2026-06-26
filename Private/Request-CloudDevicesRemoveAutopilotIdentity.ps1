@@ -11,7 +11,7 @@ function Request-CloudDevicesRemoveAutopilotIdentity {
 
         [switch] $ReportOnly,
         [switch] $WhatIfRemoveAutopilotIdentity,
-        [switch] $WhatIf
+        [switch] $GlobalWhatIf
     )
 
     $results = [System.Collections.Generic.List[object]]::new()
@@ -31,12 +31,13 @@ function Request-CloudDevicesRemoveAutopilotIdentity {
         } elseif ([string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
             $actionNotes = 'Autopilot: Device is onboarded but AutopilotDeviceId is missing.'
         } else {
-            $removeAutopilotResult = Remove-MyAutopilotDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfRemoveAutopilotIdentity)
+            $previewRemoval = $GlobalWhatIf -or $WhatIfRemoveAutopilotIdentity -or $WhatIfPreference
+            $removeAutopilotResult = Remove-MyAutopilotDevice -InputObject $device -Confirm:$false -WhatIf:$previewRemoval
             if ($removeAutopilotResult.Message) {
                 $actionNotes = "Autopilot: $($removeAutopilotResult.Message)"
             }
 
-            if ($WhatIf -or $WhatIfRemoveAutopilotIdentity) {
+            if ($previewRemoval) {
                 $actionStatus = 'WhatIf'
             } elseif ($removeAutopilotResult.Success) {
                 $actionStatus = 'True'

@@ -185,6 +185,11 @@ function Get-InitialCloudDevices {
         $intuneRegisteredDays = if ($intuneDevice) { & $getAgeDays $intuneDevice.FirstSeen } else { $null }
         $autopilotInventoryLoaded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotInventoryLoaded'
         $autopilotOnboarded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotOnboarded'
+        $autopilotLastContacted = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContacted'
+        $autopilotLastContactedDays = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContactedDays'
+        if ($null -eq $autopilotLastContactedDays -and $autopilotLastContacted) {
+            $autopilotLastContactedDays = & $getAgeDays $autopilotLastContacted
+        }
         $claimsIntuneManagement = & $testIntuneManagementClaim $entraDevice
         $intuneLinkState = if ($intuneDevice) {
             'Healthy'
@@ -241,8 +246,8 @@ function Get-InitialCloudDevices {
             AutopilotGroupTag       = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotGroupTag'
             AutopilotSerialNumber   = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotSerialNumber'
             AutopilotEnrollmentState = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotEnrollmentState'
-            AutopilotLastContacted  = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContacted'
-            AutopilotLastContactedDays = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContactedDays'
+            AutopilotLastContacted  = $autopilotLastContacted
+            AutopilotLastContactedDays = $autopilotLastContactedDays
             AutopilotUserPrincipalName = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotUserPrincipalName'
             SelectionReason         = $null
         })
@@ -264,6 +269,11 @@ function Get-InitialCloudDevices {
         }
 
         $intuneRegisteredDays = & $getAgeDays $intuneDevice.FirstSeen
+        $autopilotLastContacted = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContacted'
+        $autopilotLastContactedDays = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContactedDays'
+        if ($null -eq $autopilotLastContactedDays -and $autopilotLastContacted) {
+            $autopilotLastContactedDays = & $getAgeDays $autopilotLastContacted
+        }
 
         $outputDevices.Add([PSCustomObject] [ordered] @{
             Name                    = $intuneDevice.Name
@@ -312,8 +322,8 @@ function Get-InitialCloudDevices {
             AutopilotGroupTag       = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotGroupTag'
             AutopilotSerialNumber   = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotSerialNumber'
             AutopilotEnrollmentState = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotEnrollmentState'
-            AutopilotLastContacted  = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContacted'
-            AutopilotLastContactedDays = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotLastContactedDays'
+            AutopilotLastContacted  = $autopilotLastContacted
+            AutopilotLastContactedDays = $autopilotLastContactedDays
             AutopilotUserPrincipalName = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotUserPrincipalName'
             SelectionReason         = $null
         })

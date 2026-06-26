@@ -228,6 +228,37 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices[0].AutopilotUserPrincipalName | Should -Be 'assigned.user@contoso.com'
     }
 
+    It 'computes Autopilot last-contact age when inventory only supplies the timestamp' {
+        $autopilotLastContacted = (Get-Date).AddDays(-120).AddHours(-1)
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                       = 'Windows-Autopilot-Timestamp'
+                    EntraDeviceObjectId        = 'entra-ap-timestamp'
+                    DeviceId                   = 'device-ap-timestamp'
+                    Enabled                    = $false
+                    OperatingSystem            = 'Windows'
+                    TrustType                  = 'AzureAD joined'
+                    LastSeenDays               = 250
+                    FirstSeen                  = (Get-Date).AddDays(-500)
+                    AutopilotInventoryLoaded   = $true
+                    AutopilotOnboarded         = $true
+                    AutopilotDeviceId          = 'autopilot-timestamp'
+                    AutopilotAzureAdDeviceId   = 'device-ap-timestamp'
+                    AutopilotSerialNumber      = 'SERIAL-TIMESTAMP'
+                    AutopilotLastContacted     = $autopilotLastContacted
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune { @() }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 1
+        $devices[0].AutopilotLastContacted | Should -Be $autopilotLastContacted
+        $devices[0].AutopilotLastContactedDays | Should -Be 120
+    }
+
     It 'preserves explicit false Intune Autopilot state over Entra fallback' {
         Mock Get-MyDevice {
             @(
