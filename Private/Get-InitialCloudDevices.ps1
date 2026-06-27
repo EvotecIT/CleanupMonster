@@ -74,7 +74,10 @@ function Get-InitialCloudDevices {
         } else {
             [string] $isManagedValue -match '^(?i:true|1)$'
         }
-        if ($isManaged -and [string] $mdmAppId -eq $intuneMdmAppId) {
+        if (-not [string]::IsNullOrWhiteSpace([string] $mdmAppId) -and [string] $mdmAppId -ine $intuneMdmAppId) {
+            return $false
+        }
+        if ($isManaged -and [string] $mdmAppId -ieq $intuneMdmAppId) {
             return $true
         }
 
