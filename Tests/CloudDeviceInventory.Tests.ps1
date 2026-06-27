@@ -132,15 +132,29 @@ Describe 'Cloud device inventory and selection helpers' {
                     IsManaged           = $true
                     ManagementType      = 'jamf'
                 }
+                [PSCustomObject] @{
+                    Name                = 'Windows-IntuneMdmAppId'
+                    EntraDeviceObjectId = 'entra-intune-mdm-app'
+                    DeviceId            = 'device-intune-mdm-app'
+                    Enabled             = $true
+                    OperatingSystem     = 'Windows'
+                    TrustType           = 'AzureAD joined'
+                    LastSeenDays        = 120
+                    FirstSeen           = (Get-Date).AddDays(-300)
+                    IsManaged           = $true
+                    MdmAppId            = '0000000a-0000-0000-c000-000000000000'
+                }
             )
         }
         Mock Get-MyDeviceIntune { @() }
 
         $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
 
-        $devices | Should -HaveCount 3
+        $devices | Should -HaveCount 4
         ($devices | Where-Object { $_.Name -eq 'Windows-BrokenIntuneLink' }).IntuneLinkState | Should -Be 'Broken'
         ($devices | Where-Object { $_.Name -eq 'Windows-BrokenIntuneLink' }).ClaimsIntuneManagement | Should -BeTrue
+        ($devices | Where-Object { $_.Name -eq 'Windows-IntuneMdmAppId' }).IntuneLinkState | Should -Be 'Broken'
+        ($devices | Where-Object { $_.Name -eq 'Windows-IntuneMdmAppId' }).ClaimsIntuneManagement | Should -BeTrue
         ($devices | Where-Object { $_.Name -eq 'Windows-NotClaimed' }).IntuneLinkState | Should -Be 'NotClaimed'
         ($devices | Where-Object { $_.Name -eq 'Windows-NotClaimed' }).ClaimsIntuneManagement | Should -BeFalse
         ($devices | Where-Object { $_.Name -eq 'Windows-OtherMdm' }).IntuneLinkState | Should -Be 'NotClaimed'

@@ -66,6 +66,18 @@ function Get-InitialCloudDevices {
             return $false
         }
 
+        $intuneMdmAppId = '0000000a-0000-0000-c000-000000000000'
+        $mdmAppId = Get-CloudDevicePropertyValue -InputObject $Device -Name @('MdmAppId', 'mdmAppId')
+        $isManagedValue = Get-CloudDevicePropertyValue -InputObject $Device -Name 'IsManaged'
+        $isManaged = if ($isManagedValue -is [bool]) {
+            $isManagedValue
+        } else {
+            [string] $isManagedValue -match '^(?i:true|1)$'
+        }
+        if ($isManaged -and [string] $mdmAppId -eq $intuneMdmAppId) {
+            return $true
+        }
+
         $managementValues = @(
             Get-CloudDevicePropertyValue -InputObject $Device -Name 'ManagementType'
             Get-CloudDevicePropertyValue -InputObject $Device -Name 'ManagementAgent'
