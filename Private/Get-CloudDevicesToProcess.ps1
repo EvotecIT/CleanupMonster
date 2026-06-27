@@ -2,7 +2,7 @@ function Get-CloudDevicesToProcess {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('Retire', 'Disable', 'Delete')]
+        [ValidateSet('Retire', 'Disable', 'Delete', 'RemoveAutopilotIdentity')]
         [string] $Type,
 
         [Parameter(Mandatory)]
@@ -115,6 +115,56 @@ function Get-CloudDevicesToProcess {
         'Unknown'
     }
 
+    function Test-CloudDeviceAutopilotIntuneAssociationState {
+        param(
+            [Parameter(Mandatory)] [object] $Device,
+            [string] $State
+        )
+
+        if (-not $State -or $State -eq 'Any') {
+            return $true
+        }
+
+        $hasAssociation = -not [string]::IsNullOrWhiteSpace([string] $Device.AutopilotManagedDeviceId)
+        if ($State -eq 'Missing') {
+            return -not $hasAssociation
+        }
+        if ($State -eq 'Present') {
+            return $hasAssociation
+        }
+
+        $true
+    }
+
+    function Test-CloudDeviceAutopilotEntraAssociationState {
+        param(
+            [Parameter(Mandatory)] [object] $Device,
+            [string] $State
+        )
+
+        if (-not $State -or $State -eq 'Any') {
+            return $true
+        }
+
+        $associationValue = [string] $Device.AutopilotResourceName
+        $hasAssociation = -not [string]::IsNullOrWhiteSpace([string] $Device.AutopilotAzureAdDeviceId)
+        $serialNumber = [string] $Device.AutopilotSerialNumber
+        if ($State -eq 'Missing') {
+            return -not $hasAssociation
+        }
+        if ($State -eq 'Present') {
+            return $hasAssociation
+        }
+        if ($State -eq 'EqualsSerialNumber') {
+            return -not [string]::IsNullOrWhiteSpace($associationValue) -and -not [string]::IsNullOrWhiteSpace($serialNumber) -and $associationValue -eq $serialNumber
+        }
+        if ($State -eq 'NotEqualsSerialNumber') {
+            return -not [string]::IsNullOrWhiteSpace($associationValue) -and -not [string]::IsNullOrWhiteSpace($serialNumber) -and $associationValue -ne $serialNumber
+        }
+
+        $true
+    }
+
     Write-Color -Text '[i] ', "Applying following rules to $Type action:" -Color Yellow, Cyan, Green
     foreach ($key in $ActionIf.Keys) {
         if ($null -eq $ActionIf[$key] -or ($ActionIf[$key] -is [System.Array] -and $ActionIf[$key].Count -eq 0)) {
@@ -139,6 +189,10 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($ActionIf.ExcludeCompanyOwned -and $device.ManagedDeviceOwnerType -eq 'company') {
+            continue
+        }
+
+        if ($ActionIf.IntuneLinkState -and $ActionIf.IntuneLinkState -ne 'Any' -and $device.IntuneLinkState -ne $ActionIf.IntuneLinkState) {
             continue
         }
 
@@ -173,6 +227,10 @@ function Get-CloudDevicesToProcess {
                 continue
             }
             if ($device.RecordState -eq 'IntuneOnly' -and -not $ActionIf.IncludeIntuneOnly) {
+                continue
+            }
+        } elseif ($Type -eq 'RemoveAutopilotIdentity') {
+            if ($device.AutopilotOnboarded -ne $true -or [string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
                 continue
             }
         }
@@ -218,6 +276,24 @@ function Get-CloudDevicesToProcess {
             if ($null -eq $device.RegisteredDays -or $device.RegisteredDays -le $ActionIf.RegisteredMoreThan) {
                 continue
             }
+        }
+
+        if ($null -ne $ActionIf.AutopilotLastContactMoreThan) {
+            if ($null -eq $device.AutopilotLastContactedDays) {
+                if (-not $ActionIf.IncludeUnknownActivity) {
+                    continue
+                }
+            } elseif ($device.AutopilotLastContactedDays -le $ActionIf.AutopilotLastContactMoreThan) {
+                continue
+            }
+        }
+
+        if (-not (Test-CloudDeviceAutopilotIntuneAssociationState -Device $device -State $ActionIf.AutopilotIntuneAssociationState)) {
+            continue
+        }
+
+        if (-not (Test-CloudDeviceAutopilotEntraAssociationState -Device $device -State $ActionIf.AutopilotEntraAssociationState)) {
+            continue
         }
 
         if ($ActionIf.EnabledState -and $ActionIf.EnabledState -ne 'Any') {

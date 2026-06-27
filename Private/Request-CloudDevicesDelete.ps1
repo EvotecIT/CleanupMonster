@@ -33,6 +33,7 @@ function Request-CloudDevicesDelete {
         $subActionSuccess = $true
         $subActionExecuted = $false
         $continueRecordDelete = $true
+        $autopilotIdentityRemoved = $false
 
         if (-not $ReportOnly) {
             if ($DeleteAutopilotIdentity) {
@@ -52,6 +53,8 @@ function Request-CloudDevicesDelete {
                         if (-not $removeAutopilotResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
                             $subActionSuccess = $false
                             $continueRecordDelete = $false
+                        } elseif ($removeAutopilotResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
+                            $autopilotIdentityRemoved = $true
                         }
                     }
                 } elseif ($autopilotMayApply -and $device.AutopilotInventoryLoaded -ne $true -and $device.AutopilotOnboarded -ne $false) {
@@ -107,6 +110,7 @@ function Request-CloudDevicesDelete {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionStatus' -Value $actionStatus -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'Delete' -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value ($subActionMessages -join '; ') -Force
+        Add-Member -InputObject $result -MemberType NoteProperty -Name 'AutopilotIdentityRemoved' -Value $autopilotIdentityRemoved -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
         $attemptedCount++

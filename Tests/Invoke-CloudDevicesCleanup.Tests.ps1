@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
     . (Get-CleanupMonsterPath 'Public/Invoke-CloudDevicesCleanup.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
@@ -14,6 +15,7 @@ BeforeAll {
     function Request-CloudDevicesDisable { @() }
     function Request-CloudDevicesStageDelete { @() }
     function Request-CloudDevicesDelete { @() }
+    function Request-CloudDevicesRemoveAutopilotIdentity { @() }
     function New-HTMLProcessedCloudDevices {}
     function New-EmailBodyCloudDevices { param($CurrentRun) '' }
 }
@@ -144,6 +146,29 @@ Describe 'Invoke-CloudDevicesCleanup' {
         Invoke-CloudDevicesCleanup -Disable -IncludeUnknownActivity -Suppress | Out-Null
 
         $script:capturedIncludeUnknownActivity | Should -BeTrue
+    }
+
+    It 'passes broken Intune link filtering to candidate selection' {
+        $script:capturedIntuneLinkState = $null
+
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            if ($Type -eq 'Disable') {
+                $script:capturedIntuneLinkState = $ActionIf.IntuneLinkState
+            }
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -DisableIncludeEntraOnly -IntuneLinkState Broken -Suppress | Out-Null
+
+        $script:capturedIntuneLinkState | Should -Be 'Broken'
     }
 
     It 'does not include orphan states for actions unless explicitly requested' {
@@ -282,6 +307,456 @@ Describe 'Invoke-CloudDevicesCleanup' {
 
         $script:capturedIncludeAutopilotInventory | Should -BeTrue
         $script:capturedDeleteAutopilotIdentity | Should -BeTrue
+    }
+
+    It 'loads Autopilot inventory and runs standalone Autopilot identity removal when requested' {
+        $script:capturedIncludeAutopilotInventory = $null
+        $script:capturedRemoveAutopilotType = $null
+        $script:capturedRemoveAutopilotRules = $null
+        $script:capturedRemoveAutopilotLimit = $null
+        $script:deleteCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            param(
+                [switch] $IncludeAutopilotInventory
+            )
+
+            $script:capturedIncludeAutopilotInventory = $IncludeAutopilotInventory.IsPresent
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    EntraDeviceObjectId           = 'entra-ap-orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            $script:capturedRemoveAutopilotType = $Type
+            $script:capturedRemoveAutopilotRules = $ActionIf
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    ProcessedDeviceKeys           = @('autopilot:autopilot-ap-orphan')
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            param(
+                $RemoveAutopilotIdentityLimit,
+                [switch] $WhatIfRemoveAutopilotIdentity
+            )
+
+            $script:capturedRemoveAutopilotLimit = $RemoveAutopilotIdentityLimit
+            $WhatIfRemoveAutopilotIdentity.IsPresent | Should -BeTrue
+            @(
+                [PSCustomObject] @{
+                    Name         = 'Windows-Autopilot-Orphan'
+                    Action       = 'RemoveAutopilotIdentity'
+                    ActionStatus = 'WhatIf'
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            $script:deleteCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -RemoveAutopilotIdentityLimit 3 -WhatIfRemoveAutopilotIdentity -Suppress | Out-Null
+
+        $script:capturedIncludeAutopilotInventory | Should -BeTrue
+        $script:capturedRemoveAutopilotType | Should -Be 'RemoveAutopilotIdentity'
+        $script:capturedRemoveAutopilotRules.AutopilotState | Should -Be 'Onboarded'
+        $script:capturedRemoveAutopilotRules.AutopilotIntuneAssociationState | Should -Be 'Missing'
+        $script:capturedRemoveAutopilotRules.AutopilotLastContactMoreThan | Should -Be 90
+        $script:capturedRemoveAutopilotLimit | Should -Be 3
+        $script:deleteCalled | Should -BeFalse
+    }
+
+    It 'adds Windows to the default inventory scope for standalone Autopilot identity removal' {
+        $script:capturedAutopilotOperatingSystemScope = @()
+        $script:capturedAutopilotJoinTypeScope = @()
+
+        Mock Get-InitialCloudDevices {
+            param(
+                [string[]] $IncludeJoinType,
+                [Array] $IncludeOperatingSystem
+            )
+
+            $script:capturedAutopilotJoinTypeScope = @($IncludeJoinType)
+            $script:capturedAutopilotOperatingSystemScope = @($IncludeOperatingSystem)
+            @()
+        }
+        Mock Get-CloudDevicesToProcess { @() }
+
+        Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -Suppress | Out-Null
+
+        $script:capturedAutopilotOperatingSystemScope | Should -Contain 'iOS*'
+        $script:capturedAutopilotOperatingSystemScope | Should -Contain 'Android*'
+        $script:capturedAutopilotOperatingSystemScope | Should -Contain 'Windows*'
+        $script:capturedAutopilotJoinTypeScope | Should -Contain 'AzureAD registered'
+        $script:capturedAutopilotJoinTypeScope | Should -Contain 'AzureAD joined'
+    }
+
+    It 'keeps widened Autopilot inventory scope separate from other actions' {
+        $script:capturedInventoryScopes = [System.Collections.Generic.List[object]]::new()
+
+        Mock Get-InitialCloudDevices {
+            param(
+                [string[]] $IncludeJoinType,
+                [Array] $IncludeOperatingSystem,
+                [switch] $IncludeAutopilotInventory
+            )
+
+            $script:capturedInventoryScopes.Add([PSCustomObject] @{
+                    IncludeJoinType        = @($IncludeJoinType)
+                    IncludeOperatingSystem = @($IncludeOperatingSystem)
+                    IncludeAutopilotInventory = [bool] $IncludeAutopilotInventory
+                })
+            @()
+        }
+        Mock Get-CloudDevicesToProcess { @() }
+
+        Invoke-CloudDevicesCleanup -Disable -RemoveAutopilotIdentity -Suppress | Out-Null
+
+        $script:capturedInventoryScopes | Should -HaveCount 2
+        $script:capturedInventoryScopes[0].IncludeOperatingSystem | Should -Contain 'iOS*'
+        $script:capturedInventoryScopes[0].IncludeOperatingSystem | Should -Contain 'Android*'
+        $script:capturedInventoryScopes[0].IncludeOperatingSystem | Should -Not -Contain 'Windows*'
+        $script:capturedInventoryScopes[0].IncludeJoinType | Should -Contain 'AzureAD registered'
+        $script:capturedInventoryScopes[0].IncludeJoinType | Should -Not -Contain 'AzureAD joined'
+        $script:capturedInventoryScopes[0].IncludeAutopilotInventory | Should -BeFalse
+        $script:capturedInventoryScopes[1].IncludeOperatingSystem | Should -Contain 'Windows*'
+        $script:capturedInventoryScopes[1].IncludeJoinType | Should -Contain 'AzureAD joined'
+        $script:capturedInventoryScopes[1].IncludeAutopilotInventory | Should -BeTrue
+    }
+
+    It 'includes separate Autopilot removal inventory in report devices' {
+        $script:inventoryCallCount = 0
+        $script:capturedReportDeviceNames = @()
+
+        Mock Get-InitialCloudDevices {
+            $script:inventoryCallCount++
+            if ($script:inventoryCallCount -eq 1) {
+                return @(
+                    [PSCustomObject] @{
+                        Name                = 'iPhone-Primary'
+                        ManagedDeviceId     = 'managed-primary'
+                        HasIntuneRecord     = $true
+                        HasEntraRecord      = $false
+                    }
+                )
+            }
+
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    EntraDeviceObjectId           = 'entra-ap-orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess { @() }
+        Mock New-HTMLProcessedCloudDevices {
+            param(
+                $Devices
+            )
+
+            $script:capturedReportDeviceNames = @($Devices.Name)
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -RemoveAutopilotIdentity -ReportOnly -Suppress | Out-Null
+
+        $script:capturedReportDeviceNames | Should -Contain 'iPhone-Primary'
+        $script:capturedReportDeviceNames | Should -Contain 'Windows-Autopilot-Orphan'
+    }
+
+    It 'does not remove the same Autopilot identity after delete handled it in the same run' {
+        $script:standaloneAutopilotRemovalCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Delete'
+                    EntraDeviceObjectId           = 'entra-delete-ap'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-delete-ap'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type
+            )
+
+            if ($Type -eq 'Delete') {
+                return @(
+                    [PSCustomObject] @{
+                        Name                          = 'Windows-Autopilot-Delete'
+                        EntraDeviceObjectId           = 'entra-delete-ap'
+                        AutopilotDeviceId             = 'autopilot-delete-ap'
+                        AutopilotOnboarded            = $true
+                        ProcessedDeviceKeys           = @('entra:entra-delete-ap')
+                    }
+                )
+            }
+
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Delete'
+                    EntraDeviceObjectId           = 'entra-delete-ap'
+                    AutopilotDeviceId             = 'autopilot-delete-ap'
+                    AutopilotOnboarded            = $true
+                    ProcessedDeviceKeys           = @('entra:entra-delete-ap')
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            @(
+                [PSCustomObject] @{
+                    Name              = 'Windows-Autopilot-Delete'
+                    AutopilotDeviceId = 'autopilot-delete-ap'
+                    AutopilotIdentityRemoved = $true
+                    Action            = 'Delete'
+                    ActionStatus      = 'True'
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            $script:standaloneAutopilotRemovalCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Delete -DeleteAutopilotIdentity -RemoveAutopilotIdentity -Confirm:$false -Suppress | Out-Null
+
+        $script:standaloneAutopilotRemovalCalled | Should -BeFalse
+    }
+
+    It 'does not remove the same Autopilot identity after delete removed it but later failed' {
+        $script:standaloneAutopilotRemovalCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-PartialDelete'
+                    EntraDeviceObjectId           = 'entra-partial-delete-ap'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-partial-delete-ap'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $true
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-PartialDelete'
+                    EntraDeviceObjectId           = 'entra-partial-delete-ap'
+                    AutopilotDeviceId             = 'autopilot-partial-delete-ap'
+                    AutopilotOnboarded            = $true
+                    ProcessedDeviceKeys           = @('entra:entra-partial-delete-ap')
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            @(
+                [PSCustomObject] @{
+                    Name                       = 'Windows-Autopilot-PartialDelete'
+                    AutopilotDeviceId          = 'autopilot-partial-delete-ap'
+                    AutopilotIdentityRemoved   = $true
+                    Action                     = 'Delete'
+                    ActionStatus               = 'False'
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            $script:standaloneAutopilotRemovalCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Delete -DeleteAutopilotIdentity -RemoveAutopilotIdentity -Confirm:$false -Suppress | Out-Null
+
+        $script:standaloneAutopilotRemovalCalled | Should -BeFalse
+    }
+
+    It 'runs standalone Autopilot removal after a delete preview only' {
+        $script:standaloneAutopilotRemovalCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-DeletePreview'
+                    EntraDeviceObjectId           = 'entra-delete-preview-ap'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-delete-preview-ap'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-DeletePreview'
+                    EntraDeviceObjectId           = 'entra-delete-preview-ap'
+                    AutopilotDeviceId             = 'autopilot-delete-preview-ap'
+                    AutopilotOnboarded            = $true
+                    ProcessedDeviceKeys           = @('entra:entra-delete-preview-ap')
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            @(
+                [PSCustomObject] @{
+                    Name              = 'Windows-Autopilot-DeletePreview'
+                    AutopilotDeviceId = 'autopilot-delete-preview-ap'
+                    Action            = 'Delete'
+                    ActionStatus      = 'WhatIf'
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            $script:standaloneAutopilotRemovalCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Delete -DeleteAutopilotIdentity -RemoveAutopilotIdentity -WhatIfDelete -Confirm:$false -Suppress | Out-Null
+
+        $script:standaloneAutopilotRemovalCalled | Should -BeTrue
+    }
+
+    It 'runs standalone Autopilot removal when delete did not request Autopilot identity removal' {
+        $script:standaloneAutopilotRemovalCalled = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-DeleteOnly'
+                    EntraDeviceObjectId           = 'entra-delete-only-ap'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-delete-only-ap'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-DeleteOnly'
+                    EntraDeviceObjectId           = 'entra-delete-only-ap'
+                    AutopilotDeviceId             = 'autopilot-delete-only-ap'
+                    AutopilotOnboarded            = $true
+                    ProcessedDeviceKeys           = @('entra:entra-delete-only-ap')
+                }
+            )
+        }
+        Mock Request-CloudDevicesDelete {
+            @(
+                [PSCustomObject] @{
+                    Name              = 'Windows-Autopilot-DeleteOnly'
+                    AutopilotDeviceId = 'autopilot-delete-only-ap'
+                    Action            = 'Delete'
+                    ActionStatus      = 'True'
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            $script:standaloneAutopilotRemovalCalled = $true
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Delete -RemoveAutopilotIdentity -Confirm:$false -Suppress | Out-Null
+
+        $script:standaloneAutopilotRemovalCalled | Should -BeTrue
+    }
+
+    It 'propagates global WhatIf to standalone Autopilot identity removal' {
+        $script:capturedGlobalWhatIfForAutopilotRemoval = $false
+
+        Mock Get-InitialCloudDevices {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    ProcessedDeviceKeys           = @('autopilot:autopilot-ap-orphan')
+                }
+            )
+        }
+        Mock Request-CloudDevicesRemoveAutopilotIdentity {
+            param(
+                [switch] $GlobalWhatIf,
+                [switch] $WhatIfRemoveAutopilotIdentity
+            )
+
+            $script:capturedGlobalWhatIfForAutopilotRemoval = $GlobalWhatIf.IsPresent
+            @(
+                [PSCustomObject] @{
+                    Name         = 'Windows-Autopilot-Orphan'
+                    Action       = 'RemoveAutopilotIdentity'
+                    ActionStatus = 'WhatIf'
+                }
+            )
+        }
+
+        Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -WhatIf -WhatIfRemoveAutopilotIdentity:$false -Suppress | Out-Null
+
+        $script:capturedGlobalWhatIfForAutopilotRemoval | Should -BeTrue
     }
 
     It 'stages already disabled delete candidates without running delete' {
