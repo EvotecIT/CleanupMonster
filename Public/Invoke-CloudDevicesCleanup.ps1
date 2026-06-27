@@ -570,8 +570,23 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
-    $includeAutopilotInventory = $RemoveAutopilotIdentity -or $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0
-    $allDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $primaryIncludeJoinType -IncludeOperatingSystem $primaryIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory:$includeAutopilotInventory
+    $includeAutopilotInventory = (($RemoveAutopilotIdentity -and -not $useSeparateAutopilotRemovalInventory) -or $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0)
+    $initialCloudDeviceParameters = @{
+        SafetyEntraLimit                    = $SafetyEntraLimit
+        SafetyIntuneLimit                   = $SafetyIntuneLimit
+        IncludeJoinType                     = $primaryIncludeJoinType
+        IncludeOperatingSystem              = $primaryIncludeOperatingSystem
+        ExcludeOperatingSystem              = $ExcludeOperatingSystem
+        IncludeOperatingSystemVersion       = $IncludeOperatingSystemVersion
+        ExcludeOperatingSystemVersion       = $ExcludeOperatingSystemVersion
+        IncludeUnknownOperatingSystem       = $IncludeUnknownOperatingSystem
+        IncludeUnknownOperatingSystemVersion = $IncludeUnknownOperatingSystemVersion
+        Exclusions                          = $Exclusions
+    }
+    if ($includeAutopilotInventory) {
+        $initialCloudDeviceParameters.IncludeAutopilotInventory = $true
+    }
+    $allDevices = Get-InitialCloudDevices @initialCloudDeviceParameters
     if ($allDevices -eq $false) {
         return
     }
@@ -703,7 +718,12 @@ function Invoke-CloudDevicesCleanup {
         }
     }
 
-    New-HTMLProcessedCloudDevices -Export $export -Devices $allDevices -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    $reportDevices = @($allDevices)
+    if ($useSeparateAutopilotRemovalInventory) {
+        $reportDevices = @(Merge-CloudDeviceReportInventory -PrimaryDevices $allDevices -AdditionalDevices $autopilotRemovalDevices)
+    }
+
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 

@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
     . (Get-CleanupMonsterPath 'Public/Invoke-CloudDevicesCleanup.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
@@ -420,12 +421,14 @@ Describe 'Invoke-CloudDevicesCleanup' {
         Mock Get-InitialCloudDevices {
             param(
                 [string[]] $IncludeJoinType,
-                [Array] $IncludeOperatingSystem
+                [Array] $IncludeOperatingSystem,
+                [switch] $IncludeAutopilotInventory
             )
 
             $script:capturedInventoryScopes.Add([PSCustomObject] @{
                     IncludeJoinType        = @($IncludeJoinType)
                     IncludeOperatingSystem = @($IncludeOperatingSystem)
+                    IncludeAutopilotInventory = [bool] $IncludeAutopilotInventory
                 })
             @()
         }
@@ -439,8 +442,56 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedInventoryScopes[0].IncludeOperatingSystem | Should -Not -Contain 'Windows*'
         $script:capturedInventoryScopes[0].IncludeJoinType | Should -Contain 'AzureAD registered'
         $script:capturedInventoryScopes[0].IncludeJoinType | Should -Not -Contain 'AzureAD joined'
+        $script:capturedInventoryScopes[0].IncludeAutopilotInventory | Should -BeFalse
         $script:capturedInventoryScopes[1].IncludeOperatingSystem | Should -Contain 'Windows*'
         $script:capturedInventoryScopes[1].IncludeJoinType | Should -Contain 'AzureAD joined'
+        $script:capturedInventoryScopes[1].IncludeAutopilotInventory | Should -BeTrue
+    }
+
+    It 'includes separate Autopilot removal inventory in report devices' {
+        $script:inventoryCallCount = 0
+        $script:capturedReportDeviceNames = @()
+
+        Mock Get-InitialCloudDevices {
+            $script:inventoryCallCount++
+            if ($script:inventoryCallCount -eq 1) {
+                return @(
+                    [PSCustomObject] @{
+                        Name                = 'iPhone-Primary'
+                        ManagedDeviceId     = 'managed-primary'
+                        HasIntuneRecord     = $true
+                        HasEntraRecord      = $false
+                    }
+                )
+            }
+
+            @(
+                [PSCustomObject] @{
+                    Name                          = 'Windows-Autopilot-Orphan'
+                    EntraDeviceObjectId           = 'entra-ap-orphan'
+                    AutopilotInventoryLoaded      = $true
+                    AutopilotOnboarded            = $true
+                    AutopilotDeviceId             = 'autopilot-ap-orphan'
+                    AutopilotManagedDeviceId      = $null
+                    AutopilotLastContactedDays    = 120
+                    HasEntraRecord                = $true
+                    HasIntuneRecord               = $false
+                }
+            )
+        }
+        Mock Get-CloudDevicesToProcess { @() }
+        Mock New-HTMLProcessedCloudDevices {
+            param(
+                $Devices
+            )
+
+            $script:capturedReportDeviceNames = @($Devices.Name)
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -RemoveAutopilotIdentity -ReportOnly -Suppress | Out-Null
+
+        $script:capturedReportDeviceNames | Should -Contain 'iPhone-Primary'
+        $script:capturedReportDeviceNames | Should -Contain 'Windows-Autopilot-Orphan'
     }
 
     It 'does not remove the same Autopilot identity after delete handled it in the same run' {
