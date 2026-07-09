@@ -165,6 +165,20 @@ function Get-CloudDevicesToProcess {
         $true
     }
 
+    function Test-CloudDeviceDuplicateNameProtection {
+        param([Parameter(Mandatory)] [object] $Device)
+
+        if ($ActionIf.PreserveDuplicateDeviceNames -ne $true) {
+            return $false
+        }
+
+        if ($Device.PSObject.Properties['PreserveDuplicateNameGroup'] -and $Device.PreserveDuplicateNameGroup -eq $true) {
+            return $true
+        }
+
+        $false
+    }
+
     Write-Color -Text '[i] ', "Applying following rules to $Type action:" -Color Yellow, Cyan, Green
     foreach ($key in $ActionIf.Keys) {
         if ($null -eq $ActionIf[$key] -or ($ActionIf[$key] -is [System.Array] -and $ActionIf[$key].Count -eq 0)) {
@@ -189,6 +203,10 @@ function Get-CloudDevicesToProcess {
         }
 
         if ($ActionIf.ExcludeCompanyOwned -and $device.ManagedDeviceOwnerType -eq 'company') {
+            continue
+        }
+
+        if (Test-CloudDeviceDuplicateNameProtection -Device $device) {
             continue
         }
 

@@ -148,6 +148,52 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedIncludeUnknownActivity | Should -BeTrue
     }
 
+    It 'preserves duplicate device names by default for candidate selection' {
+        $script:capturedPreserveDuplicateDeviceNames = $null
+
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            if ($Type -eq 'Disable') {
+                $script:capturedPreserveDuplicateDeviceNames = $ActionIf.PreserveDuplicateDeviceNames
+            }
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -Suppress | Out-Null
+
+        $script:capturedPreserveDuplicateDeviceNames | Should -BeTrue
+    }
+
+    It 'passes explicit duplicate-name preservation opt-out to candidate selection' {
+        $script:capturedPreserveDuplicateDeviceNames = $null
+
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param(
+                $Type,
+                $Devices,
+                $ActionIf,
+                $ProcessedDevices
+            )
+
+            if ($Type -eq 'Disable') {
+                $script:capturedPreserveDuplicateDeviceNames = $ActionIf.PreserveDuplicateDeviceNames
+            }
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -PreserveDuplicateDeviceNames:$false -Suppress | Out-Null
+
+        $script:capturedPreserveDuplicateDeviceNames | Should -BeFalse
+    }
+
     It 'passes broken Intune link filtering to candidate selection' {
         $script:capturedIntuneLinkState = $null
 

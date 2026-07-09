@@ -19,6 +19,11 @@ function Invoke-CloudDevicesCleanup {
     can be reviewed over multiple runs. ReportOnly and WhatIf/action-specific
     WhatIf modes show candidates without mutating pending cleanup state.
 
+    Same-name Windows Autopilot and hybrid/cloud-join duplicate groups are preserved
+    from destructive cloud actions by default. This protects the by-design duplicate
+    Entra objects created during Windows Autopilot Microsoft Entra hybrid deployments.
+    Use PreserveDuplicateDeviceNames:$false only after reviewing the duplicate group.
+
     Blank activity timestamps are intentionally excluded from destructive actions by default.
     This follows Microsoft guidance for stale-device cleanup where activity timestamps can be empty
     even for active devices.
@@ -210,6 +215,10 @@ function Invoke-CloudDevicesCleanup {
     .PARAMETER Exclusions
     Device names, Entra object IDs, Intune managed-device IDs, or other supported identifiers to exclude from cleanup.
 
+    .PARAMETER PreserveDuplicateDeviceNames
+    Preserves same-name Windows Autopilot and hybrid/cloud-join duplicate groups from retire, disable, delete, and standalone Autopilot identity removal.
+    Defaults to $true.
+
     .PARAMETER IncludeCompanyOwned
     Includes company-owned devices in candidate selection. By default company-owned devices are excluded from actions.
 
@@ -374,6 +383,7 @@ function Invoke-CloudDevicesCleanup {
         [Array] $IncludeAutopilotGroupTag = @(),
         [Array] $ExcludeAutopilotGroupTag = @(),
         [Array] $Exclusions = @(),
+        [bool] $PreserveDuplicateDeviceNames = $true,
         [switch] $IncludeCompanyOwned,
 
         [string] $DataStorePath,
@@ -463,6 +473,7 @@ function Invoke-CloudDevicesCleanup {
         LastSeenEntraMoreThan  = $RetireLastSeenEntraMoreThan
         RegisteredMoreThan     = $RetireRegisteredMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
+        PreserveDuplicateDeviceNames = $PreserveDuplicateDeviceNames
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
         IntuneLinkState        = $IntuneLinkState
         IncludeIntuneOnly      = $RetireIncludeIntuneOnly.IsPresent
@@ -487,6 +498,7 @@ function Invoke-CloudDevicesCleanup {
         RegisteredMoreThan     = $DisableRegisteredMoreThan
         ListProcessedMoreThan  = $DisableListProcessedMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
+        PreserveDuplicateDeviceNames = $PreserveDuplicateDeviceNames
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
         IntuneLinkState        = $IntuneLinkState
         IncludeEntraOnly       = $DisableIncludeEntraOnly.IsPresent
@@ -511,6 +523,7 @@ function Invoke-CloudDevicesCleanup {
         RegisteredMoreThan     = $DeleteRegisteredMoreThan
         ListProcessedMoreThan  = $DeleteListProcessedMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
+        PreserveDuplicateDeviceNames = $PreserveDuplicateDeviceNames
         ExcludeCompanyOwned    = -not $IncludeCompanyOwned
         IntuneLinkState        = $IntuneLinkState
         IncludeEntraOnly       = $DeleteIncludeEntraOnly.IsPresent
@@ -533,6 +546,7 @@ function Invoke-CloudDevicesCleanup {
     $removeAutopilotIdentityOnlyIf = [ordered] @{
         AutopilotLastContactMoreThan = $RemoveAutopilotIdentityLastContactMoreThan
         IncludeUnknownActivity       = $IncludeUnknownActivity.IsPresent
+        PreserveDuplicateDeviceNames = $PreserveDuplicateDeviceNames
         ExcludeCompanyOwned          = -not $IncludeCompanyOwned
         IntuneLinkState              = $IntuneLinkState
         AutopilotState               = 'Onboarded'

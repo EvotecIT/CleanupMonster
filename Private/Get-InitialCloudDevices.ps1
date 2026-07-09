@@ -340,5 +340,7 @@ function Get-InitialCloudDevices {
         })
     }
 
+    Set-CloudDeviceDuplicateNameMetadata -Devices $outputDevices
+
     @($outputDevices)
 }
