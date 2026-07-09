@@ -409,6 +409,76 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices[0].DuplicateNameProtectionReason | Should -Match 'Same-name Windows'
     }
 
+    It 'uses hybrid reference records to protect scoped cloud-joined duplicates' {
+        Mock Get-MyDevice {
+            param([string[]] $Type)
+
+            if ($Type -contains 'Hybrid AzureAD') {
+                return @(
+                    [PSCustomObject] @{
+                        Name                = 'PL-KAT-KISskRNw'
+                        EntraDeviceObjectId = 'entra-hybrid'
+                        DeviceId            = 'device-hybrid'
+                        Enabled             = $true
+                        OperatingSystem     = 'Windows'
+                        TrustType           = 'Hybrid AzureAD'
+                        LastSeenDays        = 1
+                    }
+                )
+            }
+
+            @(
+                [PSCustomObject] @{
+                    Name                = 'PL-KAT-KISskRNw'
+                    EntraDeviceObjectId = 'entra-joined'
+                    DeviceId            = 'device-joined'
+                    Enabled             = $true
+                    OperatingSystem     = 'Windows'
+                    TrustType           = 'AzureAD joined'
+                    LastSeenDays        = 460
+                    FirstSeen           = (Get-Date).AddDays(-460)
+                    IsManaged           = $true
+                    ManagementType      = 'mdm'
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune { @() }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -IncludeDuplicateNameProtectionInventory)
+
+        $devices | Should -HaveCount 1
+        $devices[0].Name | Should -Be 'PL-KAT-KISskRNw'
+        $devices[0].PreserveDuplicateNameGroup | Should -BeTrue
+        $devices[0].DuplicateNameCount | Should -Be 2
+        $devices[0].DuplicateNameJoinTypes | Should -Contain 'Hybrid AzureAD'
+        $devices[0].DuplicateNameJoinTypes | Should -Contain 'AzureAD joined'
+    }
+
+    It 'does not protect non-Windows members of a same-name Autopilot group' {
+        $devices = [System.Collections.Generic.List[object]]::new()
+        $devices.Add([PSCustomObject] @{
+                Name                = 'Shared-Name'
+                OperatingSystem     = 'Windows'
+                TrustType           = 'AzureAD joined'
+                RecordState         = 'Matched'
+                AutopilotOnboarded  = $true
+                AutopilotDeviceId   = 'autopilot-shared-name'
+            })
+        $devices.Add([PSCustomObject] @{
+                Name                = 'Shared-Name'
+                OperatingSystem     = 'iOS'
+                TrustType           = 'AzureAD registered'
+                RecordState         = 'Matched'
+            })
+
+        Set-CloudDeviceDuplicateNameMetadata -Devices $devices
+
+        $devices[0].PreserveDuplicateNameGroup | Should -BeTrue
+        $devices[0].DuplicateNameProtectionReason | Should -Match 'Autopilot'
+        $devices[1].PreserveDuplicateNameGroup | Should -BeFalse
+        $devices[1].DuplicateNameProtectionReason | Should -BeNullOrEmpty
+    }
+
     It 'excludes hybrid and joined records from cloud cleanup inventory' {
         Mock Get-MyDevice {
             @(

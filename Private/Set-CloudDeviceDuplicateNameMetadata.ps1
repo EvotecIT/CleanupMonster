@@ -3,11 +3,14 @@ function Set-CloudDeviceDuplicateNameMetadata {
     param(
         [Parameter(Mandatory)]
         [AllowEmptyCollection()]
-        [System.Collections.Generic.List[object]] $Devices
+        [System.Collections.Generic.List[object]] $Devices,
+
+        [AllowEmptyCollection()]
+        [object[]] $ReferenceDevices = @()
     )
 
     $devicesByName = @{}
-    foreach ($device in $Devices) {
+    foreach ($device in @($Devices + $ReferenceDevices)) {
         $name = [string] $device.Name
         if ([string]::IsNullOrWhiteSpace($name)) {
             continue
@@ -35,11 +38,10 @@ function Set-CloudDeviceDuplicateNameMetadata {
 
         $joinTypes = @($duplicateGroup | ForEach-Object { [string] $_.TrustType } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
         $recordStates = @($duplicateGroup | ForEach-Object { [string] $_.RecordState } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
-        $hasWindowsDevice = @($duplicateGroup | Where-Object { [string] $_.OperatingSystem -like 'Windows*' }).Count -gt 0
         $hasHybridDevice = $joinTypes -contains 'Hybrid AzureAD'
         $hasCloudJoinedDevice = @($joinTypes | Where-Object { $_ -in @('AzureAD joined', 'AzureAD registered') }).Count -gt 0
         $hasAutopilotDevice = @($duplicateGroup | Where-Object { $_.AutopilotOnboarded -eq $true -or -not [string]::IsNullOrWhiteSpace([string] $_.AutopilotDeviceId) }).Count -gt 0
-        $preserveGroup = $hasWindowsDevice -and (($hasHybridDevice -and $hasCloudJoinedDevice) -or $hasAutopilotDevice)
+        $preserveGroup = ($hasHybridDevice -and $hasCloudJoinedDevice) -or $hasAutopilotDevice
 
         $reason = if ($preserveGroup) {
             if ($hasHybridDevice -and $hasCloudJoinedDevice -and $hasAutopilotDevice) {
@@ -53,12 +55,13 @@ function Set-CloudDeviceDuplicateNameMetadata {
             $null
         }
 
-        foreach ($device in $duplicateGroup) {
+        foreach ($device in @($duplicateGroup | Where-Object { $Devices.Contains($_) })) {
+            $preserveDevice = $preserveGroup -and [string] $device.OperatingSystem -like 'Windows*'
             Add-Member -InputObject $device -MemberType NoteProperty -Name 'DuplicateNameCount' -Value $duplicateGroup.Count -Force
             Add-Member -InputObject $device -MemberType NoteProperty -Name 'DuplicateNameJoinTypes' -Value $joinTypes -Force
             Add-Member -InputObject $device -MemberType NoteProperty -Name 'DuplicateNameRecordStates' -Value $recordStates -Force
-            Add-Member -InputObject $device -MemberType NoteProperty -Name 'PreserveDuplicateNameGroup' -Value $preserveGroup -Force
-            Add-Member -InputObject $device -MemberType NoteProperty -Name 'DuplicateNameProtectionReason' -Value $reason -Force
+            Add-Member -InputObject $device -MemberType NoteProperty -Name 'PreserveDuplicateNameGroup' -Value $preserveDevice -Force
+            Add-Member -InputObject $device -MemberType NoteProperty -Name 'DuplicateNameProtectionReason' -Value $(if ($preserveDevice) { $reason } else { $null }) -Force
         }
     }
 }

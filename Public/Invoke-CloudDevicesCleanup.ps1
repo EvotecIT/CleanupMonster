@@ -584,7 +584,7 @@ function Invoke-CloudDevicesCleanup {
         return
     }
 
-    $includeAutopilotInventory = (($RemoveAutopilotIdentity -and -not $useSeparateAutopilotRemovalInventory) -or $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0)
+    $includeAutopilotInventory = ($PreserveDuplicateDeviceNames -or ($RemoveAutopilotIdentity -and -not $useSeparateAutopilotRemovalInventory) -or $DeleteAutopilotIdentity -or $AutopilotState -ne 'Any' -or $OwnerState -ne 'Any' -or $IncludeAutopilotGroupTag.Count -gt 0 -or $ExcludeAutopilotGroupTag.Count -gt 0)
     $initialCloudDeviceParameters = @{
         SafetyEntraLimit                    = $SafetyEntraLimit
         SafetyIntuneLimit                   = $SafetyIntuneLimit
@@ -600,13 +600,16 @@ function Invoke-CloudDevicesCleanup {
     if ($includeAutopilotInventory) {
         $initialCloudDeviceParameters.IncludeAutopilotInventory = $true
     }
+    if ($PreserveDuplicateDeviceNames) {
+        $initialCloudDeviceParameters.IncludeDuplicateNameProtectionInventory = $true
+    }
     $allDevices = Get-InitialCloudDevices @initialCloudDeviceParameters
     if ($allDevices -eq $false) {
         return
     }
     $autopilotRemovalDevices = $allDevices
     if ($useSeparateAutopilotRemovalInventory) {
-        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory
+        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory -IncludeDuplicateNameProtectionInventory:$PreserveDuplicateDeviceNames
         if ($autopilotRemovalDevices -eq $false) {
             return
         }

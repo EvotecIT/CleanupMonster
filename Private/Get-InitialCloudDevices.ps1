@@ -12,7 +12,8 @@ function Get-InitialCloudDevices {
         [switch] $IncludeUnknownOperatingSystem,
         [switch] $IncludeUnknownOperatingSystemVersion,
         [Array] $Exclusions,
-        [switch] $IncludeAutopilotInventory
+        [switch] $IncludeAutopilotInventory,
+        [switch] $IncludeDuplicateNameProtectionInventory
     )
 
     $getAgeDays = {
@@ -97,6 +98,7 @@ function Get-InitialCloudDevices {
 
     [Array] $entraJoinType = @($IncludeJoinType | Where-Object { $_ -ne 'Not available' })
     [Array] $entraDevices = @()
+    [Array] $duplicateNameReferenceDevices = @()
     if ($entraJoinType.Count -gt 0) {
         Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($entraJoinType -join ', ') -Color Yellow, Cyan, Green
         $entraParameters = @{
@@ -123,6 +125,22 @@ function Get-InitialCloudDevices {
         } elseif ($null -ne $SafetyEntraLimit -and $entraDevices.Count -lt $SafetyEntraLimit) {
             Write-Color -Text '[e] ', 'Only ', $entraDevices.Count, ' devices found in Microsoft Entra ID, this is less than the safety limit of ', $SafetyEntraLimit, '. Terminating!' -Color Yellow, Cyan, Red, Cyan
             return $false
+        }
+
+        if ($IncludeDuplicateNameProtectionInventory -and $entraJoinType -notcontains 'Hybrid AzureAD') {
+            Write-Color -Text '[i] ', 'Getting Microsoft Entra hybrid devices for duplicate-name protection context' -Color Yellow, Cyan
+            $duplicateReferenceParameters = @{
+                Type            = @('Hybrid AzureAD')
+                WarningAction   = 'SilentlyContinue'
+                WarningVariable = 'warningVar'
+                IncludeAutopilotInventory = $true
+            }
+            $warningVar = $null
+            [Array] $duplicateNameReferenceDevices = Get-MyDevice @duplicateReferenceParameters
+            if ($warningVar) {
+                Write-Color -Text '[e] ', 'Error getting hybrid devices for duplicate-name protection: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
+                return $false
+            }
         }
     } else {
         Write-Color -Text '[i] ', 'Skipping Microsoft Entra ID inventory because requested join type is only Not available. Continuing with Intune inventory.' -Color Yellow, Yellow
@@ -340,7 +358,7 @@ function Get-InitialCloudDevices {
         })
     }
 
-    Set-CloudDeviceDuplicateNameMetadata -Devices $outputDevices
+    Set-CloudDeviceDuplicateNameMetadata -Devices $outputDevices -ReferenceDevices $duplicateNameReferenceDevices
 
     @($outputDevices)
 }

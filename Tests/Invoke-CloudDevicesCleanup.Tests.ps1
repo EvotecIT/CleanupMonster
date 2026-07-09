@@ -194,6 +194,28 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedPreserveDuplicateDeviceNames | Should -BeFalse
     }
 
+    It 'loads Autopilot and duplicate reference inventory when duplicate-name preservation is enabled' {
+        $script:capturedIncludeAutopilotInventory = $null
+        $script:capturedIncludeDuplicateNameProtectionInventory = $null
+
+        Mock Get-InitialCloudDevices {
+            param(
+                [switch] $IncludeAutopilotInventory,
+                [switch] $IncludeDuplicateNameProtectionInventory
+            )
+
+            $script:capturedIncludeAutopilotInventory = $IncludeAutopilotInventory.IsPresent
+            $script:capturedIncludeDuplicateNameProtectionInventory = $IncludeDuplicateNameProtectionInventory.IsPresent
+            @()
+        }
+        Mock Get-CloudDevicesToProcess { @() }
+
+        Invoke-CloudDevicesCleanup -Disable -Suppress | Out-Null
+
+        $script:capturedIncludeAutopilotInventory | Should -BeTrue
+        $script:capturedIncludeDuplicateNameProtectionInventory | Should -BeTrue
+    }
+
     It 'passes broken Intune link filtering to candidate selection' {
         $script:capturedIntuneLinkState = $null
 
@@ -480,7 +502,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
         }
         Mock Get-CloudDevicesToProcess { @() }
 
-        Invoke-CloudDevicesCleanup -Disable -RemoveAutopilotIdentity -Suppress | Out-Null
+        Invoke-CloudDevicesCleanup -Disable -RemoveAutopilotIdentity -PreserveDuplicateDeviceNames:$false -Suppress | Out-Null
 
         $script:capturedInventoryScopes | Should -HaveCount 2
         $script:capturedInventoryScopes[0].IncludeOperatingSystem | Should -Contain 'iOS*'
