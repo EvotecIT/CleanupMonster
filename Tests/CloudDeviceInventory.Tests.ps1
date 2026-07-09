@@ -6,6 +6,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKeys.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDevicePropertyValue.ps1')
     . (Get-CleanupMonsterPath 'Private/Find-ProcessedCloudDeviceRecord.ps1')
+    . (Get-CleanupMonsterPath 'Private/Set-CloudDeviceDuplicateNameMetadata.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialCloudDevices.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKey.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceSelectionReason.ps1')
@@ -341,6 +342,141 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices | Should -HaveCount 1
         $devices[0].AutopilotInventoryLoaded | Should -BeFalse
         $devices[0].AutopilotOnboarded | Should -BeFalse
+    }
+
+    It 'marks same-name Windows hybrid and cloud-joined duplicates for preservation' {
+        Mock Get-MyDevice {
+            @(
+                [PSCustomObject] @{
+                    Name                = 'PL-KAT-KISskRNw'
+                    EntraDeviceObjectId = 'entra-hybrid'
+                    DeviceId            = 'device-hybrid'
+                    Enabled             = $true
+                    OperatingSystem     = 'Windows'
+                    TrustType           = 'Hybrid AzureAD'
+                    LastSeenDays        = 1
+                    FirstSeen           = (Get-Date).AddDays(-90)
+                    IsManaged           = $true
+                    ManagementType      = 'configManager'
+                }
+                [PSCustomObject] @{
+                    Name                     = 'PL-KAT-KISskRNw'
+                    EntraDeviceObjectId      = 'entra-joined'
+                    DeviceId                 = 'device-joined'
+                    Enabled                  = $true
+                    OperatingSystem          = 'Windows'
+                    TrustType                = 'AzureAD joined'
+                    LastSeenDays             = 460
+                    FirstSeen                = (Get-Date).AddDays(-460)
+                    IsManaged                = $true
+                    ManagementType           = 'mdm'
+                    AutopilotInventoryLoaded = $true
+                    AutopilotOnboarded       = $true
+                    AutopilotDeviceId        = 'autopilot-joined'
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune {
+            @(
+                [PSCustomObject] @{
+                    Name                    = 'PL-KAT-KISskRNw'
+                    ManagedDeviceId         = 'managed-joined'
+                    EntraDeviceObjectId     = 'entra-joined'
+                    AzureAdDeviceId         = 'device-joined'
+                    OperatingSystem         = 'Windows'
+                    OperatingSystemVersion  = '10.0.22631.3155'
+                    LastSeenDays            = 460
+                    FirstSeen               = (Get-Date).AddDays(-460)
+                    ManagedDeviceOwnerType  = 'company'
+                    DeviceRegistrationState = 'joined'
+                    AzureAdRegistered       = $true
+                    ComplianceState         = 'noncompliant'
+                    ManagementAgent         = 'mdm'
+                    AutopilotInventoryLoaded = $true
+                    AutopilotOnboarded       = $true
+                    AutopilotDeviceId        = 'autopilot-joined'
+                }
+            )
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'Hybrid AzureAD', 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 2
+        $devices.PreserveDuplicateNameGroup | Should -Be @($true, $true)
+        $devices.DuplicateNameCount | Should -Be @(2, 2)
+        $devices[0].DuplicateNameJoinTypes | Should -Contain 'Hybrid AzureAD'
+        $devices[0].DuplicateNameJoinTypes | Should -Contain 'AzureAD joined'
+        $devices[0].DuplicateNameProtectionReason | Should -Match 'Same-name Windows'
+    }
+
+    It 'uses hybrid reference records to protect scoped cloud-joined duplicates' {
+        Mock Get-MyDevice {
+            param([string[]] $Type)
+
+            if ($Type -contains 'Hybrid AzureAD') {
+                return @(
+                    [PSCustomObject] @{
+                        Name                = 'PL-KAT-KISskRNw'
+                        EntraDeviceObjectId = 'entra-hybrid'
+                        DeviceId            = 'device-hybrid'
+                        Enabled             = $true
+                        OperatingSystem     = 'Windows'
+                        TrustType           = 'Hybrid AzureAD'
+                        LastSeenDays        = 1
+                    }
+                )
+            }
+
+            @(
+                [PSCustomObject] @{
+                    Name                = 'PL-KAT-KISskRNw'
+                    EntraDeviceObjectId = 'entra-joined'
+                    DeviceId            = 'device-joined'
+                    Enabled             = $true
+                    OperatingSystem     = 'Windows'
+                    TrustType           = 'AzureAD joined'
+                    LastSeenDays        = 460
+                    FirstSeen           = (Get-Date).AddDays(-460)
+                    IsManaged           = $true
+                    ManagementType      = 'mdm'
+                }
+            )
+        }
+        Mock Get-MyDeviceIntune { @() }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -IncludeDuplicateNameProtectionInventory)
+
+        $devices | Should -HaveCount 1
+        $devices[0].Name | Should -Be 'PL-KAT-KISskRNw'
+        $devices[0].PreserveDuplicateNameGroup | Should -BeTrue
+        $devices[0].DuplicateNameCount | Should -Be 2
+        $devices[0].DuplicateNameJoinTypes | Should -Contain 'Hybrid AzureAD'
+        $devices[0].DuplicateNameJoinTypes | Should -Contain 'AzureAD joined'
+    }
+
+    It 'does not protect non-Windows members of a same-name Autopilot group' {
+        $devices = [System.Collections.Generic.List[object]]::new()
+        $devices.Add([PSCustomObject] @{
+                Name                = 'Shared-Name'
+                OperatingSystem     = 'Windows'
+                TrustType           = 'AzureAD joined'
+                RecordState         = 'Matched'
+                AutopilotOnboarded  = $true
+                AutopilotDeviceId   = 'autopilot-shared-name'
+            })
+        $devices.Add([PSCustomObject] @{
+                Name                = 'Shared-Name'
+                OperatingSystem     = 'iOS'
+                TrustType           = 'AzureAD registered'
+                RecordState         = 'Matched'
+            })
+
+        Set-CloudDeviceDuplicateNameMetadata -Devices $devices
+
+        $devices[0].PreserveDuplicateNameGroup | Should -BeTrue
+        $devices[0].DuplicateNameProtectionReason | Should -Match 'Autopilot'
+        $devices[1].PreserveDuplicateNameGroup | Should -BeFalse
+        $devices[1].DuplicateNameProtectionReason | Should -BeNullOrEmpty
     }
 
     It 'excludes hybrid and joined records from cloud cleanup inventory' {
@@ -948,6 +1084,85 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates[0].Name | Should -Be 'Windows-BrokenIntuneLink'
         $candidates[0].SelectionReason | Should -Match 'IntuneLinkState=Broken'
         $candidates[0].SelectionReason | Should -Match 'RequiredIntuneLinkState=Broken'
+    }
+
+    It 'skips preserved same-name duplicate groups during destructive cloud selection by default' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                           = 'PL-KAT-KISskRNw'
+                EntraDeviceObjectId            = 'entra-joined'
+                DeviceId                       = 'device-joined'
+                ManagedDeviceId                = 'managed-joined'
+                HasEntraRecord                 = $true
+                HasIntuneRecord                = $true
+                RecordState                    = 'Matched'
+                IntuneLinkState                = 'Healthy'
+                ManagedDeviceOwnerType         = 'personal'
+                OperatingSystem                = 'Windows'
+                TrustType                      = 'AzureAD joined'
+                EntraLastSeenDays              = 460
+                IntuneLastSeenDays             = 460
+                Enabled                        = $true
+                PreserveDuplicateNameGroup     = $true
+                DuplicateNameProtectionReason  = 'Same-name Windows hybrid/cloud join duplicate'
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan        = 90
+            LastSeenIntuneMoreThan       = $null
+            RegisteredMoreThan           = $null
+            ListProcessedMoreThan        = $null
+            IncludeUnknownActivity       = $false
+            PreserveDuplicateDeviceNames = $true
+            ExcludeCompanyOwned          = $true
+            IntuneLinkState              = 'Any'
+            IncludeEntraOnly             = $false
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates | Should -HaveCount 0
+    }
+
+    It 'allows same-name duplicate groups when duplicate-name preservation is explicitly disabled' {
+        $devices = @(
+            [PSCustomObject] @{
+                Name                          = 'PL-KAT-KISskRNw'
+                EntraDeviceObjectId           = 'entra-joined'
+                DeviceId                      = 'device-joined'
+                ManagedDeviceId               = 'managed-joined'
+                HasEntraRecord                = $true
+                HasIntuneRecord               = $true
+                RecordState                   = 'Matched'
+                IntuneLinkState               = 'Healthy'
+                ManagedDeviceOwnerType        = 'personal'
+                OperatingSystem               = 'Windows'
+                TrustType                     = 'AzureAD joined'
+                EntraLastSeenDays             = 460
+                IntuneLastSeenDays            = 460
+                Enabled                       = $true
+                PreserveDuplicateNameGroup    = $true
+                DuplicateNameProtectionReason = 'Same-name Windows hybrid/cloud join duplicate'
+            }
+        )
+
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan        = 90
+            LastSeenIntuneMoreThan       = $null
+            RegisteredMoreThan           = $null
+            ListProcessedMoreThan        = $null
+            IncludeUnknownActivity       = $false
+            PreserveDuplicateDeviceNames = $false
+            ExcludeCompanyOwned          = $true
+            IntuneLinkState              = 'Any'
+            IncludeEntraOnly             = $false
+        }
+
+        $candidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $candidates | Should -HaveCount 1
+        $candidates[0].Name | Should -Be 'PL-KAT-KISskRNw'
     }
 
     It 'filters action candidates by owner, management, compliance, and registration age' {
