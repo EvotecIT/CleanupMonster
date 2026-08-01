@@ -1,8 +1,46 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
-    Import-Module PSSharedGoods -Force -ErrorAction Stop
     . (Get-CleanupMonsterPath 'Private/Export-ADComputerReportData.ps1')
     . (Get-CleanupMonsterPath 'Private/Merge-ADComputerHTMLReportData.ps1')
+
+    # PSSharedGoods is an external module boundary and is not installed in the
+    # source-test CI job. This fake preserves the formatting contract exercised
+    # by the report serializer; a generated report is validated separately.
+    function ConvertTo-PrettyObject {
+        param(
+            [Array] $Object,
+            [string[]] $PropertyName,
+            [switch] $Force,
+            [switch] $BoolAsString,
+            [switch] $ArrayJoin,
+            [string] $ArrayJoinString,
+            [AllowEmptyString()]
+            [string] $DateTimeFormat,
+            [System.Collections.IDictionary] $NewLineFormat,
+            [System.Collections.IDictionary] $NewLineFormatProperty
+        )
+
+        foreach ($Item in $Object) {
+            $Converted = [ordered] @{}
+            foreach ($Property in $PropertyName) {
+                $Value = $Item.$Property
+                if ($null -eq $Value) {
+                    $Converted[$Property] = ''
+                } elseif ($Value -is [DateTime]) {
+                    $Converted[$Property] = $Value.ToString($DateTimeFormat)
+                } elseif ($Value -is [bool] -and $BoolAsString) {
+                    $Converted[$Property] = [string] $Value
+                } elseif ($Value -is [System.Collections.IList] -and $ArrayJoin) {
+                    $Converted[$Property] = $Value -join $ArrayJoinString
+                } elseif ($Value -is [string]) {
+                    $Converted[$Property] = $Value.Replace([System.Environment]::NewLine, $NewLineFormat.NewLineCarriage).Replace("`n", $NewLineFormat.NewLine).Replace("`r", $NewLineFormat.Carriage)
+                } else {
+                    $Converted[$Property] = $Value
+                }
+            }
+            [PSCustomObject] $Converted
+        }
+    }
 }
 
 Describe 'AD computer report serialization' {
