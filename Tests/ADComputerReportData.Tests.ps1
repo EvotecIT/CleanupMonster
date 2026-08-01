@@ -80,13 +80,15 @@ Describe 'AD computer report serialization' {
         $StagingPath = Join-Path $TestDrive 'delimiter-staging.html'
         $DataPath = Join-Path $TestDrive 'delimiter-computers.json'
         $OutputPath = Join-Path $TestDrive 'delimiter-report.html'
-        Set-Content -LiteralPath $StagingPath -Value '<html><script>var CleanupMonsterADComputers = [{"SamAccountName":"sample$","Description":"contains ]; delimiter"}];</script><body>report</body></html>' -Encoding UTF8
-        Set-Content -LiteralPath $DataPath -Value '[{"SamAccountName":"PC1$","Description":"also contains ]; delimiter"}]' -Encoding UTF8
+        $SampleJson = '[{"SamAccountName":"sample$","Description":"contains ]; delimiter and var CleanupMonsterADComputers = [ plus \\server and \"quote\""}]'
+        $ReplacementJson = '[{"SamAccountName":"PC1$","Description":"also contains ]; delimiter and var CleanupMonsterADComputers = [ plus \\server and \"quote\""}]'
+        Set-Content -LiteralPath $StagingPath -Value "<html><script>var CleanupMonsterADComputers = $SampleJson;</script><body>report</body></html>" -Encoding UTF8
+        Set-Content -LiteralPath $DataPath -Value $ReplacementJson -Encoding UTF8
 
         Merge-ADComputerHTMLReportData -StagingHtmlPath $StagingPath -DataFilePath $DataPath -OutputPath $OutputPath -DataStoreID CleanupMonsterADComputers
         $Html = Get-Content -LiteralPath $OutputPath -Raw
 
-        $Html | Should -Match 'var CleanupMonsterADComputers = \[\{"SamAccountName":"PC1\$","Description":"also contains \]; delimiter"\}\]\s*;'
+        $Html | Should -Match (([regex]::Escape("var CleanupMonsterADComputers = $ReplacementJson")) + '\s*;')
         $Html | Should -Not -Match 'sample\$'
         $Html | Should -Match '<body>report</body>'
     }

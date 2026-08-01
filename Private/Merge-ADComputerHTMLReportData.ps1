@@ -22,12 +22,14 @@ function Merge-ADComputerHTMLReportData {
 
     $StagingHtml = Get-Content -LiteralPath $StagingHtmlPath -Raw -ErrorAction Stop
     $AssignmentPattern = '\bvar\s+' + [regex]::Escape($DataStoreID) + '\s*=\s*'
-    $AssignmentMatches = [regex]::Matches($StagingHtml, $AssignmentPattern)
-    if ($AssignmentMatches.Count -ne 1) {
-        throw "Expected one PSWriteHTML data assignment for '$DataStoreID', found $($AssignmentMatches.Count)."
+    $AssignmentMatch = [regex]::Match($StagingHtml, $AssignmentPattern)
+    if (-not $AssignmentMatch.Success) {
+        throw "The PSWriteHTML data assignment for '$DataStoreID' was not found."
     }
 
-    $DataStartIndex = $AssignmentMatches[0].Index + $AssignmentMatches[0].Length
+    # The real assignment precedes its JSON payload. Assignment-like text inside
+    # a row value therefore cannot displace this first match.
+    $DataStartIndex = $AssignmentMatch.Index + $AssignmentMatch.Length
     while ($DataStartIndex -lt $StagingHtml.Length -and [char]::IsWhiteSpace($StagingHtml[$DataStartIndex])) {
         $DataStartIndex++
     }
