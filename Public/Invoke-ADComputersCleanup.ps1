@@ -1041,11 +1041,13 @@
     }
 
     if ($Export -and $ReportPath) {
-        [Array] $ComputersToProcess = foreach ($Domain in $Report.Keys) {
-            if ($Report["$Domain"]['Computers'].Count -gt 0) {
-                $Report["$Domain"]['Computers']
+        [Array] $ComputersToProcess = @(
+            foreach ($Domain in $Report.Keys) {
+                if ($Report["$Domain"]['Computers'].Count -gt 0) {
+                    $Report["$Domain"]['Computers']
+                }
             }
-        }
+        )
         Write-Color -Text "[i] ", "Computers to be processed for HTML report`: ", $ComputersToProcess.Count -Color Yellow, Cyan, Green
         $Export.Statistics = New-ADComputersStatistics -ComputersToProcess $ComputersToProcess
 
@@ -1070,7 +1072,7 @@
                 Delete             = $Delete
                 Disable            = $Disable
                 Move               = $Move
-                ReportOnly         = $EffectiveReportOnly
+                ReportOnly         = $ReportOnly.IsPresent
             }
             Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
             New-HTMLProcessedComputers @newHTMLProcessedComputersSplat

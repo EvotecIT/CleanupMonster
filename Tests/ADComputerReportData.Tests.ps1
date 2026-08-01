@@ -13,6 +13,7 @@ Describe 'AD computer report serialization' {
                 Description                = if ($_ -eq 3) { '<retired>' } else { "Computer $_" }
                 Enabled                    = $true
                 ServicePrincipalName       = @("HOST/PC$_", "WSMAN/PC$_")
+                WhenCreated                = [DateTime] '2024-01-02T03:04:05'
                 TimeOnPendingList           = 10
                 TimeToLeavePendingList      = 20
                 DistinguishedNameAfterMove = 'OU=Moved,DC=contoso,DC=com'
@@ -29,9 +30,35 @@ Describe 'AD computer report serialization' {
         $Parsed[4].SamAccountName | Should -Be 'PC5$'
         $Parsed[0].Enabled | Should -Be 'True'
         $Parsed[0].ServicePrincipalName | Should -Be 'HOST/PC1, WSMAN/PC1'
+        [string] $Parsed[0].WhenCreated | Should -Be $Rows[0].WhenCreated.ToString('')
         $Parsed[2].Description | Should -BeIn @('<retired>', '&lt;retired&gt;')
         $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'TimeOnPendingList'
         (Get-Content -LiteralPath $DataPath -Raw) | Should -Not -Match '"Description":"<retired>"'
+    }
+
+    It 'writes a valid empty JSON array when no domain returns computers' {
+        $DataPath = Join-Path $TestDrive 'empty-computers.json'
+
+        $Result = Export-ADComputerReportData -Computers @() -FilePath $DataPath
+
+        $Result.Count | Should -Be 0
+        $Result.Sample | Should -BeNullOrEmpty
+        Get-Content -LiteralPath $DataPath -Raw | Should -Be '[]'
+    }
+
+    It 'preserves the JavaScript-store newline conversion used by PSWriteHTML' {
+        $Rows = @(
+            [PSCustomObject] [ordered] @{
+                SamAccountName = 'PC1$'
+                Description    = "First line`r`nSecond line"
+            }
+        )
+        $DataPath = Join-Path $TestDrive 'multiline-computers.json'
+
+        Export-ADComputerReportData -Computers $Rows -FilePath $DataPath | Out-Null
+        $Parsed = Get-Content -LiteralPath $DataPath -Raw | ConvertFrom-Json
+
+        $Parsed[0].Description | Should -BeIn @('First line<br>Second line', 'First line&lt;br&gt;Second line')
     }
 
     It 'streams the complete JSON array into one self-contained HTML file' {
@@ -45,6 +72,21 @@ Describe 'AD computer report serialization' {
         $Html = Get-Content -LiteralPath $OutputPath -Raw
 
         $Html | Should -Match 'var CleanupMonsterADComputers = \[{"SamAccountName":"PC1\$"},{"SamAccountName":"PC2\$"}\]\s*;'
+        $Html | Should -Not -Match 'sample\$'
+        $Html | Should -Match '<body>report</body>'
+    }
+
+    It 'does not terminate the sample assignment at a delimiter inside JSON text' {
+        $StagingPath = Join-Path $TestDrive 'delimiter-staging.html'
+        $DataPath = Join-Path $TestDrive 'delimiter-computers.json'
+        $OutputPath = Join-Path $TestDrive 'delimiter-report.html'
+        Set-Content -LiteralPath $StagingPath -Value '<html><script>var CleanupMonsterADComputers = [{"SamAccountName":"sample$","Description":"contains ]; delimiter"}];</script><body>report</body></html>' -Encoding UTF8
+        Set-Content -LiteralPath $DataPath -Value '[{"SamAccountName":"PC1$","Description":"also contains ]; delimiter"}]' -Encoding UTF8
+
+        Merge-ADComputerHTMLReportData -StagingHtmlPath $StagingPath -DataFilePath $DataPath -OutputPath $OutputPath -DataStoreID CleanupMonsterADComputers
+        $Html = Get-Content -LiteralPath $OutputPath -Raw
+
+        $Html | Should -Match 'var CleanupMonsterADComputers = \[\{"SamAccountName":"PC1\$","Description":"also contains \]; delimiter"\}\]\s*;'
         $Html | Should -Not -Match 'sample\$'
         $Html | Should -Match '<body>report</body>'
     }

@@ -201,6 +201,7 @@ Describe 'Invoke-ADComputersCleanup' {
 
     It 'suppresses every write when a domain inventory fails by default' {
         $script:CapturedReportOnly = $null
+        $script:CapturedHtmlReportOnly = $null
         Mock Get-InitialADComputers -MockWith {
             param([hashtable] $Report)
 
@@ -239,10 +240,14 @@ Describe 'Invoke-ADComputersCleanup' {
         Mock Request-ADComputersMove {
             $script:CapturedReportOnly = $ReportOnly
         }
+        Mock New-HTMLProcessedComputers {
+            $script:CapturedHtmlReportOnly = $ReportOnly
+        }
 
         Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -Suppress | Out-Null
 
         $script:CapturedReportOnly | Should -BeTrue
+        $script:CapturedHtmlReportOnly | Should -BeFalse
     }
 
     It 'allows writes only after explicitly selecting successful-domain continuation' {

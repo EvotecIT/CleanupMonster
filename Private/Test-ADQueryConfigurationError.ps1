@@ -10,7 +10,5 @@ function Test-ADQueryConfigurationError {
     )
 
     $Message = [string] $ErrorRecord.Exception.Message
-    $Message -like '*distinguishedName must belong to one of the following partition*' -or
-        $Message -like '*The search filter cannot be recognized*' -or
-        $Message -like '*The supplied distinguishedName must belong*'
+    $Message -like '*The search filter cannot be recognized*'
 }

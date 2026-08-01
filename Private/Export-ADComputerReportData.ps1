@@ -11,12 +11,25 @@ function Export-ADComputerReportData {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
         [Array] $Computers,
         [Parameter(Mandatory)]
         [string] $FilePath,
         [ValidateRange(1, 10000)]
         [int] $ChunkSize = 2000,
-        [string[]] $ExcludeProperty = @('TimeOnPendingList', 'TimeToLeavePendingList', 'DistinguishedNameAfterMove')
+        [string[]] $ExcludeProperty = @('TimeOnPendingList', 'TimeToLeavePendingList', 'DistinguishedNameAfterMove'),
+        [AllowEmptyString()]
+        [string] $DateTimeFormat = '',
+        [System.Collections.IDictionary] $NewLineFormat = @{
+            NewLineCarriage = '<br>'
+            NewLine         = '\n'
+            Carriage        = '\r'
+        },
+        [System.Collections.IDictionary] $NewLineFormatProperty = @{
+            NewLineCarriage = '<br>'
+            NewLine         = '\n'
+            Carriage        = '\r'
+        }
     )
 
     $Writer = $null
@@ -40,7 +53,7 @@ function Export-ADComputerReportData {
             $Count++
 
             if ($Chunk.Count -ge $ChunkSize) {
-                [Array] $PrettyRows = @(ConvertTo-PrettyObject -Object $Chunk.ToArray() -PropertyName $PropertyNames -Force -BoolAsString -ArrayJoin -ArrayJoinString ', ')
+                [Array] $PrettyRows = @(ConvertTo-PrettyObject -Object $Chunk.ToArray() -PropertyName $PropertyNames -Force -BoolAsString -ArrayJoin -ArrayJoinString ', ' -DateTimeFormat $DateTimeFormat -NewLineFormat $NewLineFormat -NewLineFormatProperty $NewLineFormatProperty)
                 [string] $Json = ConvertTo-Json -InputObject $PrettyRows -Depth 4 -Compress
                 if ($Json.Length -gt 2) {
                     if ($WroteData) {
@@ -56,7 +69,7 @@ function Export-ADComputerReportData {
         }
 
         if ($Chunk.Count -gt 0) {
-            [Array] $PrettyRows = @(ConvertTo-PrettyObject -Object $Chunk.ToArray() -PropertyName $PropertyNames -Force -BoolAsString -ArrayJoin -ArrayJoinString ', ')
+            [Array] $PrettyRows = @(ConvertTo-PrettyObject -Object $Chunk.ToArray() -PropertyName $PropertyNames -Force -BoolAsString -ArrayJoin -ArrayJoinString ', ' -DateTimeFormat $DateTimeFormat -NewLineFormat $NewLineFormat -NewLineFormatProperty $NewLineFormatProperty)
             [string] $Json = ConvertTo-Json -InputObject $PrettyRows -Depth 4 -Compress
             if ($Json.Length -gt 2) {
                 if ($WroteData) {

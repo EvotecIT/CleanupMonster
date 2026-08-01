@@ -80,4 +80,19 @@ Describe 'AD computer inventory server selection and failover' {
         $Result.Attempts | Should -HaveCount 2
         $Result.Attempts[1].PageSize | Should -Be 500
     }
+
+    It 'continues to the next domain controller after a partition error on a manual server' {
+        Mock Get-ADComputer {
+            if ($Server -eq 'manual.contoso.com') {
+                throw 'The supplied distinguishedName must belong to one of the following partition(s)'
+            }
+            [PSCustomObject] @{ SamAccountName = 'PC01$' }
+        }
+
+        $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('manual.contoso.com', 'detected.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 1 -RetryDelaySeconds 0 -PageSize 500
+
+        $Result.Succeeded | Should -BeTrue
+        $Result.Server | Should -Be 'detected.contoso.com'
+        $Result.Attempts | Should -HaveCount 2
+    }
 }
