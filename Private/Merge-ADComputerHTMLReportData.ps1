@@ -21,62 +21,9 @@ function Merge-ADComputerHTMLReportData {
     )
 
     $StagingHtml = Get-Content -LiteralPath $StagingHtmlPath -Raw -ErrorAction Stop
-    $AssignmentPattern = '\bvar\s+' + [regex]::Escape($DataStoreID) + '\s*=\s*'
-    $AssignmentMatch = [regex]::Match($StagingHtml, $AssignmentPattern)
-    if (-not $AssignmentMatch.Success) {
-        throw "The PSWriteHTML data assignment for '$DataStoreID' was not found."
-    }
-
-    # The real assignment precedes its JSON payload. Assignment-like text inside
-    # a row value therefore cannot displace this first match.
-    $DataStartIndex = $AssignmentMatch.Index + $AssignmentMatch.Length
-    while ($DataStartIndex -lt $StagingHtml.Length -and [char]::IsWhiteSpace($StagingHtml[$DataStartIndex])) {
-        $DataStartIndex++
-    }
-    if ($DataStartIndex -ge $StagingHtml.Length -or $StagingHtml[$DataStartIndex] -ne '[') {
-        throw "The PSWriteHTML data assignment for '$DataStoreID' is not a JavaScript array."
-    }
-
-    $ArrayDepth = 0
-    $InString = $false
-    $Escaped = $false
-    $DataEndIndex = -1
-    for ($Index = $DataStartIndex; $Index -lt $StagingHtml.Length; $Index++) {
-        $Character = $StagingHtml[$Index]
-        if ($InString) {
-            if ($Escaped) {
-                $Escaped = $false
-            } elseif ($Character -eq '\') {
-                $Escaped = $true
-            } elseif ($Character -eq '"') {
-                $InString = $false
-            }
-            continue
-        }
-
-        if ($Character -eq '"') {
-            $InString = $true
-        } elseif ($Character -eq '[') {
-            $ArrayDepth++
-        } elseif ($Character -eq ']') {
-            $ArrayDepth--
-            if ($ArrayDepth -eq 0) {
-                $DataEndIndex = $Index
-                break
-            }
-        }
-    }
-    if ($DataEndIndex -lt 0) {
-        throw "The PSWriteHTML data array for '$DataStoreID' is not terminated."
-    }
-
-    $TerminatorIndex = $DataEndIndex + 1
-    while ($TerminatorIndex -lt $StagingHtml.Length -and [char]::IsWhiteSpace($StagingHtml[$TerminatorIndex])) {
-        $TerminatorIndex++
-    }
-    if ($TerminatorIndex -ge $StagingHtml.Length -or $StagingHtml[$TerminatorIndex] -ne ';') {
-        throw "The PSWriteHTML data assignment for '$DataStoreID' has no statement terminator."
-    }
+    $Assignment = Find-JavaScriptArrayAssignment -Html $StagingHtml -VariableName $DataStoreID
+    $DataStartIndex = $Assignment.DataStartIndex
+    $DataEndIndex = $Assignment.DataEndIndex
 
     $Marker = '__CLEANUPMONSTER_AD_REPORT_DATA_' + [guid]::NewGuid().ToString('N') + '__'
     $HtmlWithMarker = $StagingHtml.Substring(0, $DataStartIndex) + $Marker + $StagingHtml.Substring($DataEndIndex + 1)

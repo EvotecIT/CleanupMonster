@@ -1,6 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Export-ADComputerReportData.ps1')
+    . (Get-CleanupMonsterPath 'Private/Find-JavaScriptArrayAssignment.ps1')
     . (Get-CleanupMonsterPath 'Private/Merge-ADComputerHTMLReportData.ps1')
 
     # PSSharedGoods is an external module boundary and is not installed in the
@@ -129,5 +130,23 @@ Describe 'AD computer report serialization' {
         $Html | Should -Match (([regex]::Escape("var CleanupMonsterADComputers = $ReplacementJson")) + '\s*;')
         $Html | Should -Not -Match 'sample\$'
         $Html | Should -Match '<body>report</body>'
+    }
+
+    It 'skips assignment-like text in an earlier JavaScript datastore' {
+        $StagingPath = Join-Path $TestDrive 'preceding-store-staging.html'
+        $DataPath = Join-Path $TestDrive 'preceding-store-computers.json'
+        $OutputPath = Join-Path $TestDrive 'preceding-store-report.html'
+        $EarlierStore = '[{"Description":"var CleanupMonsterADComputers = []; must remain"}]'
+        $SampleJson = '[{"SamAccountName":"sample$"}]'
+        $ReplacementJson = '[{"SamAccountName":"PC1$"}]'
+        Set-Content -LiteralPath $StagingPath -Value "<html><script>var CleanupMonsterHistory = $EarlierStore; var CleanupMonsterADComputers = $SampleJson;</script><body>report</body></html>" -Encoding UTF8
+        Set-Content -LiteralPath $DataPath -Value $ReplacementJson -Encoding UTF8
+
+        Merge-ADComputerHTMLReportData -StagingHtmlPath $StagingPath -DataFilePath $DataPath -OutputPath $OutputPath -DataStoreID CleanupMonsterADComputers
+        $Html = Get-Content -LiteralPath $OutputPath -Raw
+
+        $Html | Should -Match ([regex]::Escape($EarlierStore))
+        $Html | Should -Match (([regex]::Escape("var CleanupMonsterADComputers = $ReplacementJson")) + '\s*;')
+        $Html | Should -Not -Match 'sample\$'
     }
 }

@@ -49,6 +49,7 @@ BeforeAll {
             ComputerKeys         = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
             SuccessfulDomains    = @('contoso.com')
             FailedDomains        = @()
+            PendingStateRollback = [ordered] @{}
         }
     }
     function Get-InitialADComputers {
@@ -382,5 +383,81 @@ Describe 'Invoke-ADComputersCleanup' {
 
         $Result.PendingDeletion.Contains('OLD-SUCCESS$@contoso.com') | Should -BeFalse
         $Result.PendingDeletion.Contains('OLD-FAILED$@child.contoso.com') | Should -BeTrue
+    }
+
+    It 'keeps persisted pending and history state unchanged when inventory fails closed' {
+        $ExistingHistory = [PSCustomObject] @{ SamAccountName = 'HISTORY$'; Action = 'Move'; ActionStatus = $true }
+        Mock Import-ComputersData {
+            param($Export)
+
+            $Export.History = @($ExistingHistory)
+            [ordered] @{
+                'PENDING$@contoso.com' = [PSCustomObject] @{
+                    SamAccountName    = 'PENDING$'
+                    DomainName        = 'contoso.com'
+                    DistinguishedName = 'CN=PENDING,DC=contoso,DC=com'
+                    ActionStatus      = $true
+                }
+            }
+        }
+        Mock Get-InitialADComputers -MockWith {
+            param(
+                [hashtable] $Report,
+                [System.Collections.IDictionary] $ProcessedComputers
+            )
+
+            $PendingStateRollback = [ordered] @{
+                'PENDING$@contoso.com' = $ProcessedComputers['PENDING$@contoso.com'].PSObject.Copy()
+            }
+            $ProcessedComputers.Remove('PENDING$@contoso.com')
+            $Candidate = [PSCustomObject] @{
+                SamAccountName = 'MOVE-ME$'
+                DomainName     = 'contoso.com'
+                Action         = 'Move'
+            }
+            $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
+                Server               = 'dc1.contoso.com'
+                AttemptedServers     = @('dc1.contoso.com')
+                QueryAttempts        = 1
+                ComputerCount        = 1
+                Computers            = @($Candidate)
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 1
+                ComputersToBeDeleted = 0
+            }
+            $Report['child.contoso.com'] = [ordered] @{
+                QueryStatus          = 'Failed'
+                QueryError           = 'server unavailable'
+                Server               = $null
+                AttemptedServers     = @('dc1.child.contoso.com')
+                QueryAttempts        = 3
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 0
+                ComputersToBeDeleted = 0
+            }
+
+            [PSCustomObject] @{
+                Succeeded            = $false
+                SafetyLimitSatisfied = $true
+                ComputerKeys         = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                SuccessfulDomains    = @('contoso.com')
+                FailedDomains        = @('child.contoso.com')
+                PendingStateRollback = $PendingStateRollback
+            }
+        }
+        Mock Request-ADComputersMove {
+            [PSCustomObject] @{ SamAccountName = 'MOVE-ME$'; Action = 'Move'; ActionStatus = $null }
+        }
+
+        $Result = Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com'
+
+        $Result.PendingDeletion.Contains('PENDING$@contoso.com') | Should -BeTrue
+        $Result.CurrentRun | Should -BeNullOrEmpty
+        $Result.History | Should -HaveCount 1
+        $Result.History[0].SamAccountName | Should -Be 'HISTORY$'
     }
 }

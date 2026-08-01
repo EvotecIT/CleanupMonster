@@ -7,6 +7,7 @@
         [Array] $Exclusions,
         [System.Collections.IDictionary] $DomainInformation,
         [System.Collections.IDictionary] $ProcessedComputers,
+        [System.Collections.IDictionary] $PendingStateRollback,
         [System.Collections.IDictionary] $AzureInformationCache,
         [System.Collections.IDictionary] $JamfInformationCache,
         [switch] $IncludeAzureAD,
@@ -70,6 +71,9 @@
                         if ($FoundComputer.ActionDate -is [DateTime]) {
                             $TimeSpan = New-TimeSpan -Start $FoundComputer.ActionDate -End $Today
                             # Lets calculate how many days it's been on the list
+                            if ($null -ne $PendingStateRollback) {
+                                Save-ADComputerPendingStateEntry -Rollback $PendingStateRollback -Key $FullComputerName -Value $FoundComputer
+                            }
                             $ProcessedComputers[$FullComputerName].TimeToLeavePendingList = $ActionIf.ListProcessedMoreThan - $TimeSpan.Days
                             if ($TimeSpan.Days -gt $ActionIf.ListProcessedMoreThan) {
 
@@ -97,12 +101,18 @@
                     if ($Computer.Enabled -eq $true) {
                         # We checked and it seems the computer has been enabled since it was added to list, we remove it from the list and reprocess
                         Write-Color -Text "[*] Removing computer from pending list (computer is enabled) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
+                        if ($null -ne $PendingStateRollback) {
+                            Save-ADComputerPendingStateEntry -Rollback $PendingStateRollback -Key $FullComputerName -Value $FoundComputer
+                        }
                         $ProcessedComputers.Remove($FullComputerName)
                     } elseif ($ActionIf.DisableAndMove -and $Computer.Enabled -eq $false) {
                         if ($ConfiguredMoveTarget) {
                             if (-not $CachedDestinationMove[$Computer.OrganizationalUnit]) {
                                 # We checked and it seems the computer has been moved since it was added to list, we remove it from the list and reprocess
                                 Write-Color -Text "[*] Removing computer from pending list (computer is moved out of pending deletion OU) ", $FoundComputer.SamAccountName, " ($($FoundComputer.DistinguishedName))" -Color DarkYellow, Green, DarkYellow
+                                if ($null -ne $PendingStateRollback) {
+                                    Save-ADComputerPendingStateEntry -Rollback $PendingStateRollback -Key $FullComputerName -Value $FoundComputer
+                                }
                                 $ProcessedComputers.Remove($FullComputerName)
                             } else {
                                 # We checked and it seems the computer is in place where it's supposed to, we skip to next computer

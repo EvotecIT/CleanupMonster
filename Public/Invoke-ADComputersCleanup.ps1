@@ -854,10 +854,12 @@
     )
 
     $EffectiveReportOnly = $ReportOnly.IsPresent
+    $InventoryWritesSuppressed = $false
     if (-not $InventoryResult.Succeeded) {
         $FailedDomainText = $InventoryResult.FailedDomains -join ', '
         if ($DomainFailureAction -eq 'Stop') {
             $EffectiveReportOnly = $true
+            $InventoryWritesSuppressed = $true
             Write-Color -Text '[e] ', "AD inventory is incomplete. Failed domains: $FailedDomainText. All mutations are suppressed; an incomplete report will still be generated." -Color Yellow, Red
         } else {
             Write-Color -Text '[w] ', "AD inventory is incomplete. Failed domains: $FailedDomainText. Continuing only for successfully inventoried domains because DomainFailureAction is ContinueSuccessfulDomains." -Color Yellow, DarkYellow
@@ -865,7 +867,21 @@
     }
     if (-not $SafetyLimitSatisfied) {
         $EffectiveReportOnly = $true
+        $InventoryWritesSuppressed = $true
         Write-Color -Text '[e] ', "AD inventory returned $($AllComputerKeys.Count) computers, below SafetyADLimit $SafetyADLimit. All mutations are suppressed; the report will still be generated." -Color Yellow, Red
+    }
+    if ($InventoryWritesSuppressed) {
+        # Inventory discovery may remove or update a small subset of pending
+        # entries. Restore only those journaled entries so fail-closed reports
+        # match the unchanged datastore without cloning the full pending set.
+        $PendingStateRollback = if ($null -ne $InventoryResult.PSObject.Properties['PendingStateRollback']) {
+            $InventoryResult.PendingStateRollback
+        }
+        if ($null -ne $PendingStateRollback) {
+            foreach ($PendingKey in @($PendingStateRollback.Keys)) {
+                $ProcessedComputers[$PendingKey] = $PendingStateRollback[$PendingKey]
+            }
+        }
     }
 
     foreach ($Domain in $Report.Keys) {
@@ -956,6 +972,15 @@
             RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
+    }
+
+    if ($InventoryWritesSuppressed) {
+        # Request functions intentionally return candidates in ReportOnly mode.
+        # Automatic fail-closed suppression is different: nothing was attempted,
+        # so those candidates must not become current-run or historical actions.
+        $ReportDisabled = @()
+        $ReportMoved = @()
+        $ReportDeleted = @()
     }
 
     if (-not $EffectiveReportOnly) {

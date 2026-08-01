@@ -26,6 +26,7 @@ function Get-InitialADComputers {
     $AllComputerKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $SuccessfulDomains = [System.Collections.Generic.List[string]]::new()
     $FailedDomains = [System.Collections.Generic.List[string]]::new()
+    $PendingStateRollback = [ordered] @{}
 
     $AzureRequired = $false
     $IntuneRequired = $false
@@ -83,7 +84,11 @@ function Get-InitialADComputers {
             } elseif ($Filter -is [System.Collections.IDictionary]) {
                 $FilterToUse = $Filter[$Domain]
                 if ([string]::IsNullOrWhiteSpace([string] $FilterToUse)) {
-                    $FilterToUse = '*'
+                    $Report["$Domain"].QueryStatus = 'Failed'
+                    $Report["$Domain"].QueryError = "No AD filter was configured for domain $Domain."
+                    $FailedDomains.Add($Domain)
+                    Write-Color -Text '[e] ', $Report["$Domain"].QueryError -Color Yellow, Red
+                    continue
                 }
             } else {
                 Write-Color -Text '[e] ', 'Filter must be a string or a hashtable/ordereddictionary.' -Color Yellow, Red
@@ -160,6 +165,7 @@ function Get-InitialADComputers {
                 -Exclusions $Exclusions `
                 -DomainInformation $DomainInformation `
                 -ProcessedComputers $ProcessedComputers `
+                -PendingStateRollback $PendingStateRollback `
                 -AzureInformationCache $AzureInformationCache `
                 -JamfInformationCache $JamfInformationCache `
                 -IncludeAzureAD:$AzureRequired `
@@ -175,6 +181,7 @@ function Get-InitialADComputers {
                 -Exclusions $Exclusions `
                 -DomainInformation $DomainInformation `
                 -ProcessedComputers $ProcessedComputers `
+                -PendingStateRollback $PendingStateRollback `
                 -AzureInformationCache $AzureInformationCache `
                 -JamfInformationCache $JamfInformationCache `
                 -IncludeAzureAD:$AzureRequired `
@@ -190,6 +197,7 @@ function Get-InitialADComputers {
                 -Exclusions $Exclusions `
                 -DomainInformation $DomainInformation `
                 -ProcessedComputers $ProcessedComputers `
+                -PendingStateRollback $PendingStateRollback `
                 -AzureInformationCache $AzureInformationCache `
                 -JamfInformationCache $JamfInformationCache `
                 -IncludeAzureAD:$AzureRequired `
@@ -210,5 +218,6 @@ function Get-InitialADComputers {
         ComputerKeys         = $AllComputerKeys
         SuccessfulDomains    = $SuccessfulDomains.ToArray()
         FailedDomains        = $FailedDomains.ToArray()
+        PendingStateRollback = $PendingStateRollback
     }
 }

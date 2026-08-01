@@ -3,6 +3,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Get-ADQueryServerCandidates.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-ADQueryConfigurationError.ps1')
     . (Get-CleanupMonsterPath 'Private/Invoke-ADComputerInventoryQuery.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-InitialADComputers.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
     function Get-ADComputer {
@@ -21,6 +22,41 @@ BeforeAll {
             [DateTime] $Today
         )
         process { $InputObject }
+    }
+}
+
+Describe 'AD computer inventory safety' {
+    It 'marks a domain failed instead of broadening a missing per-domain filter' {
+        $Report = [ordered] @{}
+        $ForestInformation = [ordered] @{
+            Domains         = @('contoso.com', 'child.contoso.com')
+            QueryServers    = @{
+                'contoso.com'       = @{ HostName = @('dc1.contoso.com') }
+                'child.contoso.com' = @{ HostName = @('dc1.child.contoso.com') }
+            }
+            DomainsExtended = @{
+                'contoso.com'       = @{ DistinguishedName = 'DC=contoso,DC=com' }
+                'child.contoso.com' = @{ DistinguishedName = 'DC=child,DC=contoso,DC=com' }
+            }
+        }
+        Mock Invoke-ADComputerInventoryQuery {
+            [PSCustomObject] @{
+                Succeeded = $true
+                Server    = $Servers[0]
+                Computers = @()
+                Attempts  = @([PSCustomObject] @{ Server = $Servers[0] })
+                Error     = $null
+            }
+        }
+
+        $Result = Get-InitialADComputers -Report $Report -ForestInformation $ForestInformation -Filter @{ 'contoso.com' = '*' } -Properties @('SamAccountName') -Disable:$false -Move:$false -Delete:$false
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.SuccessfulDomains | Should -Be @('contoso.com')
+        $Result.FailedDomains | Should -Be @('child.contoso.com')
+        $Report['child.contoso.com'].QueryStatus | Should -Be 'Failed'
+        $Report['child.contoso.com'].QueryError | Should -Match 'No AD filter was configured'
+        Assert-MockCalled Invoke-ADComputerInventoryQuery -Times 1 -Exactly
     }
 }
 
