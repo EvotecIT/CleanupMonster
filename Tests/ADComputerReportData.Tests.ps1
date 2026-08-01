@@ -1,0 +1,51 @@
+BeforeAll {
+    . "$PSScriptRoot\TestHelpers.ps1"
+    Import-Module PSSharedGoods -Force -ErrorAction Stop
+    . (Get-CleanupMonsterPath 'Private/Export-ADComputerReportData.ps1')
+    . (Get-CleanupMonsterPath 'Private/Merge-ADComputerHTMLReportData.ps1')
+}
+
+Describe 'AD computer report serialization' {
+    It 'writes every row across bounded chunks without internal-only properties' {
+        $Rows = 1..5 | ForEach-Object {
+            [PSCustomObject] [ordered] @{
+                SamAccountName             = "PC$_`$"
+                Description                = if ($_ -eq 3) { '<retired>' } else { "Computer $_" }
+                Enabled                    = $true
+                ServicePrincipalName       = @("HOST/PC$_", "WSMAN/PC$_")
+                TimeOnPendingList           = 10
+                TimeToLeavePendingList      = 20
+                DistinguishedNameAfterMove = 'OU=Moved,DC=contoso,DC=com'
+            }
+        }
+        $DataPath = Join-Path $TestDrive 'computers.json'
+
+        $Result = Export-ADComputerReportData -Computers $Rows -FilePath $DataPath -ChunkSize 2
+        $Parsed = Get-Content -LiteralPath $DataPath -Raw | ConvertFrom-Json
+
+        $Result.Count | Should -Be 5
+        $Parsed | Should -HaveCount 5
+        $Parsed[0].SamAccountName | Should -Be 'PC1$'
+        $Parsed[4].SamAccountName | Should -Be 'PC5$'
+        $Parsed[0].Enabled | Should -Be 'True'
+        $Parsed[0].ServicePrincipalName | Should -Be 'HOST/PC1, WSMAN/PC1'
+        $Parsed[2].Description | Should -BeIn @('<retired>', '&lt;retired&gt;')
+        $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'TimeOnPendingList'
+        (Get-Content -LiteralPath $DataPath -Raw) | Should -Not -Match '"Description":"<retired>"'
+    }
+
+    It 'streams the complete JSON array into one self-contained HTML file' {
+        $StagingPath = Join-Path $TestDrive 'staging.html'
+        $DataPath = Join-Path $TestDrive 'computers.json'
+        $OutputPath = Join-Path $TestDrive 'report.html'
+        Set-Content -LiteralPath $StagingPath -Value '<html><script>var CleanupMonsterADComputers = [{"SamAccountName":"sample$"}];</script><body>report</body></html>' -Encoding UTF8
+        Set-Content -LiteralPath $DataPath -Value '[{"SamAccountName":"PC1$"},{"SamAccountName":"PC2$"}]' -Encoding UTF8
+
+        Merge-ADComputerHTMLReportData -StagingHtmlPath $StagingPath -DataFilePath $DataPath -OutputPath $OutputPath -DataStoreID CleanupMonsterADComputers
+        $Html = Get-Content -LiteralPath $OutputPath -Raw
+
+        $Html | Should -Match 'var CleanupMonsterADComputers = \[{"SamAccountName":"PC1\$"},{"SamAccountName":"PC2\$"}\]\s*;'
+        $Html | Should -Not -Match 'sample\$'
+        $Html | Should -Match '<body>report</body>'
+    }
+}

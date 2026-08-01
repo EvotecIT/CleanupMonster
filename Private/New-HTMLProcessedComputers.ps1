@@ -5,7 +5,7 @@
         [System.Collections.IDictionary] $DisableOnlyIf,
         [System.Collections.IDictionary] $DeleteOnlyIf,
         [System.Collections.IDictionary] $MoveOnlyIf,
-        [Array] $ComputersToProcess,
+        [PSCustomObject] $ComputerReportData,
         [string] $FilePath,
         [switch] $Online,
         [switch] $ShowHTML,
@@ -16,7 +16,11 @@
         [switch] $ReportOnly
     )
 
-    New-HTML {
+    $ReportDirectory = [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($FilePath))
+    $StagingFilePath = Join-Path -Path $ReportDirectory -ChildPath ".cleanupmonster-$([Guid]::NewGuid().ToString('N')).html"
+
+    try {
+        New-HTML {
         New-HTMLTabStyle -BorderRadius 0px -TextTransform capitalize -BackgroundColorActive SlateGrey -BackgroundColor BlizzardBlue
         New-HTMLSectionStyle -BorderRadius 0px -HeaderBackGroundColor Grey -RemoveShadow
         New-HTMLPanelStyle -BorderRadius 0px
@@ -31,6 +35,21 @@
                     New-HTMLText -Text "Cleanup Monster - $($Export['Version'])" -Color Blue
                 } -JustifyContent flex-end -Invisible
             }
+        }
+        New-HTMLTab -Name 'Domain Inventory' {
+            New-HTMLSection {
+                New-HTMLPanel {
+                    if ($Export.InventoryComplete) {
+                        New-HTMLToast -TextHeader 'Inventory complete' -Text 'Every configured domain was inventoried successfully.' -BarColorLeft MintGreen -IconSolid check-circle -IconColor MintGreen
+                    } else {
+                        New-HTMLToast -TextHeader 'Inventory unsafe' -Text 'At least one domain failed or the AD safety limit was not met. Review domain status before relying on totals or findings.' -BarColorLeft OrangeRed -IconSolid exclamation-triangle -IconColor OrangeRed
+                    }
+                } -Invisible
+            } -Invisible
+            New-HTMLTable -DataTable @($Export.DomainInventory) -Filtering -ScrollX {
+                New-HTMLTableCondition -Name 'Status' -ComparisonType string -Value 'Succeeded' -BackgroundColor LightGreen
+                New-HTMLTableCondition -Name 'Status' -ComparisonType string -Value 'Failed' -BackgroundColor Salmon
+            } -WarningAction SilentlyContinue -AllProperties
         }
         if (-not $ReportOnly) {
             New-HTMLTab -Name 'Devices Current Run' {
@@ -112,7 +131,7 @@
         New-HTMLTab -Name 'Devices' {
             New-HTMLSection {
                 New-HTMLPanel {
-                    New-HTMLToast -TextHeader 'Total' -Text "Computers Total: $($ComputersToProcess.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
+                    New-HTMLToast -TextHeader 'Total' -Text "Computers Total: $($ComputerReportData.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
                 } -Invisible
                 New-HTMLPanel {
                     New-HTMLToast -TextHeader 'To disable' -Text "Computers to be disabled: $($Export.Statistics.ToDisable)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
@@ -286,17 +305,21 @@
                 }
             }
 
-            New-HTMLTable -DataTable $ComputersToProcess -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedByFilter' -BackgroundColor LightBlue
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedBySetting' -BackgroundColor LightPink
-                New-HTMLTableCondition -Name 'ProtectedFromAccidentalDeletion' -ComparisonType string -Value $false -BackgroundColor LightBlue -FailBackgroundColor Salmon
-            } -WarningAction SilentlyContinue -ExcludeProperty 'TimeOnPendingList', 'TimeToLeavePendingList', 'DistinguishedNameAfterMove'
+            if ($ComputerReportData.Count -gt 0) {
+                New-HTMLTable -DataTable @($ComputerReportData.Sample) -DataStoreID $ComputerReportData.DataStoreID -Filtering -ScrollX {
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
+                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedByFilter' -BackgroundColor LightBlue
+                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'ExcludedBySetting' -BackgroundColor LightPink
+                    New-HTMLTableCondition -Name 'ProtectedFromAccidentalDeletion' -ComparisonType string -Value $false -BackgroundColor LightBlue -FailBackgroundColor Salmon
+                } -WarningAction SilentlyContinue
+            } else {
+                New-HTMLText -Text 'No computers were returned by the successful domain inventories.' -FontWeight bold
+            }
         }
         try {
             if ($LogFile -and (Test-Path -LiteralPath $LogFile -ErrorAction Stop)) {
@@ -308,5 +331,20 @@
         } catch {
             Write-Color -Text "[e] ", "Couldn't read the log file. Skipping adding log to HTML. Error: $($_.Exception.Message)" -Color Yellow, Red
         }
-    } -FilePath $FilePath -Online:$Online.IsPresent -ShowHTML:$ShowHTML.IsPresent
+        } -FilePath $StagingFilePath -Online:$Online.IsPresent
+
+        if ($ComputerReportData.Count -gt 0) {
+            Merge-ADComputerHTMLReportData -StagingHtmlPath $StagingFilePath -DataFilePath $ComputerReportData.FilePath -OutputPath $FilePath -DataStoreID $ComputerReportData.DataStoreID
+        } else {
+            Move-Item -LiteralPath $StagingFilePath -Destination $FilePath -Force -WhatIf:$false
+        }
+
+        if ($ShowHTML) {
+            Invoke-Item -LiteralPath $FilePath -WhatIf:$false
+        }
+    } finally {
+        if (Test-Path -LiteralPath $StagingFilePath) {
+            Remove-Item -LiteralPath $StagingFilePath -Force -WhatIf:$false -ErrorAction SilentlyContinue
+        }
+    }
 }

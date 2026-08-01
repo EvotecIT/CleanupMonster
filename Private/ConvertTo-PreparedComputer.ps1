@@ -1,6 +1,7 @@
 function ConvertTo-PreparedComputer {
     [CmdletBinding()]
     param(
+        [Parameter(Mandatory, ValueFromPipeline)]
         [Microsoft.ActiveDirectory.Management.ADComputer[]] $Computers,
         [System.Collections.IDictionary] $AzureInformationCache,
         [System.Collections.IDictionary] $JamfInformationCache,
@@ -10,100 +11,102 @@ function ConvertTo-PreparedComputer {
         [DateTime] $Today = (Get-Date)
     )
 
-    foreach ($Computer in $Computers) {
-        $LookupCandidates = Get-ComputerLookupCandidates -Name $Computer.Name -DNSHostName $Computer.DNSHostName -SamAccountName $Computer.SamAccountName
-        if ($IncludeAzureAD) {
-            $AzureADComputer = Get-CloudCacheComputer -Cache $AzureInformationCache['AzureAD'] -Candidates $LookupCandidates
-            $DataAzureAD = [ordered] @{
-                'AzureLastSeen'     = $AzureADComputer.LastSeen
-                'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
-                'AzureLastSync'     = $AzureADComputer.LastSynchronized
-                'AzureLastSyncDays' = $AzureADComputer.LastSynchronizedDays
-                'AzureOwner'        = $AzureADComputer.OwnerDisplayName
-                'AzureOwnerStatus'  = $AzureADComputer.OwnerEnabled
-                'AzureOwnerUPN'     = $AzureADComputer.OwnerUserPrincipalName
+    process {
+        foreach ($Computer in $Computers) {
+            $LookupCandidates = Get-ComputerLookupCandidates -Name $Computer.Name -DNSHostName $Computer.DNSHostName -SamAccountName $Computer.SamAccountName
+            if ($IncludeAzureAD) {
+                $AzureADComputer = Get-CloudCacheComputer -Cache $AzureInformationCache['AzureAD'] -Candidates $LookupCandidates
+                $DataAzureAD = [ordered] @{
+                    'AzureLastSeen'     = $AzureADComputer.LastSeen
+                    'AzureLastSeenDays' = $AzureADComputer.LastSeenDays
+                    'AzureLastSync'     = $AzureADComputer.LastSynchronized
+                    'AzureLastSyncDays' = $AzureADComputer.LastSynchronizedDays
+                    'AzureOwner'        = $AzureADComputer.OwnerDisplayName
+                    'AzureOwnerStatus'  = $AzureADComputer.OwnerEnabled
+                    'AzureOwnerUPN'     = $AzureADComputer.OwnerUserPrincipalName
+                }
             }
-        }
-        if ($IncludeIntune) {
-            # data was requested from Intune
-            $IntuneComputer = Get-CloudCacheComputer -Cache $AzureInformationCache['Intune'] -Candidates $LookupCandidates
-            $DataIntune = [ordered] @{
-                'IntuneLastSeen'     = $IntuneComputer.LastSeen
-                'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
-                'IntuneUser'         = $IntuneComputer.UserDisplayName
-                'IntuneUserUPN'      = $IntuneComputer.UserPrincipalName
-                'IntuneUserEmail'    = $IntuneComputer.EmailAddress
+            if ($IncludeIntune) {
+                # data was requested from Intune
+                $IntuneComputer = Get-CloudCacheComputer -Cache $AzureInformationCache['Intune'] -Candidates $LookupCandidates
+                $DataIntune = [ordered] @{
+                    'IntuneLastSeen'     = $IntuneComputer.LastSeen
+                    'IntuneLastSeenDays' = $IntuneComputer.LastSeenDays
+                    'IntuneUser'         = $IntuneComputer.UserDisplayName
+                    'IntuneUserUPN'      = $IntuneComputer.UserPrincipalName
+                    'IntuneUserEmail'    = $IntuneComputer.EmailAddress
+                }
             }
-        }
-        if ($IncludeJamf) {
-            $JamfComputer = $JamfInformationCache["$($Computer.Name)"]
-            $DataJamf = [ordered] @{
-                JamfLastContactTime     = $JamfComputer.lastContactTime
-                JamfLastContactTimeDays = $JamfComputer.lastContactTimeDays
-                JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
+            if ($IncludeJamf) {
+                $JamfComputer = $JamfInformationCache["$($Computer.Name)"]
+                $DataJamf = [ordered] @{
+                    JamfLastContactTime     = $JamfComputer.lastContactTime
+                    JamfLastContactTimeDays = $JamfComputer.lastContactTimeDays
+                    JamfCapableUsers        = $JamfComputer.mdmCapableCapableUsers
+                }
             }
-        }
-        $LastLogonDays = if ($null -ne $Computer.LastLogonDate) {
-            - $($Computer.LastLogonDate - $Today).Days
-        } else {
-            $null
-        }
-        $PasswordLastChangedDays = if ($null -ne $Computer.PasswordLastSet) {
-            - $($Computer.PasswordLastSet - $Today).Days
-        } else {
-            $null
-        }
+            $LastLogonDays = if ($null -ne $Computer.LastLogonDate) {
+                - $($Computer.LastLogonDate - $Today).Days
+            } else {
+                $null
+            }
+            $PasswordLastChangedDays = if ($null -ne $Computer.PasswordLastSet) {
+                - $($Computer.PasswordLastSet - $Today).Days
+            } else {
+                $null
+            }
 
 
-        $DataStart = [ordered] @{
-            'DNSHostName'                     = $Computer.DNSHostName
-            'SamAccountName'                  = $Computer.SamAccountName
-            'DomainName'                      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
-            'Enabled'                         = $Computer.Enabled
-            'Action'                          = 'Not required'
-            'ActionStatus'                    = $null
-            'ActionDate'                      = $null
-            'ActionComment'                   = $null
-            'OperatingSystem'                 = $Computer.OperatingSystem
-            'OperatingSystemVersion'          = $Computer.OperatingSystemVersion
-            'OperatingSystemLong'             = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
-            'LastLogonDate'                   = $Computer.LastLogonDate
-            'LastLogonDays'                   = $LastLogonDays
-            'PasswordLastSet'                 = $Computer.PasswordLastSet
-            'PasswordLastChangedDays'         = $PasswordLastChangedDays
-            'ProtectedFromAccidentalDeletion' = $Computer.ProtectedFromAccidentalDeletion
+            $DataStart = [ordered] @{
+                'DNSHostName'                     = $Computer.DNSHostName
+                'SamAccountName'                  = $Computer.SamAccountName
+                'DomainName'                      = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToDomainCN
+                'Enabled'                         = $Computer.Enabled
+                'Action'                          = 'Not required'
+                'ActionStatus'                    = $null
+                'ActionDate'                      = $null
+                'ActionComment'                   = $null
+                'OperatingSystem'                 = $Computer.OperatingSystem
+                'OperatingSystemVersion'          = $Computer.OperatingSystemVersion
+                'OperatingSystemLong'             = ConvertTo-OperatingSystem -OperatingSystem $Computer.OperatingSystem -OperatingSystemVersion $Computer.OperatingSystemVersion
+                'LastLogonDate'                   = $Computer.LastLogonDate
+                'LastLogonDays'                   = $LastLogonDays
+                'PasswordLastSet'                 = $Computer.PasswordLastSet
+                'PasswordLastChangedDays'         = $PasswordLastChangedDays
+                'ProtectedFromAccidentalDeletion' = $Computer.ProtectedFromAccidentalDeletion
+            }
+            $DataEnd = [ordered] @{
+                'PasswordExpired'            = $Computer.PasswordExpired
+                'LogonCount'                 = $Computer.logonCount
+                'ManagedBy'                  = $Computer.ManagedBy
+                'DistinguishedName'          = $Computer.DistinguishedName
+                'OrganizationalUnit'         = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
+                'Description'                = $Computer.Description
+                'WhenCreated'                = $Computer.WhenCreated
+                'WhenChanged'                = $Computer.WhenChanged
+                'ServicePrincipalName'       = $Computer.servicePrincipalName #-join [System.Environment]::NewLine
+                'DistinguishedNameAfterMove' = $null
+                'TimeOnPendingList'          = $null
+                'TimeToLeavePendingList'     = $null
+            }
+            if ($IncludeAzureAD -and $IncludeIntune -and $IncludeJamf) {
+                $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd
+            } elseif ($IncludeAzureAD -and $IncludeIntune) {
+                $Data = $DataStart + $DataAzureAD + $DataIntune + $DataEnd
+            } elseif ($IncludeAzureAD -and $IncludeJamf) {
+                $Data = $DataStart + $DataAzureAD + $DataJamf + $DataEnd
+            } elseif ($IncludeIntune -and $IncludeJamf) {
+                $Data = $DataStart + $DataIntune + $DataJamf + $DataEnd
+            } elseif ($IncludeAzureAD) {
+                $Data = $DataStart + $DataAzureAD + $DataEnd
+            } elseif ($IncludeIntune) {
+                $Data = $DataStart + $DataIntune + $DataEnd
+            } elseif ($IncludeJamf) {
+                $Data = $DataStart + $DataJamf + $DataEnd
+            } else {
+                $Data = $DataStart + $DataEnd
+            }
+            [PSCustomObject] $Data
         }
-        $DataEnd = [ordered] @{
-            'PasswordExpired'            = $Computer.PasswordExpired
-            'LogonCount'                 = $Computer.logonCount
-            'ManagedBy'                  = $Computer.ManagedBy
-            'DistinguishedName'          = $Computer.DistinguishedName
-            'OrganizationalUnit'         = ConvertFrom-DistinguishedName -DistinguishedName $Computer.DistinguishedName -ToOrganizationalUnit
-            'Description'                = $Computer.Description
-            'WhenCreated'                = $Computer.WhenCreated
-            'WhenChanged'                = $Computer.WhenChanged
-            'ServicePrincipalName'       = $Computer.servicePrincipalName #-join [System.Environment]::NewLine
-            'DistinguishedNameAfterMove' = $null
-            'TimeOnPendingList'          = $null
-            'TimeToLeavePendingList'     = $null
-        }
-        if ($IncludeAzureAD -and $IncludeIntune -and $IncludeJamf) {
-            $Data = $DataStart + $DataAzureAD + $DataIntune + $DataJamf + $DataEnd
-        } elseif ($IncludeAzureAD -and $IncludeIntune) {
-            $Data = $DataStart + $DataAzureAD + $DataIntune + $DataEnd
-        } elseif ($IncludeAzureAD -and $IncludeJamf) {
-            $Data = $DataStart + $DataAzureAD + $DataJamf + $DataEnd
-        } elseif ($IncludeIntune -and $IncludeJamf) {
-            $Data = $DataStart + $DataIntune + $DataJamf + $DataEnd
-        } elseif ($IncludeAzureAD) {
-            $Data = $DataStart + $DataAzureAD + $DataEnd
-        } elseif ($IncludeIntune) {
-            $Data = $DataStart + $DataIntune + $DataEnd
-        } elseif ($IncludeJamf) {
-            $Data = $DataStart + $DataJamf + $DataEnd
-        } else {
-            $Data = $DataStart + $DataEnd
-        }
-        [PSCustomObject] $Data
     }
 }

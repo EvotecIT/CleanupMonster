@@ -42,6 +42,15 @@ BeforeAll {
     function Import-ComputersData { [ordered] @{} }
     function Get-InitialGraphComputers { @{ AzureAD = @{}; Intune = @{} } }
     function Get-InitialJamfComputers { @{} }
+    function New-TestInventoryResult {
+        [PSCustomObject] @{
+            Succeeded            = $true
+            SafetyLimitSatisfied = $true
+            ComputerKeys         = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            SuccessfulDomains    = @('contoso.com')
+            FailedDomains        = @()
+        }
+    }
     function Get-InitialADComputers {
         param(
             [hashtable] $Report,
@@ -51,19 +60,50 @@ BeforeAll {
         )
 
         $Report['contoso.com'] = [ordered] @{
+            QueryStatus          = 'Succeeded'
+            QueryError           = $null
             Server                = 'dc1.contoso.com'
+            AttemptedServers      = @('dc1.contoso.com')
+            QueryAttempts         = 1
+            ComputerCount         = 0
             Computers             = @()
             ComputersToBeDisabled = 0
             ComputersToBeMoved    = 0
             ComputersToBeDeleted  = 0
         }
 
-        [ordered] @{}
+        New-TestInventoryResult
     }
     function Request-ADComputersDisable { @() }
-    function Request-ADComputersMove { @() }
+    function Request-ADComputersMove {
+        param(
+            $Report,
+            $WhatIfMove,
+            $WhatIf,
+            $MoveLimit,
+            $ReportOnly,
+            $Today,
+            $ProcessedComputers,
+            $TargetOrganizationalUnit,
+            $DontWriteToEventLog,
+            $Delete,
+            $DoNotAddToPendingList,
+            $RemoveProtectedFromAccidentalDeletionFlag
+        )
+        @()
+    }
     function Request-ADComputersDelete { @() }
     function New-ADComputersStatistics { @{} }
+    function Export-ADComputerReportData {
+        param($Computers, $FilePath)
+
+        [PSCustomObject] @{
+            FilePath    = $FilePath
+            Count       = @($Computers).Count
+            Sample      = $null
+            DataStoreID = 'CleanupMonsterADComputers'
+        }
+    }
     function New-HTMLProcessedComputers {}
     function New-EmailBodyComputers { param($CurrentRun) '' }
 }
@@ -76,14 +116,19 @@ Describe 'Invoke-ADComputersCleanup' {
             )
 
             $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
                 Server                = 'dc1.contoso.com'
+                AttemptedServers      = @('dc1.contoso.com')
+                QueryAttempts         = 1
+                ComputerCount         = 0
                 Computers             = @()
                 ComputersToBeDisabled = 0
                 ComputersToBeMoved    = 1
                 ComputersToBeDeleted  = 0
             }
 
-            [ordered] @{}
+            New-TestInventoryResult
         }
         Mock Request-ADComputersMove {}
 
@@ -99,14 +144,19 @@ Describe 'Invoke-ADComputersCleanup' {
             )
 
             $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
                 Server                = 'dc1.contoso.com'
+                AttemptedServers      = @('dc1.contoso.com')
+                QueryAttempts         = 1
+                ComputerCount         = 0
                 Computers             = @()
                 ComputersToBeDisabled = 1
                 ComputersToBeMoved    = 0
                 ComputersToBeDeleted  = 0
             }
 
-            [ordered] @{}
+            New-TestInventoryResult
         }
         Mock Request-ADComputersDisable {}
 
@@ -125,14 +175,19 @@ Describe 'Invoke-ADComputersCleanup' {
             )
 
             $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
                 Server                = 'dc1.contoso.com'
+                AttemptedServers      = @('dc1.contoso.com')
+                QueryAttempts         = 1
+                ComputerCount         = 0
                 Computers             = @()
                 ComputersToBeDisabled = 0
                 ComputersToBeMoved    = 1
                 ComputersToBeDeleted  = 0
             }
 
-            [ordered] @{}
+            New-TestInventoryResult
         }
         Mock Request-ADComputersMove {
             $script:CapturedMoveWhatIf = $WhatIfMove
@@ -142,5 +197,185 @@ Describe 'Invoke-ADComputersCleanup' {
 
         Assert-MockCalled Request-ADComputersMove -Times 1 -Exactly
         $script:CapturedMoveWhatIf | Should -BeTrue
+    }
+
+    It 'suppresses every write when a domain inventory fails by default' {
+        $script:CapturedReportOnly = $null
+        Mock Get-InitialADComputers -MockWith {
+            param([hashtable] $Report)
+
+            $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
+                Server               = 'dc1.contoso.com'
+                AttemptedServers     = @('dc1.contoso.com')
+                QueryAttempts        = 1
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 0
+                ComputersToBeDeleted = 0
+            }
+            $Report['child.contoso.com'] = [ordered] @{
+                QueryStatus          = 'Failed'
+                QueryError           = 'server unavailable'
+                Server               = $null
+                AttemptedServers     = @('dc1.child.contoso.com')
+                QueryAttempts        = 3
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 0
+                ComputersToBeDeleted = 0
+            }
+
+            [PSCustomObject] @{
+                Succeeded         = $false
+                ComputerKeys      = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                SuccessfulDomains = @('contoso.com')
+                FailedDomains     = @('child.contoso.com')
+            }
+        }
+        Mock Request-ADComputersMove {
+            $script:CapturedReportOnly = $ReportOnly
+        }
+
+        Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -Suppress | Out-Null
+
+        $script:CapturedReportOnly | Should -BeTrue
+    }
+
+    It 'allows writes only after explicitly selecting successful-domain continuation' {
+        $script:CapturedReportOnly = $null
+        Mock Get-InitialADComputers -MockWith {
+            param([hashtable] $Report)
+
+            $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
+                Server               = 'dc1.contoso.com'
+                AttemptedServers     = @('dc1.contoso.com')
+                QueryAttempts        = 1
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 1
+                ComputersToBeDeleted = 0
+            }
+            $Report['child.contoso.com'] = [ordered] @{
+                QueryStatus          = 'Failed'
+                QueryError           = 'server unavailable'
+                Server               = $null
+                AttemptedServers     = @('dc1.child.contoso.com')
+                QueryAttempts        = 3
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 0
+                ComputersToBeDeleted = 0
+            }
+
+            [PSCustomObject] @{
+                Succeeded         = $false
+                ComputerKeys      = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                SuccessfulDomains = @('contoso.com')
+                FailedDomains     = @('child.contoso.com')
+            }
+        }
+        Mock Request-ADComputersMove {
+            $script:CapturedReportOnly = $ReportOnly
+        }
+
+        Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -DomainFailureAction ContinueSuccessfulDomains -Suppress | Out-Null
+
+        $script:CapturedReportOnly | Should -BeFalse
+    }
+
+    It 'suppresses writes when the successful-domain count is below the AD safety limit' {
+        $script:CapturedReportOnly = $null
+        Mock Get-InitialADComputers -MockWith {
+            param([hashtable] $Report)
+
+            $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
+                Server               = 'dc1.contoso.com'
+                AttemptedServers      = @('dc1.contoso.com')
+                QueryAttempts         = 1
+                ComputerCount         = 0
+                Computers             = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved    = 1
+                ComputersToBeDeleted  = 0
+            }
+
+            $Result = New-TestInventoryResult
+            $Result.SafetyLimitSatisfied = $false
+            $Result
+        }
+        Mock Request-ADComputersMove {
+            $script:CapturedReportOnly = $ReportOnly
+        }
+
+        Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -SafetyADLimit 300000 -DomainFailureAction ContinueSuccessfulDomains -Suppress | Out-Null
+
+        $script:CapturedReportOnly | Should -BeTrue
+    }
+
+    It 'never prunes pending entries that belong to a failed domain' {
+        Mock Import-ComputersData {
+            [ordered] @{
+                'OLD-SUCCESS$@contoso.com' = [PSCustomObject] @{
+                    SamAccountName    = 'OLD-SUCCESS$'
+                    DomainName        = 'contoso.com'
+                    DistinguishedName = 'CN=OLD-SUCCESS,DC=contoso,DC=com'
+                }
+                'OLD-FAILED$@child.contoso.com' = [PSCustomObject] @{
+                    SamAccountName    = 'OLD-FAILED$'
+                    DomainName        = 'child.contoso.com'
+                    DistinguishedName = 'CN=OLD-FAILED,DC=child,DC=contoso,DC=com'
+                }
+            }
+        }
+        Mock Get-InitialADComputers -MockWith {
+            param([hashtable] $Report)
+
+            $Report['contoso.com'] = [ordered] @{
+                QueryStatus          = 'Succeeded'
+                QueryError           = $null
+                Server               = 'dc1.contoso.com'
+                AttemptedServers     = @('dc1.contoso.com')
+                QueryAttempts        = 1
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 0
+                ComputersToBeDeleted = 0
+            }
+            $Report['child.contoso.com'] = [ordered] @{
+                QueryStatus          = 'Failed'
+                QueryError           = 'server unavailable'
+                Server               = $null
+                AttemptedServers     = @('dc1.child.contoso.com')
+                QueryAttempts        = 3
+                ComputerCount        = 0
+                Computers            = @()
+                ComputersToBeDisabled = 0
+                ComputersToBeMoved   = 0
+                ComputersToBeDeleted = 0
+            }
+
+            [PSCustomObject] @{
+                Succeeded         = $false
+                ComputerKeys      = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                SuccessfulDomains = @('contoso.com')
+                FailedDomains     = @('child.contoso.com')
+            }
+        }
+
+        $Result = Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -DomainFailureAction ContinueSuccessfulDomains -DataStorePath (Join-Path $TestDrive 'state.xml') -ReportPath (Join-Path $TestDrive 'report.html')
+
+        $Result.PendingDeletion.Contains('OLD-SUCCESS$@contoso.com') | Should -BeFalse
+        $Result.PendingDeletion.Contains('OLD-FAILED$@child.contoso.com') | Should -BeTrue
     }
 }
