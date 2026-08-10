@@ -2,7 +2,7 @@ function ConvertTo-PreparedComputer {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
-        [Microsoft.ActiveDirectory.Management.ADComputer[]] $Computers,
+        [object[]] $Computers,
         [System.Collections.IDictionary] $AzureInformationCache,
         [System.Collections.IDictionary] $JamfInformationCache,
         [switch] $IncludeAzureAD,

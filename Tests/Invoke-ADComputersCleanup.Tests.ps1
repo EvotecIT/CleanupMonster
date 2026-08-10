@@ -57,8 +57,13 @@ BeforeAll {
             [hashtable] $Report,
             [bool] $Disable,
             [bool] $Delete,
-            [bool] $Move
+            [bool] $Move,
+            [int] $ADQueryConnectionTimeout,
+            [int] $ADQueryIdleTimeout
         )
+
+        $script:CapturedADQueryConnectionTimeout = $ADQueryConnectionTimeout
+        $script:CapturedADQueryIdleTimeout = $ADQueryIdleTimeout
 
         $Report['contoso.com'] = [ordered] @{
             QueryStatus          = 'Succeeded'
@@ -110,6 +115,16 @@ BeforeAll {
 }
 
 Describe 'Invoke-ADComputersCleanup' {
+    It 'passes the bounded AD connection and idle timeouts to inventory discovery' {
+        $script:CapturedADQueryConnectionTimeout = $null
+        $script:CapturedADQueryIdleTimeout = $null
+
+        Invoke-ADComputersCleanup -Disable -ReportOnly -ADQueryConnectionTimeout 17 -ADQueryIdleTimeout 45 -Suppress | Out-Null
+
+        $script:CapturedADQueryConnectionTimeout | Should -Be 17
+        $script:CapturedADQueryIdleTimeout | Should -Be 45
+    }
+
     It 'allows move-only runs to reach the move request' {
         Mock Get-InitialADComputers -MockWith {
             param(

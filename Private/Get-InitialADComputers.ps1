@@ -20,6 +20,10 @@ function Get-InitialADComputers {
         [object] $TargetServers,
         [int] $ADQueryMaxRetries = 3,
         [int] $ADQueryRetryDelay = 5,
+        [ValidateRange(1, 300)]
+        [int] $ADQueryConnectionTimeout = 15,
+        [ValidateRange(1, 3600)]
+        [int] $ADQueryIdleTimeout = 120,
         [int] $ADQueryPageSize = 1000
     )
 
@@ -130,6 +134,8 @@ function Get-InitialADComputers {
             -IncludeJamf:$JamfRequired `
             -MaxAttemptsPerServer $ADQueryMaxRetries `
             -RetryDelaySeconds $ADQueryRetryDelay `
+            -ConnectionTimeoutSeconds $ADQueryConnectionTimeout `
+            -IdleTimeoutSeconds $ADQueryIdleTimeout `
             -PageSize $ADQueryPageSize
 
         $Report["$Domain"].Server = $QueryResult.Server

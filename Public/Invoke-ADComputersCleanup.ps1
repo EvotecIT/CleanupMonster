@@ -398,6 +398,12 @@
     .PARAMETER ADQueryRetryDelay
     Delay in seconds between retries for AD query operations. Default is 5.
 
+    .PARAMETER ADQueryConnectionTimeout
+    Maximum number of seconds allowed for the isolated AD query process to connect to a domain controller before retrying or failing over. Default is 15.
+
+    .PARAMETER ADQueryIdleTimeout
+    Maximum number of seconds an established AD inventory query may make no result progress before its isolated process is stopped and the query is retried or failed over. This is an idle timeout, not a limit on the total time required to return a large domain. Default is 120.
+
     .PARAMETER ADQueryPageSize
     Page size for AD query operations. Default is 1000.
 
@@ -444,6 +450,8 @@
         DeleteListProcessedMoreThan = 90
         ADQueryMaxRetries     = 5      # Increase retries for unreliable environments
         ADQueryRetryDelay     = 10     # Increase delay between retries
+        ADQueryConnectionTimeout = 15  # Bound unavailable-DC connection attempts
+        ADQueryIdleTimeout       = 120 # Stop a query that stops producing results
         ADQueryPageSize       = 500    # Smaller page size for large environments
         WhatIfDelete          = $true
         ShowHTML             = $true
@@ -619,6 +627,10 @@
         [int] $ADQueryMaxRetries = 3,
         [ValidateRange(0, [int]::MaxValue)]
         [int] $ADQueryRetryDelay = 5,
+        [ValidateRange(1, 300)]
+        [int] $ADQueryConnectionTimeout = 15,
+        [ValidateRange(1, 3600)]
+        [int] $ADQueryIdleTimeout = 120,
         [ValidateRange(1, 10000)]
         [int] $ADQueryPageSize = 1000,
         [ValidateSet('Stop', 'ContinueSuccessfulDomains')]
@@ -825,6 +837,8 @@
         TargetServers         = $TargetServers
         ADQueryMaxRetries     = $ADQueryMaxRetries
         ADQueryRetryDelay     = $ADQueryRetryDelay
+        ADQueryConnectionTimeout = $ADQueryConnectionTimeout
+        ADQueryIdleTimeout    = $ADQueryIdleTimeout
         ADQueryPageSize       = $ADQueryPageSize
     }
 

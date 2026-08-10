@@ -2,14 +2,12 @@ BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Get-ADQueryServerCandidates.ps1')
     . (Get-CleanupMonsterPath 'Private/Test-ADQueryConfigurationError.ps1')
+    . (Get-CleanupMonsterPath 'Private/ConvertFrom-ADComputerInventoryRow.ps1')
+    . (Get-CleanupMonsterPath 'Private/Invoke-ADComputerInventoryAttempt.ps1')
     . (Get-CleanupMonsterPath 'Private/Invoke-ADComputerInventoryQuery.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialADComputers.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
-    function Get-ADComputer {
-        [CmdletBinding()]
-        param($Filter, $Properties, $SearchBase, $Server, $ResultPageSize, $ResultSetSize)
-    }
     function ConvertTo-PreparedComputer {
         [CmdletBinding()]
         param(
@@ -61,6 +59,19 @@ Describe 'AD computer inventory safety' {
 }
 
 Describe 'AD computer inventory server selection and failover' {
+    BeforeEach {
+        Mock Invoke-ADComputerInventoryAttempt {
+            [PSCustomObject] @{
+                Succeeded    = $true
+                Computers    = @([PSCustomObject] @{ SamAccountName = 'PC01$' })
+                TimedOut     = $false
+                TimeoutPhase = $null
+                Duration     = [TimeSpan]::Zero
+                ErrorMessage = $null
+            }
+        }
+    }
+
     It 'uses every manual server for the domain before detected fallbacks and removes duplicates' {
         $Configured = @{
             'contoso.com' = @('manual-1.contoso.com', 'manual-2.contoso.com', 'MANUAL-1.contoso.com')
@@ -75,11 +86,25 @@ Describe 'AD computer inventory server selection and failover' {
     }
 
     It 'fails over to the next domain controller after exhausting the first one' {
-        Mock Get-ADComputer {
+        Mock Invoke-ADComputerInventoryAttempt {
             if ($Server -eq 'dc1.contoso.com') {
-                throw 'The server is not operational'
+                return [PSCustomObject] @{
+                    Succeeded    = $false
+                    Computers    = @()
+                    TimedOut     = $false
+                    TimeoutPhase = $null
+                    Duration     = [TimeSpan]::Zero
+                    ErrorMessage = 'The server is not operational'
+                }
             }
-            [PSCustomObject] @{ SamAccountName = 'PC01$' }
+            [PSCustomObject] @{
+                Succeeded    = $true
+                Computers    = @([PSCustomObject] @{ SamAccountName = 'PC01$' })
+                TimedOut     = $false
+                TimeoutPhase = $null
+                Duration     = [TimeSpan]::Zero
+                ErrorMessage = $null
+            }
         }
 
         $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('dc1.contoso.com', 'dc2.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 2 -RetryDelaySeconds 0 -PageSize 500
@@ -91,8 +116,49 @@ Describe 'AD computer inventory server selection and failover' {
         @($Result.Attempts | Where-Object Server -eq 'dc1.contoso.com') | Should -HaveCount 2
     }
 
+    It 'bounds the real isolated AD query and preserves port-qualified server values during failover' {
+        Mock Invoke-ADComputerInventoryAttempt {
+            if ($Server -eq 'dc1.contoso.com:60000') {
+                return [PSCustomObject] @{
+                    Succeeded    = $false
+                    Computers    = @()
+                    TimedOut     = $true
+                    TimeoutPhase = 'Connection'
+                    Duration     = [TimeSpan]::FromSeconds(10)
+                    ErrorMessage = 'AD connection timeout after 10 seconds through dc1.contoso.com:60000. The isolated query process was stopped.'
+                }
+            }
+            [PSCustomObject] @{
+                Succeeded    = $true
+                Computers    = @([PSCustomObject] @{ SamAccountName = 'PC01$' })
+                TimedOut     = $false
+                TimeoutPhase = $null
+                Duration     = [TimeSpan]::Zero
+                ErrorMessage = $null
+            }
+        }
+
+        $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('dc1.contoso.com:60000', 'dc2.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 2 -RetryDelaySeconds 0 -ConnectionTimeoutSeconds 10 -PageSize 1000
+
+        $Result.Succeeded | Should -BeTrue
+        $Result.Server | Should -Be 'dc2.contoso.com'
+        @($Result.Attempts | Where-Object Server -eq 'dc1.contoso.com:60000') | Should -HaveCount 2
+        @($Result.Attempts | Where-Object Server -eq 'dc1.contoso.com:60000').ErrorMessage | Should -Match 'isolated query process was stopped'
+        Assert-MockCalled Invoke-ADComputerInventoryAttempt -Times 2 -Exactly -ParameterFilter { $Server -eq 'dc1.contoso.com:60000' }
+        Assert-MockCalled Invoke-ADComputerInventoryAttempt -Times 1 -Exactly -ParameterFilter { $Server -eq 'dc2.contoso.com' }
+    }
+
     It 'records an explicit failed result after every domain controller fails' {
-        Mock Get-ADComputer { throw 'The server is not operational' }
+        Mock Invoke-ADComputerInventoryAttempt {
+            [PSCustomObject] @{
+                Succeeded    = $false
+                Computers    = @()
+                TimedOut     = $false
+                TimeoutPhase = $null
+                Duration     = [TimeSpan]::Zero
+                ErrorMessage = 'The server is not operational'
+            }
+        }
 
         $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('dc1.contoso.com', 'dc2.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 1 -RetryDelaySeconds 0 -PageSize 500
 
@@ -103,11 +169,25 @@ Describe 'AD computer inventory server selection and failover' {
     }
 
     It 'retries a failed large-page query once with the bounded fallback page size' {
-        Mock Get-ADComputer {
-            if ($ResultPageSize -eq 1000) {
-                throw 'invalid enumeration context'
+        Mock Invoke-ADComputerInventoryAttempt {
+            if ($PageSize -eq 1000) {
+                return [PSCustomObject] @{
+                    Succeeded    = $false
+                    Computers    = @()
+                    TimedOut     = $false
+                    TimeoutPhase = $null
+                    Duration     = [TimeSpan]::Zero
+                    ErrorMessage = 'invalid enumeration context'
+                }
             }
-            [PSCustomObject] @{ SamAccountName = 'PC01$' }
+            [PSCustomObject] @{
+                Succeeded    = $true
+                Computers    = @([PSCustomObject] @{ SamAccountName = 'PC01$' })
+                TimedOut     = $false
+                TimeoutPhase = $null
+                Duration     = [TimeSpan]::Zero
+                ErrorMessage = $null
+            }
         }
 
         $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('dc1.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 1 -RetryDelaySeconds 0 -PageSize 1000
@@ -118,11 +198,25 @@ Describe 'AD computer inventory server selection and failover' {
     }
 
     It 'continues to the next domain controller after a partition error on a manual server' {
-        Mock Get-ADComputer {
+        Mock Invoke-ADComputerInventoryAttempt {
             if ($Server -eq 'manual.contoso.com') {
-                throw 'The supplied distinguishedName must belong to one of the following partition(s)'
+                return [PSCustomObject] @{
+                    Succeeded    = $false
+                    Computers    = @()
+                    TimedOut     = $false
+                    TimeoutPhase = $null
+                    Duration     = [TimeSpan]::Zero
+                    ErrorMessage = 'The supplied distinguishedName must belong to one of the following partition(s)'
+                }
             }
-            [PSCustomObject] @{ SamAccountName = 'PC01$' }
+            [PSCustomObject] @{
+                Succeeded    = $true
+                Computers    = @([PSCustomObject] @{ SamAccountName = 'PC01$' })
+                TimedOut     = $false
+                TimeoutPhase = $null
+                Duration     = [TimeSpan]::Zero
+                ErrorMessage = $null
+            }
         }
 
         $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('manual.contoso.com', 'detected.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 1 -RetryDelaySeconds 0 -PageSize 500
@@ -130,5 +224,99 @@ Describe 'AD computer inventory server selection and failover' {
         $Result.Succeeded | Should -BeTrue
         $Result.Server | Should -Be 'detected.contoso.com'
         $Result.Attempts | Should -HaveCount 2
+    }
+}
+
+Describe 'AD computer inventory process isolation' {
+    It 'terminates a still-running child when polling exits unexpectedly' {
+        $script:FakeChildKilled = $false
+        $FakeProcess = [PSCustomObject] @{ HasExited = $false; Id = 4242; ExitCode = 0 }
+        $FakeProcess | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {
+            param([int] $Milliseconds)
+            $this.HasExited
+        }
+        $FakeProcess | Add-Member -MemberType ScriptMethod -Name Kill -Value {
+            $script:FakeChildKilled = $true
+            $this.HasExited = $true
+        }
+        $FakeProcess | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
+        Mock Start-Process { $FakeProcess }
+        Mock Test-Path { throw 'Polling interrupted' }
+
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -IdleTimeoutSeconds 5
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.ErrorMessage | Should -Be 'Polling interrupted'
+        $script:FakeChildKilled | Should -BeTrue
+    }
+
+    It 'kills a child that never completes native AD connection readiness' {
+        $ChildPath = Join-Path $TestDrive 'UnreadyChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    Start-Sleep -Seconds 10
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $Started = Get-Date
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'unavailable.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 1 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.TimedOut | Should -BeTrue
+        $Result.TimeoutPhase | Should -Be 'Connection'
+        $Result.ErrorMessage | Should -Match 'isolated query process was stopped'
+        ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
+    }
+
+    It 'kills an established child query after the configured idle timeout' {
+        $ChildPath = Join-Path $TestDrive 'StalledChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
+    [System.IO.File]::WriteAllText($Configuration.ProgressPath, '0')
+    Start-Sleep -Seconds 10
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $Started = Get-Date
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -IdleTimeoutSeconds 1 -ChildProcessFunctionPath $ChildPath
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.TimedOut | Should -BeTrue
+        $Result.TimeoutPhase | Should -Be 'Query'
+        $Result.ErrorMessage | Should -Match 'isolated query process was stopped'
+        ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
+    }
+
+    It 'streams only the required row fields back from a successful isolated child' {
+        $ChildPath = Join-Path $TestDrive 'SuccessfulChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
+    [System.IO.File]::WriteAllText($Configuration.ProgressPath, '1')
+    [PSCustomObject] [ordered] @{
+        Name = 'PC01'; DNSHostName = 'pc01.contoso.com'; SamAccountName = 'PC01$'; DistinguishedName = 'CN=PC01,DC=contoso,DC=com'
+        Enabled = $true; OperatingSystem = 'Windows'; OperatingSystemVersion = '10.0'; LastLogonDateBinary = (Get-Date).ToBinary()
+        PasswordLastSetBinary = (Get-Date).ToBinary(); PasswordExpired = $false; ServicePrincipalNameJson = '["HOST/PC01"]'
+        LogonCount = 12; ManagedBy = ''; Description = 'Test'; WhenCreatedBinary = (Get-Date).ToBinary(); WhenChangedBinary = (Get-Date).ToBinary()
+        ProtectedFromAccidentalDeletion = $true
+    } | Export-Csv -LiteralPath $Configuration.DataPath -NoTypeInformation -Encoding UTF8
+    [System.IO.File]::WriteAllText($Configuration.SuccessPath, '1')
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
+
+        $Result.Succeeded | Should -BeTrue -Because $Result.ErrorMessage
+        $Result.Computers | Should -HaveCount 1
+        $Result.Computers[0].SamAccountName | Should -Be 'PC01$'
+        $Result.Computers[0].servicePrincipalName | Should -Be @('HOST/PC01')
+        $Result.Computers[0].LastLogonDate | Should -BeOfType ([DateTime])
+        $Result.Computers[0].ProtectedFromAccidentalDeletion | Should -BeTrue
     }
 }
