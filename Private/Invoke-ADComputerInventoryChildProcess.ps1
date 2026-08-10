@@ -12,6 +12,7 @@ function Invoke-ADComputerInventoryChildProcess {
     try {
         $Configuration = Import-Clixml -LiteralPath $ConfigurationPath -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction Stop
+        [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized', [System.Text.Encoding]::UTF8)
 
         # Use the AD cmdlet itself for readiness so every supported -Server form,
         # including domain locator and host:port values, retains its native meaning.

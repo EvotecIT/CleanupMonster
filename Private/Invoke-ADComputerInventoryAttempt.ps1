@@ -18,6 +18,8 @@ function Invoke-ADComputerInventoryAttempt {
         [int] $PageSize = 1000,
         [ValidateRange(1, 300)]
         [int] $ConnectionTimeoutSeconds = 15,
+        [ValidateRange(1, 300)]
+        [int] $InitializationTimeoutSeconds = 60,
         [ValidateRange(1, 3600)]
         [int] $IdleTimeoutSeconds = 120,
         [DateTime] $Today = (Get-Date),
@@ -29,6 +31,7 @@ function Invoke-ADComputerInventoryAttempt {
     $TemporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "CleanupMonster.ADQuery.$([Guid]::NewGuid().ToString('N'))"
     $null = [System.IO.Directory]::CreateDirectory($TemporaryDirectory)
     $ConfigurationPath = Join-Path $TemporaryDirectory 'query.clixml'
+    $InitializationPath = Join-Path $TemporaryDirectory 'initialized'
     $ReadyPath = Join-Path $TemporaryDirectory 'ready'
     $ProgressPath = Join-Path $TemporaryDirectory 'progress'
     $SuccessPath = Join-Path $TemporaryDirectory 'success'
@@ -45,6 +48,7 @@ function Invoke-ADComputerInventoryAttempt {
             Properties   = @($QueryParameters.Properties)
             SearchBase   = $QueryParameters.SearchBase
             PageSize     = $PageSize
+            InitializationPath = $InitializationPath
             ReadyPath    = $ReadyPath
             ProgressPath = $ProgressPath
             SuccessPath  = $SuccessPath
@@ -64,15 +68,26 @@ function Invoke-ADComputerInventoryAttempt {
             -RedirectStandardError $StandardErrorPath `
             -PassThru
 
+        $InitializationObserved = $false
         $ReadyObserved = $false
-        $ConnectionDeadline = [DateTime]::UtcNow.AddSeconds($ConnectionTimeoutSeconds)
+        $InitializationDeadline = [DateTime]::UtcNow.AddSeconds($InitializationTimeoutSeconds)
+        $ConnectionDeadline = $null
         $LastProgress = [DateTime]::UtcNow
         $TimedOut = $false
         $TimeoutPhase = $null
 
         while (-not $Process.WaitForExit(250)) {
             $Now = [DateTime]::UtcNow
-            if (-not $ReadyObserved) {
+            if (-not $InitializationObserved) {
+                if (Test-Path -LiteralPath $InitializationPath) {
+                    $InitializationObserved = $true
+                    $ConnectionDeadline = $Now.AddSeconds($ConnectionTimeoutSeconds)
+                } elseif ($Now -ge $InitializationDeadline) {
+                    $TimedOut = $true
+                    $TimeoutPhase = 'Initialization'
+                    break
+                }
+            } elseif (-not $ReadyObserved) {
                 if (Test-Path -LiteralPath $ReadyPath) {
                     $ReadyObserved = $true
                     $LastProgress = $Now
@@ -101,9 +116,13 @@ function Invoke-ADComputerInventoryAttempt {
                 $Process.Kill()
                 $null = $Process.WaitForExit(5000)
             } catch {
-                # The process may have exited between the timeout decision and Kill.
+                Write-Verbose "The isolated AD query process exited before it could be stopped: $($_.Exception.Message)"
             }
-            $TimeoutSeconds = if ($TimeoutPhase -eq 'Connection') { $ConnectionTimeoutSeconds } else { $IdleTimeoutSeconds }
+            $TimeoutSeconds = switch ($TimeoutPhase) {
+                'Initialization' { $InitializationTimeoutSeconds }
+                'Connection' { $ConnectionTimeoutSeconds }
+                default { $IdleTimeoutSeconds }
+            }
             return [PSCustomObject] [ordered] @{
                 Succeeded    = $false
                 Computers    = @()

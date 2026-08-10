@@ -59,7 +59,7 @@ function Invoke-ADComputerInventoryQuery {
                 -IdleTimeoutSeconds $IdleTimeoutSeconds `
                 -Today $Today
 
-            $QueryReachedServer = $QueryReachedServer -or $AttemptResult.TimeoutPhase -ne 'Connection'
+            $QueryReachedServer = $QueryReachedServer -or $AttemptResult.TimeoutPhase -notin @('Initialization', 'Connection')
             $Attempts.Add([PSCustomObject] [ordered] @{
                     Server       = $Server
                     Attempt      = $Attempt

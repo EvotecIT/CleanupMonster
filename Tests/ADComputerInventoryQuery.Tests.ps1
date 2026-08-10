@@ -148,6 +148,25 @@ Describe 'AD computer inventory server selection and failover' {
         Assert-MockCalled Invoke-ADComputerInventoryAttempt -Times 1 -Exactly -ParameterFilter { $Server -eq 'dc2.contoso.com' }
     }
 
+    It 'skips the smaller-page retry when the child cannot initialize' {
+        Mock Invoke-ADComputerInventoryAttempt {
+            [PSCustomObject] @{
+                Succeeded    = $false
+                Computers    = @()
+                TimedOut     = $true
+                TimeoutPhase = 'Initialization'
+                Duration     = [TimeSpan]::FromSeconds(60)
+                ErrorMessage = 'AD initialization timeout after 60 seconds. The isolated query process was stopped.'
+            }
+        }
+
+        $Result = Invoke-ADComputerInventoryQuery -Domain 'contoso.com' -Servers @('dc1.contoso.com') -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -MaxAttemptsPerServer 1 -RetryDelaySeconds 0 -PageSize 1000
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.Attempts | Should -HaveCount 1
+        Assert-MockCalled Invoke-ADComputerInventoryAttempt -Times 1 -Exactly
+    }
+
     It 'records an explicit failed result after every domain controller fails' {
         Mock Invoke-ADComputerInventoryAttempt {
             [PSCustomObject] @{
@@ -255,6 +274,8 @@ Describe 'AD computer inventory process isolation' {
         @'
 function Invoke-ADComputerInventoryChildProcess {
     param([string] $ConfigurationPath)
+    $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
     Start-Sleep -Seconds 10
 }
 '@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
@@ -269,12 +290,50 @@ function Invoke-ADComputerInventoryChildProcess {
         ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
     }
 
+    It 'does not charge child initialization time against the connection timeout' {
+        $ChildPath = Join-Path $TestDrive 'SlowInitializationChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    Start-Sleep -Seconds 2
+    [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
+    [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
+    [System.IO.File]::WriteAllText($Configuration.ProgressPath, '0')
+    [System.IO.File]::WriteAllText($Configuration.SuccessPath, '0')
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 1 -InitializationTimeoutSeconds 5 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
+
+        $Result.Succeeded | Should -BeTrue -Because $Result.ErrorMessage
+    }
+
+    It 'kills a child that never completes initialization' {
+        $ChildPath = Join-Path $TestDrive 'StalledInitializationChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    Start-Sleep -Seconds 10
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $Started = Get-Date
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -InitializationTimeoutSeconds 1 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.TimedOut | Should -BeTrue
+        $Result.TimeoutPhase | Should -Be 'Initialization'
+        ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
+    }
+
     It 'kills an established child query after the configured idle timeout' {
         $ChildPath = Join-Path $TestDrive 'StalledChild.ps1'
         @'
 function Invoke-ADComputerInventoryChildProcess {
     param([string] $ConfigurationPath)
     $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
     [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
     [System.IO.File]::WriteAllText($Configuration.ProgressPath, '0')
     Start-Sleep -Seconds 10
@@ -297,6 +356,7 @@ function Invoke-ADComputerInventoryChildProcess {
 function Invoke-ADComputerInventoryChildProcess {
     param([string] $ConfigurationPath)
     $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
     [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
     [System.IO.File]::WriteAllText($Configuration.ProgressPath, '1')
     [PSCustomObject] [ordered] @{
