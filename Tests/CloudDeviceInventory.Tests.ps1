@@ -14,8 +14,8 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Get-CloudDevicesToProcess.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
-    function Get-MyDevice {}
-    function Get-MyDeviceIntune {}
+    function Get-MyDevice { param($Type, $WarningAction, $WarningVariable, $IncludeAutopilotInventory) }
+    function Get-MyDeviceIntune { param($Type, $PropertySet, $WarningAction, $WarningVariable, $IncludeAutopilotInventory) }
 }
 
 Describe 'Cloud device inventory and selection helpers' {
@@ -410,11 +410,12 @@ Describe 'Cloud device inventory and selection helpers' {
     }
 
     It 'uses hybrid reference records to protect scoped cloud-joined duplicates' {
+        $script:CapturedEntraQueryCount = 0
         Mock Get-MyDevice {
             param([string[]] $Type)
-
-            if ($Type -contains 'Hybrid AzureAD') {
-                return @(
+            $script:CapturedEntraQueryCount++
+            @(
+                if ($Type -contains 'Hybrid AzureAD') {
                     [PSCustomObject] @{
                         Name                = 'PL-KAT-KISskRNw'
                         EntraDeviceObjectId = 'entra-hybrid'
@@ -424,21 +425,20 @@ Describe 'Cloud device inventory and selection helpers' {
                         TrustType           = 'Hybrid AzureAD'
                         LastSeenDays        = 1
                     }
-                )
-            }
-
-            @(
-                [PSCustomObject] @{
-                    Name                = 'PL-KAT-KISskRNw'
-                    EntraDeviceObjectId = 'entra-joined'
-                    DeviceId            = 'device-joined'
-                    Enabled             = $true
-                    OperatingSystem     = 'Windows'
-                    TrustType           = 'AzureAD joined'
-                    LastSeenDays        = 460
-                    FirstSeen           = (Get-Date).AddDays(-460)
-                    IsManaged           = $true
-                    ManagementType      = 'mdm'
+                }
+                if ($Type -contains 'AzureAD joined') {
+                    [PSCustomObject] @{
+                        Name                = 'PL-KAT-KISskRNw'
+                        EntraDeviceObjectId = 'entra-joined'
+                        DeviceId            = 'device-joined'
+                        Enabled             = $true
+                        OperatingSystem     = 'Windows'
+                        TrustType           = 'AzureAD joined'
+                        LastSeenDays        = 460
+                        FirstSeen           = (Get-Date).AddDays(-460)
+                        IsManaged           = $true
+                        ManagementType      = 'mdm'
+                    }
                 }
             )
         }
@@ -452,6 +452,21 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices[0].DuplicateNameCount | Should -Be 2
         $devices[0].DuplicateNameJoinTypes | Should -Contain 'Hybrid AzureAD'
         $devices[0].DuplicateNameJoinTypes | Should -Contain 'AzureAD joined'
+        $script:CapturedEntraQueryCount | Should -Be 1
+    }
+
+    It 'requests the lifecycle Intune property set' {
+        $script:CapturedIntunePropertySet = $null
+        Mock Get-MyDevice { @() }
+        Mock Get-MyDeviceIntune {
+            param($PropertySet)
+            $script:CapturedIntunePropertySet = $PropertySet
+            @()
+        }
+
+        Get-InitialCloudDevices -IncludeOperatingSystem @('*') -ExcludeOperatingSystem @() -Exclusions @() | Out-Null
+
+        $script:CapturedIntunePropertySet | Should -Be 'Lifecycle'
     }
 
     It 'does not protect non-Windows members of a same-name Autopilot group' {
