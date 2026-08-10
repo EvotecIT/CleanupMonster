@@ -399,10 +399,11 @@ These are good defaults almost everywhere:
 
 These help ensure your data sources are healthy before any action happens:
 
-- `SafetyADLimit` to stop if AD returns fewer objects than expected
+- `SafetyADLimit` to suppress mutations if AD returns fewer objects than expected while still writing the report
 - `SafetyAzureADLimit`, `SafetyIntuneLimit`, and `SafetyJamfLimit` when cloud/device-source validation matters
 - `SafetyEntraLimit` and `SafetyIntuneLimit` for cloud-device cleanup to stop on partial Microsoft Graph inventory
-- `TargetServers` when you want deterministic domain-controller selection
+- `TargetServers` when you want deterministic domain-controller selection and failover
+- `DomainFailureAction Stop` (the default) to suppress all AD mutations when any included domain cannot be inventoried
 
 ### Workflow guards
 
@@ -423,6 +424,24 @@ These reduce risk in destructive cleanup patterns:
 | First lab / pilot | `-ReportOnly`, top-level `-WhatIf`, low limits, HTML report, log file |
 | Early production rollout | Explicit exclusions, low limits, AD safety limit, pending-list staging, action-specific `WhatIf` for risky steps |
 | Mature production automation | AD and cloud safety limits, staged disable/delete windows, OU quarantine, durable datastores, reports/logs, explicit target servers where needed |
+
+For multi-domain AD cleanup, provide an ordered list of preferred DCs for each domain. CleanupMonster tries those servers first, then any writable DCs found during forest discovery:
+
+```powershell
+$TargetServers = @{
+    'contoso.com'       = @('dc1.contoso.com', 'dc2.contoso.com')
+    'child.contoso.com' = @('dc1.child.contoso.com', 'dc2.child.contoso.com')
+}
+
+Invoke-ADComputersCleanup `
+    -Disable `
+    -TargetServers $TargetServers `
+    -ADQueryMaxRetries 3 `
+    -DomainFailureAction Stop `
+    -ShowHTML
+```
+
+`Stop` still writes an HTML report, but marks it incomplete and prevents disable, move, delete, datastore updates, and pending-list pruning. `ContinueSuccessfulDomains` is an explicit opt-in for independent domains: actions and pending-list maintenance are limited to domains whose inventory completed successfully, while failed-domain state is left untouched.
 
 ## Rollout Pattern 🪜
 

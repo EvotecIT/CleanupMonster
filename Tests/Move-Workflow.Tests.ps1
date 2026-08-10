@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Save-ADComputerPendingStateEntry.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-ADComputersToProcess.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersMove.ps1')
 
@@ -27,6 +28,40 @@ BeforeAll {
 }
 
 Describe 'Move workflow helpers' {
+    It 'journals only pending entries changed during discovery' {
+        $computer = [PSCustomObject] @{
+            SamAccountName       = 'PC1$'
+            DomainName           = 'contoso.com'
+            DistinguishedName    = 'CN=PC1,OU=Workstations,DC=contoso,DC=com'
+            DNSHostName          = 'pc1.contoso.com'
+            Enabled              = $true
+            OperatingSystem      = 'Windows 11'
+            ServicePrincipalName = @()
+            Action               = 'Not required'
+        }
+        $processedComputers = [ordered] @{
+            'PC1$@contoso.com' = [PSCustomObject] @{
+                SamAccountName    = 'PC1$'
+                DistinguishedName = $computer.DistinguishedName
+                ActionStatus      = $true
+            }
+            'PC2$@contoso.com' = [PSCustomObject] @{
+                SamAccountName    = 'PC2$'
+                DistinguishedName = 'CN=PC2,OU=Workstations,DC=contoso,DC=com'
+                ActionStatus      = $true
+            }
+        }
+        $rollback = [ordered] @{}
+
+        $count = Get-ADComputersToProcess -Type Disable -Computers @($computer) -ActionIf @{} -Exclusions @() -ProcessedComputers $processedComputers -PendingStateRollback $rollback
+
+        $count | Should -Be 1
+        $processedComputers.Keys | Should -Not -Contain 'PC1$@contoso.com'
+        $processedComputers.Keys | Should -Contain 'PC2$@contoso.com'
+        $rollback.Keys | Should -Be @('PC1$@contoso.com')
+        $rollback['PC1$@contoso.com'].ActionStatus | Should -BeTrue
+    }
+
     It 'honors MoveListProcessedMoreThan when staging move candidates' {
         $computer = [PSCustomObject] @{
             SamAccountName       = 'PC1$'

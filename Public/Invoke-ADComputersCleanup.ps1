@@ -356,9 +356,9 @@
     Path to the HTML report file. Default is $PSScriptRoot\ProcessedComputers.html
 
     .PARAMETER SafetyADLimit
-    Minimum number of computers that must be returned by AD cmdlets to proceed with the process.
+    Minimum number of computers that must be returned by AD cmdlets before mutations are allowed.
     Default is not to check.
-    This is there to prevent accidental deletion of all computers if there is a problem with AD.
+    If the limit is not met, mutations are suppressed and the HTML report is still generated.
 
     .PARAMETER SafetyAzureADLimit
     Minimum number of computers that must be returned by AzureAD cmdlets to proceed with the process.
@@ -384,10 +384,8 @@
 
     .PARAMETER TargetServers
     Target servers to use when connecting to Active Directory.
-    It can take a string with server name, or hashtable with key being the domain, and value being the server name.
-    If you have a forest with multiple domains and want to use different servers for different domains, you can use hashtable.
-    It will use the default server if no server is provided for a domain, which is default approach.
-    This feature is only nessecary if you have specific requirments per domain/forest rather than using the automatic detection.
+    It can take one server name, an array of server names, or a hashtable whose keys are domains and whose values are one or more server names.
+    Manually configured servers are tried in order before auto-detected writable domain controllers.
 
     .PARAMETER RemoveProtectedFromAccidentalDeletionFlag
     Remove the ProtectedFromAccidentalDeletion flag from the computer object before moving or deleting it.
@@ -395,13 +393,24 @@
     By default it will not remove the flag, and require it to be removed manually.
 
     .PARAMETER ADQueryMaxRetries
-    Maximum number of retries for AD query operations. Default is 3.
+    Maximum number of query attempts per domain controller before failing over to the next server. Default is 3.
 
     .PARAMETER ADQueryRetryDelay
     Delay in seconds between retries for AD query operations. Default is 5.
 
+    .PARAMETER ADQueryConnectionTimeout
+    Maximum number of seconds allowed for the isolated AD query process to connect to a domain controller before retrying or failing over. Default is 15.
+
+    .PARAMETER ADQueryIdleTimeout
+    Maximum number of seconds an established AD inventory query may make no result progress before its isolated process is stopped and the query is retried or failed over. This is an idle timeout, not a limit on the total time required to return a large domain. Default is 120.
+
     .PARAMETER ADQueryPageSize
     Page size for AD query operations. Default is 1000.
+
+    .PARAMETER DomainFailureAction
+    Controls write behavior when one or more domains cannot be inventoried.
+    Stop is the safe default and suppresses all mutations while still producing an incomplete report.
+    ContinueSuccessfulDomains explicitly allows actions for successfully inventoried domains only.
 
     .EXAMPLE
     $Output = Invoke-ADComputersCleanup -DeleteIsEnabled $false -Delete -WhatIfDelete -ShowHTML -ReportOnly -LogPath $PSScriptRoot\Logs\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).log -ReportPath $PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html
@@ -441,6 +450,8 @@
         DeleteListProcessedMoreThan = 90
         ADQueryMaxRetries     = 5      # Increase retries for unreliable environments
         ADQueryRetryDelay     = 10     # Increase delay between retries
+        ADQueryConnectionTimeout = 15  # Bound unavailable-DC connection attempts
+        ADQueryIdleTimeout       = 120 # Stop a query that stops producing results
         ADQueryPageSize       = 500    # Smaller page size for large environments
         WhatIfDelete          = $true
         ShowHTML             = $true
@@ -449,6 +460,15 @@
     }
     $Output = Invoke-ADComputersCleanup @Configuration
     $Output
+
+    .EXAMPLE
+    # Prefer two manually selected DCs per domain, retain detected DCs as fallbacks,
+    # and suppress every write if any domain still cannot be inventoried.
+    $TargetServers = @{
+        'contoso.com'       = @('dc1.contoso.com', 'dc2.contoso.com')
+        'child.contoso.com' = @('dc1.child.contoso.com', 'dc2.child.contoso.com')
+    }
+    Invoke-ADComputersCleanup -Disable -TargetServers $TargetServers -DomainFailureAction Stop -ShowHTML
 
     .EXAMPLE
     # Run the script
@@ -607,8 +627,14 @@
         [int] $ADQueryMaxRetries = 3,
         [ValidateRange(0, [int]::MaxValue)]
         [int] $ADQueryRetryDelay = 5,
+        [ValidateRange(1, 300)]
+        [int] $ADQueryConnectionTimeout = 15,
+        [ValidateRange(1, 3600)]
+        [int] $ADQueryIdleTimeout = 120,
         [ValidateRange(1, 10000)]
-        [int] $ADQueryPageSize = 1000
+        [int] $ADQueryPageSize = 1000,
+        [ValidateSet('Stop', 'ContinueSuccessfulDomains')]
+        [string] $DomainFailureAction = 'Stop'
     )
     # we will use it to check for intune/azuread/jamf functionality
     $Script:CleanupOptions = [ordered] @{}
@@ -730,6 +756,8 @@
         CurrentRun      = $null
         History         = $null
         PendingDeletion = $null
+        InventoryComplete = $true
+        DomainInventory = @()
     }
 
     Write-Color '[i] ', "[CleanupMonster] ", 'Version', ' [Informative] ', $Export['Version'] -Color Yellow, DarkGray, Yellow, DarkGray, Magenta
@@ -758,7 +786,7 @@
 
     $Report = [ordered] @{}
 
-    $getInitialGraphComputersSplat = [ordered] @{
+    $getInitialGraphComputersSplat = @{
         SafetyAzureADLimit            = $SafetyAzureADLimit
         SafetyIntuneLimit             = $SafetyIntuneLimit
         DeleteLastSeenAzureMoreThan   = $DeleteLastSeenAzureMoreThan
@@ -789,7 +817,7 @@
         return
     }
 
-    $SplatADComputers = [ordered] @{
+    $SplatADComputers = @{
         Report                = $Report
         ForestInformation     = $ForestInformation
         Filter                = $Filter
@@ -809,12 +837,65 @@
         TargetServers         = $TargetServers
         ADQueryMaxRetries     = $ADQueryMaxRetries
         ADQueryRetryDelay     = $ADQueryRetryDelay
+        ADQueryConnectionTimeout = $ADQueryConnectionTimeout
+        ADQueryIdleTimeout    = $ADQueryIdleTimeout
         ADQueryPageSize       = $ADQueryPageSize
     }
 
-    $AllComputers = Get-InitialADComputers @SplatADComputers
-    if ($AllComputers -eq $false) {
+    $InventoryResult = Get-InitialADComputers @SplatADComputers
+    if ($InventoryResult -eq $false) {
         return
+    }
+    $SafetyLimitSatisfied = if ($null -ne $InventoryResult.PSObject.Properties['SafetyLimitSatisfied']) {
+        [bool] $InventoryResult.SafetyLimitSatisfied
+    } else {
+        $true
+    }
+    $AllComputerKeys = $InventoryResult.ComputerKeys
+    $Export.InventoryComplete = $InventoryResult.Succeeded -and $SafetyLimitSatisfied
+    $Export.DomainInventory = @(
+        foreach ($Domain in $Report.Keys) {
+            [PSCustomObject] @{
+                Domain           = $Domain
+                Status           = $Report["$Domain"].QueryStatus
+                Server           = $Report["$Domain"].Server
+                ComputerCount    = $Report["$Domain"].ComputerCount
+                QueryAttempts    = $Report["$Domain"].QueryAttempts
+                AttemptedServers = $Report["$Domain"].AttemptedServers -join ', '
+                Error            = $Report["$Domain"].QueryError
+            }
+        }
+    )
+
+    $EffectiveReportOnly = $ReportOnly.IsPresent
+    $InventoryWritesSuppressed = $false
+    if (-not $InventoryResult.Succeeded) {
+        $FailedDomainText = $InventoryResult.FailedDomains -join ', '
+        if ($DomainFailureAction -eq 'Stop') {
+            $EffectiveReportOnly = $true
+            $InventoryWritesSuppressed = $true
+            Write-Color -Text '[e] ', "AD inventory is incomplete. Failed domains: $FailedDomainText. All mutations are suppressed; an incomplete report will still be generated." -Color Yellow, Red
+        } else {
+            Write-Color -Text '[w] ', "AD inventory is incomplete. Failed domains: $FailedDomainText. Continuing only for successfully inventoried domains because DomainFailureAction is ContinueSuccessfulDomains." -Color Yellow, DarkYellow
+        }
+    }
+    if (-not $SafetyLimitSatisfied) {
+        $EffectiveReportOnly = $true
+        $InventoryWritesSuppressed = $true
+        Write-Color -Text '[e] ', "AD inventory returned $($AllComputerKeys.Count) computers, below SafetyADLimit $SafetyADLimit. All mutations are suppressed; the report will still be generated." -Color Yellow, Red
+    }
+    if ($InventoryWritesSuppressed) {
+        # Inventory discovery may remove or update a small subset of pending
+        # entries. Restore only those journaled entries so fail-closed reports
+        # match the unchanged datastore without cloning the full pending set.
+        $PendingStateRollback = if ($null -ne $InventoryResult.PSObject.Properties['PendingStateRollback']) {
+            $InventoryResult.PendingStateRollback
+        }
+        if ($null -ne $PendingStateRollback) {
+            foreach ($PendingKey in @($PendingStateRollback.Keys)) {
+                $ProcessedComputers[$PendingKey] = $PendingStateRollback[$PendingKey]
+            }
+        }
     }
 
     foreach ($Domain in $Report.Keys) {
@@ -863,7 +944,7 @@
             DisableModifyDescription                  = $DisableModifyDescription.IsPresent
             DisableModifyAdminDescription             = $DisableModifyAdminDescription.IsPresent
             DisableLimit                              = $DisableLimit
-            ReportOnly                                = $ReportOnly
+            ReportOnly                                = $EffectiveReportOnly
             Today                                     = $Today
             DontWriteToEventLog                       = $DontWriteToEventLog
             DisableMoveTargetOrganizationalUnit       = $DisableMoveTargetOrganizationalUnit
@@ -880,7 +961,7 @@
             WhatIfMove                                = $WhatIfMove
             WhatIf                                    = $WhatIfPreference
             MoveLimit                                 = $MoveLimit
-            ReportOnly                                = $ReportOnly
+            ReportOnly                                = $EffectiveReportOnly
             Today                                     = $Today
             ProcessedComputers                        = $ProcessedComputers
             TargetOrganizationalUnit                  = $MoveTargetOrganizationalUnit
@@ -898,7 +979,7 @@
             WhatIfDelete                              = $WhatIfDelete
             WhatIf                                    = $WhatIfPreference
             DeleteLimit                               = $DeleteLimit
-            ReportOnly                                = $ReportOnly
+            ReportOnly                                = $EffectiveReportOnly
             Today                                     = $Today
             ProcessedComputers                        = $ProcessedComputers
             DontWriteToEventLog                       = $DontWriteToEventLog
@@ -907,11 +988,33 @@
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
     }
 
-    Write-Color "[i] ", "Cleanup process for processed computers that no longer exists in AD" -Color Yellow, Green
-    foreach ($FullName in [string[]] $ProcessedComputers.Keys) {
-        if (-not $AllComputers["$($FullName)"]) {
-            Write-Color -Text "[*] Removing computer from pending list ", $ProcessedComputers[$FullName].SamAccountName, " ($($ProcessedComputers[$FullName].DistinguishedName))" -Color Yellow, Green, Yellow
-            $ProcessedComputers.Remove("$($FullName)")
+    if ($InventoryWritesSuppressed) {
+        # Request functions intentionally return candidates in ReportOnly mode.
+        # Automatic fail-closed suppression is different: nothing was attempted,
+        # so those candidates must not become current-run or historical actions.
+        $ReportDisabled = @()
+        $ReportMoved = @()
+        $ReportDeleted = @()
+    }
+
+    if (-not $EffectiveReportOnly) {
+        Write-Color '[i] ', 'Cleaning pending entries that no longer exist in successfully inventoried AD domains' -Color Yellow, Green
+        $SuccessfulDomainSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($SuccessfulDomain in $InventoryResult.SuccessfulDomains) {
+            $null = $SuccessfulDomainSet.Add($SuccessfulDomain)
+        }
+        foreach ($FullName in [string[]] $ProcessedComputers.Keys) {
+            $PendingDomain = [string] $ProcessedComputers[$FullName].DomainName
+            if ([string]::IsNullOrWhiteSpace($PendingDomain)) {
+                $SeparatorIndex = $FullName.LastIndexOf('@')
+                if ($SeparatorIndex -ge 0 -and $SeparatorIndex -lt $FullName.Length - 1) {
+                    $PendingDomain = $FullName.Substring($SeparatorIndex + 1)
+                }
+            }
+            if ($SuccessfulDomainSet.Contains($PendingDomain) -and -not $AllComputerKeys.Contains($FullName)) {
+                Write-Color -Text '[*] Removing computer from pending list ', $ProcessedComputers[$FullName].SamAccountName, " ($($ProcessedComputers[$FullName].DistinguishedName))" -Color Yellow, Green, Yellow
+                $ProcessedComputers.Remove($FullName)
+            }
         }
     }
 
@@ -944,7 +1047,7 @@
     )
 
     Write-Color "[i] ", "Exporting Processed List" -Color Yellow, Magenta
-    if (-not $ReportOnly) {
+    if (-not $EffectiveReportOnly) {
         try {
             $Export | Export-Clixml -LiteralPath $DataStorePath -Encoding Unicode -WhatIf:$false -ErrorAction Stop
         } catch {
@@ -963,45 +1066,60 @@
             Write-Color -Text "[i] ", "Computers to be deleted for domain $Domain`: ", $Report["$Domain"]['ComputersToBeDeleted'] -Color Yellow, Cyan, Green
         }
     }
-    if (-not $ReportOnly) {
+    if (-not $EffectiveReportOnly) {
         Write-Color -Text "[i] ", "Computers on pending list`: ", $Export['PendingDeletion'].Count -Color Yellow, Cyan, Green
     }
-    if (($Disable -or $DisableAndMove) -and -not $ReportOnly) {
+    if (($Disable -or $DisableAndMove) -and -not $EffectiveReportOnly) {
         Write-Color -Text "[i] ", "Computers disabled in this run`: ", $ReportDisabled.Count -Color Yellow, Cyan, Green
     }
-    if ($Move -and -not $ReportOnly) {
+    if ($Move -and -not $EffectiveReportOnly) {
         Write-Color -Text "[i] ", "Computers moved in this run`: ", $ReportMoved.Count -Color Yellow, Cyan, Green
     }
-    if ($Delete -and -not $ReportOnly) {
+    if ($Delete -and -not $EffectiveReportOnly) {
         Write-Color -Text "[i] ", "Computers deleted in this run`: ", $ReportDeleted.Count -Color Yellow, Cyan, Green
     }
 
     if ($Export -and $ReportPath) {
-        [Array] $ComputersToProcess = foreach ($Domain in $Report.Keys) {
-            if ($Report["$Domain"]['Computers'].Count -gt 0) {
-                $Report["$Domain"]['Computers']
+        [Array] $ComputersToProcess = @(
+            foreach ($Domain in $Report.Keys) {
+                if ($Report["$Domain"]['Computers'].Count -gt 0) {
+                    $Report["$Domain"]['Computers']
+                }
             }
-        }
+        )
         Write-Color -Text "[i] ", "Computers to be processed for HTML report`: ", $ComputersToProcess.Count -Color Yellow, Cyan, Green
         $Export.Statistics = New-ADComputersStatistics -ComputersToProcess $ComputersToProcess
 
-        $newHTMLProcessedComputersSplat = @{
-            Export             = $Export
-            FilePath           = $ReportPath
-            Online             = $Online.IsPresent
-            ShowHTML           = $ShowHTML.IsPresent
-            LogFile            = $LogPath
-            ComputersToProcess = $ComputersToProcess
-            DisableOnlyIf      = $DisableOnlyIf
-            DeleteOnlyIf       = $DeleteOnlyIf
-            MoveOnlyIf         = $MoveOnlyIf
-            Delete             = $Delete
-            Disable            = $Disable
-            Move               = $Move
-            ReportOnly         = $ReportOnly
+        $ReportDataPath = [System.IO.Path]::GetTempFileName()
+        try {
+            $ComputerReportData = Export-ADComputerReportData -Computers $ComputersToProcess -FilePath $ReportDataPath
+            foreach ($Domain in $Report.Keys) {
+                $Report["$Domain"]['Computers'] = @()
+            }
+            $ComputersToProcess = $null
+
+            $newHTMLProcessedComputersSplat = @{
+                Export             = $Export
+                FilePath           = $ReportPath
+                Online             = $Online.IsPresent
+                ShowHTML           = $ShowHTML.IsPresent
+                LogFile            = $LogPath
+                ComputerReportData = $ComputerReportData
+                DisableOnlyIf      = $DisableOnlyIf
+                DeleteOnlyIf       = $DeleteOnlyIf
+                MoveOnlyIf         = $MoveOnlyIf
+                Delete             = $Delete
+                Disable            = $Disable
+                Move               = $Move
+                ReportOnly         = $ReportOnly.IsPresent
+            }
+            Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
+            New-HTMLProcessedComputers @newHTMLProcessedComputersSplat
+        } finally {
+            if (Test-Path -LiteralPath $ReportDataPath) {
+                Remove-Item -LiteralPath $ReportDataPath -Force -WhatIf:$false -ErrorAction SilentlyContinue
+            }
         }
-        Write-Color "[i] ", "Generating HTML report ($ReportPath)" -Color Yellow, Magenta
-        New-HTMLProcessedComputers @newHTMLProcessedComputersSplat
     }
 
     Write-Color -Text "[i] Finished process of cleaning up stale computers" -Color Green
