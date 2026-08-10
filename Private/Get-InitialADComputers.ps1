@@ -82,46 +82,47 @@ function Get-InitialADComputers {
 
         Write-Color -Text '[i] ', "Getting all computers for domain $Domain [$CountDomains/$($ForestInformation.Domains.Count)]. Candidate servers: $($ServerCandidates -join ', ')" -Color Yellow, Magenta
 
-        if ($Filter) {
-            if ($Filter -is [string]) {
-                $FilterToUse = $Filter
-            } elseif ($Filter -is [System.Collections.IDictionary]) {
-                $FilterToUse = $Filter[$Domain]
-                if ([string]::IsNullOrWhiteSpace([string] $FilterToUse)) {
-                    $Report["$Domain"].QueryStatus = 'Failed'
-                    $Report["$Domain"].QueryError = "No AD filter was configured for domain $Domain."
-                    $FailedDomains.Add($Domain)
-                    Write-Color -Text '[e] ', $Report["$Domain"].QueryError -Color Yellow, Red
-                    continue
-                }
-            } else {
-                Write-Color -Text '[e] ', 'Filter must be a string or a hashtable/ordereddictionary.' -Color Yellow, Red
-                return $false
-            }
-        } else {
+        if ($null -eq $Filter) {
             $FilterToUse = '*'
+        } elseif ($Filter -is [string]) {
+            $FilterToUse = $Filter
+        } elseif ($Filter -is [System.Collections.IDictionary]) {
+            $FilterToUse = $Filter[$Domain]
+        } else {
+            Write-Color -Text '[e] ', 'Filter must be a string or a hashtable/ordereddictionary.' -Color Yellow, Red
+            return $false
+        }
+        if ([string]::IsNullOrWhiteSpace([string] $FilterToUse)) {
+            $Report["$Domain"].QueryStatus = 'Failed'
+            $Report["$Domain"].QueryError = "No AD filter was configured for domain $Domain."
+            $FailedDomains.Add($Domain)
+            Write-Color -Text '[e] ', $Report["$Domain"].QueryError -Color Yellow, Red
+            continue
         }
 
-        if ($SearchBase) {
-            if ($SearchBase -is [string]) {
-                $SearchBaseToUse = $SearchBase
-            } elseif ($SearchBase -is [System.Collections.IDictionary]) {
-                $SearchBaseToUse = $SearchBase[$Domain]
-            } else {
-                Write-Color -Text '[e] ', 'SearchBase must be a string or a hashtable/ordereddictionary.' -Color Yellow, Red
-                return $false
-            }
-        } else {
+        if ($null -eq $SearchBase) {
             $SearchBaseToUse = $DomainInformation.DistinguishedName
+        } elseif ($SearchBase -is [string]) {
+            $SearchBaseToUse = $SearchBase
+        } elseif ($SearchBase -is [System.Collections.IDictionary]) {
+            $SearchBaseToUse = $SearchBase[$Domain]
+        } else {
+            Write-Color -Text '[e] ', 'SearchBase must be a string or a hashtable/ordereddictionary.' -Color Yellow, Red
+            return $false
+        }
+        if ([string]::IsNullOrWhiteSpace([string] $SearchBaseToUse)) {
+            $Report["$Domain"].QueryStatus = 'Failed'
+            $Report["$Domain"].QueryError = "No AD search base was configured for domain $Domain."
+            $FailedDomains.Add($Domain)
+            Write-Color -Text '[e] ', $Report["$Domain"].QueryError -Color Yellow, Red
+            continue
         }
 
         $QueryParameters = @{
             Filter     = $FilterToUse
             Properties = $Properties
         }
-        if ($SearchBaseToUse) {
-            $QueryParameters.SearchBase = $SearchBaseToUse
-        }
+        $QueryParameters.SearchBase = $SearchBaseToUse
 
         $QueryResult = Invoke-ADComputerInventoryQuery `
             -Domain $Domain `

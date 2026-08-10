@@ -4,6 +4,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Test-ADQueryConfigurationError.ps1')
     . (Get-CleanupMonsterPath 'Private/ConvertFrom-ADComputerInventoryRow.ps1')
     . (Get-CleanupMonsterPath 'Private/Invoke-ADComputerInventoryAttempt.ps1')
+    . (Get-CleanupMonsterPath 'Private/Invoke-ADComputerInventoryChildProcess.ps1')
     . (Get-CleanupMonsterPath 'Private/Invoke-ADComputerInventoryQuery.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialADComputers.ps1')
 
@@ -54,6 +55,51 @@ Describe 'AD computer inventory safety' {
         $Result.FailedDomains | Should -Be @('child.contoso.com')
         $Report['child.contoso.com'].QueryStatus | Should -Be 'Failed'
         $Report['child.contoso.com'].QueryError | Should -Match 'No AD filter was configured'
+        Assert-MockCalled Invoke-ADComputerInventoryQuery -Times 1 -Exactly
+    }
+
+    It 'marks a domain failed instead of broadening an empty filter dictionary' {
+        $Report = [ordered] @{}
+        $ForestInformation = [ordered] @{
+            Domains = @('contoso.com')
+            QueryServers = @{ 'contoso.com' = @{ HostName = @('dc1.contoso.com') } }
+            DomainsExtended = @{ 'contoso.com' = @{ DistinguishedName = 'DC=contoso,DC=com' } }
+        }
+        Mock Invoke-ADComputerInventoryQuery {}
+
+        $Result = Get-InitialADComputers -Report $Report -ForestInformation $ForestInformation -Filter @{} -Properties @('SamAccountName') -Disable:$false -Move:$false -Delete:$false
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.FailedDomains | Should -Be @('contoso.com')
+        $Report['contoso.com'].QueryError | Should -Match 'No AD filter was configured'
+        Assert-MockCalled Invoke-ADComputerInventoryQuery -Times 0 -Exactly
+    }
+
+    It 'marks a domain failed instead of broadening a missing per-domain search base' {
+        $Report = [ordered] @{}
+        $ForestInformation = [ordered] @{
+            Domains = @('contoso.com', 'child.contoso.com')
+            QueryServers = @{
+                'contoso.com' = @{ HostName = @('dc1.contoso.com') }
+                'child.contoso.com' = @{ HostName = @('dc1.child.contoso.com') }
+            }
+            DomainsExtended = @{
+                'contoso.com' = @{ DistinguishedName = 'DC=contoso,DC=com' }
+                'child.contoso.com' = @{ DistinguishedName = 'DC=child,DC=contoso,DC=com' }
+            }
+        }
+        Mock Invoke-ADComputerInventoryQuery {
+            [PSCustomObject] @{
+                Succeeded = $true; Server = $Servers[0]; Computers = @(); Attempts = @([PSCustomObject] @{ Server = $Servers[0] }); Error = $null
+            }
+        }
+
+        $Result = Get-InitialADComputers -Report $Report -ForestInformation $ForestInformation -Filter '*' -SearchBase @{ 'contoso.com' = 'OU=Computers,DC=contoso,DC=com' } -Properties @('SamAccountName') -Disable:$false -Move:$false -Delete:$false
+
+        $Result.Succeeded | Should -BeFalse
+        $Result.SuccessfulDomains | Should -Be @('contoso.com')
+        $Result.FailedDomains | Should -Be @('child.contoso.com')
+        $Report['child.contoso.com'].QueryError | Should -Match 'No AD search base was configured'
         Assert-MockCalled Invoke-ADComputerInventoryQuery -Times 1 -Exactly
     }
 }
@@ -247,6 +293,36 @@ Describe 'AD computer inventory server selection and failover' {
 }
 
 Describe 'AD computer inventory process isolation' {
+    It 'records time-throttled progress when fewer than 100 slow results arrive' {
+        function Get-ADRootDSE {}
+        function Get-ADComputer {}
+        Mock Import-Module {}
+        Mock Get-ADRootDSE { [PSCustomObject] @{} }
+        Mock Get-ADComputer {
+            1..3 | ForEach-Object {
+                Start-Sleep -Milliseconds 350
+                [PSCustomObject] @{
+                    Name = "PC$_"
+                    SamAccountName = "PC$_`$"
+                    DistinguishedName = "CN=PC$_,DC=contoso,DC=com"
+                }
+            }
+        }
+
+        $ConfigurationPath = Join-Path $TestDrive 'query.clixml'
+        $Configuration = [PSCustomObject] @{
+            Server = 'dc1.contoso.com'; Filter = '*'; Properties = @('SamAccountName'); SearchBase = $null; PageSize = 1000; ProgressIntervalMilliseconds = 250
+            InitializationPath = (Join-Path $TestDrive 'initialized'); ReadyPath = (Join-Path $TestDrive 'ready'); ProgressPath = (Join-Path $TestDrive 'progress')
+            SuccessPath = (Join-Path $TestDrive 'success'); ErrorPath = (Join-Path $TestDrive 'error.txt'); DataPath = (Join-Path $TestDrive 'computers.csv')
+        }
+        $Configuration | Export-Clixml -LiteralPath $ConfigurationPath
+
+        Invoke-ADComputerInventoryChildProcess -ConfigurationPath $ConfigurationPath
+
+        Get-Content -LiteralPath $Configuration.ProgressPath | Should -Be '3'
+        Get-Content -LiteralPath $Configuration.SuccessPath | Should -Be '3'
+    }
+
     It 'terminates a still-running child when polling exits unexpectedly' {
         $script:FakeChildKilled = $false
         $FakeProcess = [PSCustomObject] @{ HasExited = $false; Id = 4242; ExitCode = 0 }
@@ -348,6 +424,29 @@ function Invoke-ADComputerInventoryChildProcess {
         $Result.TimeoutPhase | Should -Be 'Query'
         $Result.ErrorMessage | Should -Match 'isolated query process was stopped'
         ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
+    }
+
+    It 'keeps a burst-shaped result stream alive across progress-marker throttle lag' {
+        $ChildPath = Join-Path $TestDrive 'SlowProgressChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
+    [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
+    [System.IO.File]::WriteAllText($Configuration.ProgressPath, '1')
+    Start-Sleep -Milliseconds 200
+    # A second result arrives inside the throttle window without a marker write.
+    Start-Sleep -Milliseconds 850
+    [System.IO.File]::WriteAllText($Configuration.ProgressPath, '3')
+    [System.IO.File]::WriteAllText($Configuration.SuccessPath, '3')
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -IdleTimeoutSeconds 1 -ChildProcessFunctionPath $ChildPath
+
+        $Result.Succeeded | Should -BeTrue -Because $Result.ErrorMessage
+        $Result.TimedOut | Should -BeFalse
     }
 
     It 'streams only the required row fields back from a successful isolated child' {

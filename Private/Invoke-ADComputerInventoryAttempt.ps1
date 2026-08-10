@@ -40,6 +40,8 @@ function Invoke-ADComputerInventoryAttempt {
     $StandardOutputPath = Join-Path $TemporaryDirectory 'stdout.txt'
     $StandardErrorPath = Join-Path $TemporaryDirectory 'stderr.txt'
     $Process = $null
+    $ProgressIntervalMilliseconds = [Math]::Max(100, [Math]::Min(1000, [int] ($IdleTimeoutSeconds * 250)))
+    $EffectiveIdleTimeoutMilliseconds = ($IdleTimeoutSeconds * 1000) + $ProgressIntervalMilliseconds
 
     try {
         $Configuration = [PSCustomObject] [ordered] @{
@@ -48,6 +50,7 @@ function Invoke-ADComputerInventoryAttempt {
             Properties   = @($QueryParameters.Properties)
             SearchBase   = $QueryParameters.SearchBase
             PageSize     = $PageSize
+            ProgressIntervalMilliseconds = $ProgressIntervalMilliseconds
             InitializationPath = $InitializationPath
             ReadyPath    = $ReadyPath
             ProgressPath = $ProgressPath
@@ -103,7 +106,7 @@ function Invoke-ADComputerInventoryAttempt {
                         $LastProgress = $ProgressWriteTime
                     }
                 }
-                if (($Now - $LastProgress).TotalSeconds -ge $IdleTimeoutSeconds) {
+                if (($Now - $LastProgress).TotalMilliseconds -ge $EffectiveIdleTimeoutMilliseconds) {
                     $TimedOut = $true
                     $TimeoutPhase = 'Query'
                     break
@@ -123,13 +126,18 @@ function Invoke-ADComputerInventoryAttempt {
                 'Connection' { $ConnectionTimeoutSeconds }
                 default { $IdleTimeoutSeconds }
             }
+            $TimeoutMessage = if ($TimeoutPhase -eq 'Query') {
+                "AD query timeout after $TimeoutSeconds seconds without result progress through $Server, plus up to $ProgressIntervalMilliseconds milliseconds for progress signaling. The isolated query process was stopped."
+            } else {
+                "AD $($TimeoutPhase.ToLowerInvariant()) timeout after $TimeoutSeconds seconds through $Server. The isolated query process was stopped."
+            }
             return [PSCustomObject] [ordered] @{
                 Succeeded    = $false
                 Computers    = @()
                 TimedOut     = $true
                 TimeoutPhase = $TimeoutPhase
                 Duration     = (New-TimeSpan -Start $Started -End (Get-Date))
-                ErrorMessage = "AD $($TimeoutPhase.ToLowerInvariant()) timeout after $TimeoutSeconds seconds through $Server. The isolated query process was stopped."
+                ErrorMessage = $TimeoutMessage
             }
         }
 

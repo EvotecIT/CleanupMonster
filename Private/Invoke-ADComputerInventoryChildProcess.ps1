@@ -33,10 +33,14 @@ function Invoke-ADComputerInventoryChildProcess {
         }
 
         $Count = 0
+        $ProgressIntervalMilliseconds = [int] $Configuration.ProgressIntervalMilliseconds
+        $LastProgressWriteUtc = [DateTime]::UtcNow
         Get-ADComputer @Query | ForEach-Object {
             $Count++
-            if ($Count -eq 1 -or $Count % 100 -eq 0) {
+            $Now = [DateTime]::UtcNow
+            if ($Count -eq 1 -or ($Now - $LastProgressWriteUtc).TotalMilliseconds -ge $ProgressIntervalMilliseconds) {
                 [System.IO.File]::WriteAllText($Configuration.ProgressPath, [string] $Count, [System.Text.Encoding]::UTF8)
+                $LastProgressWriteUtc = $Now
             }
 
             [PSCustomObject] [ordered] @{
