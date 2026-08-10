@@ -116,7 +116,7 @@ function Find-JavaScriptArrayAssignment {
                 continue
             }
 
-            return [PSCustomObject] [ordered] @{
+            return [PSCustomObject] @{
                 DataStartIndex = $ContentGroup.Index + $DataStartIndex
                 DataEndIndex   = $ContentGroup.Index + $DataEndIndex
             }

@@ -60,7 +60,7 @@ function Invoke-ADComputerInventoryQuery {
                 -Today $Today
 
             $QueryReachedServer = $QueryReachedServer -or $AttemptResult.TimeoutPhase -notin @('Initialization', 'Connection')
-            $Attempts.Add([PSCustomObject] [ordered] @{
+            $Attempts.Add([PSCustomObject] @{
                     Server       = $Server
                     Attempt      = $Attempt
                     PageSize     = $PageSize
@@ -70,7 +70,7 @@ function Invoke-ADComputerInventoryQuery {
                 })
 
             if ($AttemptResult.Succeeded) {
-                return [PSCustomObject] [ordered] @{
+                return [PSCustomObject] @{
                     Succeeded = $true
                     Server    = $Server
                     Computers = $AttemptResult.Computers
@@ -88,7 +88,7 @@ function Invoke-ADComputerInventoryQuery {
             Write-Color -Text '[w] ', "AD query failed for $Domain through $Server`: $($AttemptResult.ErrorMessage)" -Color Yellow, DarkYellow
 
             if (Test-ADQueryConfigurationError -ErrorRecord $LastError) {
-                return [PSCustomObject] [ordered] @{
+                return [PSCustomObject] @{
                     Succeeded = $false
                     Server    = $null
                     Computers = @()
@@ -118,7 +118,7 @@ function Invoke-ADComputerInventoryQuery {
                 -IdleTimeoutSeconds $IdleTimeoutSeconds `
                 -Today $Today
 
-            $Attempts.Add([PSCustomObject] [ordered] @{
+            $Attempts.Add([PSCustomObject] @{
                     Server       = $Server
                     Attempt      = 'SmallPageFallback'
                     PageSize     = $FallbackPageSize
@@ -128,7 +128,7 @@ function Invoke-ADComputerInventoryQuery {
                 })
 
             if ($AttemptResult.Succeeded) {
-                return [PSCustomObject] [ordered] @{
+                return [PSCustomObject] @{
                     Succeeded = $true
                     Server    = $Server
                     Computers = $AttemptResult.Computers
@@ -147,7 +147,7 @@ function Invoke-ADComputerInventoryQuery {
         }
     }
 
-    [PSCustomObject] [ordered] @{
+    [PSCustomObject] @{
         Succeeded = $false
         Server    = $null
         Computers = @()

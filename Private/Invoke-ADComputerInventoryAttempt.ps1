@@ -44,7 +44,7 @@ function Invoke-ADComputerInventoryAttempt {
     $EffectiveIdleTimeoutMilliseconds = ($IdleTimeoutSeconds * 1000) + $ProgressIntervalMilliseconds
 
     try {
-        $Configuration = [PSCustomObject] [ordered] @{
+        $Configuration = [PSCustomObject] @{
             Server       = $Server
             Filter       = $QueryParameters.Filter
             Properties   = @($QueryParameters.Properties)
@@ -144,7 +144,7 @@ function Invoke-ADComputerInventoryAttempt {
             } else {
                 "AD $($TimeoutPhase.ToLowerInvariant()) timeout after $TimeoutSeconds seconds through $Server. The isolated query process was stopped."
             }
-            return [PSCustomObject] [ordered] @{
+            return [PSCustomObject] @{
                 Succeeded    = $false
                 Computers    = @()
                 TimedOut     = $true
@@ -169,7 +169,7 @@ function Invoke-ADComputerInventoryAttempt {
             } else {
                 "The isolated AD query process exited with code $($Process.ExitCode)."
             }
-            return [PSCustomObject] [ordered] @{
+            return [PSCustomObject] @{
                 Succeeded    = $false
                 Computers    = @()
                 TimedOut     = $false
@@ -193,7 +193,7 @@ function Invoke-ADComputerInventoryAttempt {
             @()
         }
 
-        [PSCustomObject] [ordered] @{
+        [PSCustomObject] @{
             Succeeded    = $true
             Computers    = $PreparedComputers
             TimedOut     = $false
@@ -202,7 +202,7 @@ function Invoke-ADComputerInventoryAttempt {
             ErrorMessage = $null
         }
     } catch {
-        [PSCustomObject] [ordered] @{
+        [PSCustomObject] @{
             Succeeded    = $false
             Computers    = @()
             TimedOut     = $false

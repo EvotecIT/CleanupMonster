@@ -81,7 +81,7 @@ function Export-ADComputerReportData {
         $Writer.Write(']')
         $Writer.Flush()
 
-        [PSCustomObject] [ordered] @{
+        [PSCustomObject] @{
             FilePath      = $FilePath
             Count         = $Count
             Sample        = $Sample

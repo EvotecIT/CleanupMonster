@@ -228,7 +228,7 @@ function Get-InitialCloudDevices {
             'NotClaimed'
         }
 
-        $outputDevices.Add([PSCustomObject] [ordered] @{
+        $outputDevices.Add([PSCustomObject] @{
             Name                    = $entraDevice.Name
             EntraDeviceObjectId     = $entraDevice.EntraDeviceObjectId
             DeviceId                = $entraDevice.DeviceId
@@ -304,7 +304,7 @@ function Get-InitialCloudDevices {
             $autopilotLastContactedDays = & $getAgeDays $autopilotLastContacted
         }
 
-        $outputDevices.Add([PSCustomObject] [ordered] @{
+        $outputDevices.Add([PSCustomObject] @{
             Name                    = $intuneDevice.Name
             EntraDeviceObjectId     = $intuneDevice.EntraDeviceObjectId
             DeviceId                = $intuneDevice.AzureAdDeviceId

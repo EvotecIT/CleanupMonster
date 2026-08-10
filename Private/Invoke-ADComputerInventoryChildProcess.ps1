@@ -43,7 +43,7 @@ function Invoke-ADComputerInventoryChildProcess {
                 $LastProgressWriteUtc = $Now
             }
 
-            [PSCustomObject] [ordered] @{
+            [PSCustomObject] @{
                 Name                            = $_.Name
                 DNSHostName                     = $_.DNSHostName
                 SamAccountName                  = $_.SamAccountName

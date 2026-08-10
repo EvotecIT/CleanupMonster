@@ -786,7 +786,7 @@
 
     $Report = [ordered] @{}
 
-    $getInitialGraphComputersSplat = [ordered] @{
+    $getInitialGraphComputersSplat = @{
         SafetyAzureADLimit            = $SafetyAzureADLimit
         SafetyIntuneLimit             = $SafetyIntuneLimit
         DeleteLastSeenAzureMoreThan   = $DeleteLastSeenAzureMoreThan
@@ -817,7 +817,7 @@
         return
     }
 
-    $SplatADComputers = [ordered] @{
+    $SplatADComputers = @{
         Report                = $Report
         ForestInformation     = $ForestInformation
         Filter                = $Filter
@@ -855,7 +855,7 @@
     $Export.InventoryComplete = $InventoryResult.Succeeded -and $SafetyLimitSatisfied
     $Export.DomainInventory = @(
         foreach ($Domain in $Report.Keys) {
-            [PSCustomObject] [ordered] @{
+            [PSCustomObject] @{
                 Domain           = $Domain
                 Status           = $Report["$Domain"].QueryStatus
                 Server           = $Report["$Domain"].Server

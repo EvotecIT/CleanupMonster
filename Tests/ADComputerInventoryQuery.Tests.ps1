@@ -475,7 +475,7 @@ function Invoke-ADComputerInventoryChildProcess {
     [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
     [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
     [System.IO.File]::WriteAllText($Configuration.ProgressPath, '1')
-    [PSCustomObject] [ordered] @{
+    [PSCustomObject] @{
         Name = 'PC01'; DNSHostName = 'pc01.contoso.com'; SamAccountName = 'PC01$'; DistinguishedName = 'CN=PC01,DC=contoso,DC=com'
         Enabled = $true; OperatingSystem = 'Windows'; OperatingSystemVersion = '10.0'; LastLogonDateBinary = (Get-Date).ToBinary()
         PasswordLastSetBinary = (Get-Date).ToBinary(); PasswordExpired = $false; ServicePrincipalNameJson = '["HOST/PC01"]'

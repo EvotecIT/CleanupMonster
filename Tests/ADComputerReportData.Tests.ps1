@@ -47,7 +47,7 @@ BeforeAll {
 Describe 'AD computer report serialization' {
     It 'writes every row across bounded chunks without internal-only properties' {
         $Rows = 1..5 | ForEach-Object {
-            [PSCustomObject] [ordered] @{
+            [PSCustomObject] @{
                 SamAccountName             = "PC$_`$"
                 Description                = if ($_ -eq 3) { '<retired>' } else { "Computer $_" }
                 Enabled                    = $true
@@ -87,7 +87,7 @@ Describe 'AD computer report serialization' {
 
     It 'preserves the JavaScript-store newline conversion used by PSWriteHTML' {
         $Rows = @(
-            [PSCustomObject] [ordered] @{
+            [PSCustomObject] @{
                 SamAccountName = 'PC1$'
                 Description    = "First line`r`nSecond line"
             }

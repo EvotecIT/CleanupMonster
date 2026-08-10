@@ -16,7 +16,7 @@ function ConvertFrom-ADComputerInventoryRow {
             @(ConvertFrom-Json -InputObject $InputObject.ServicePrincipalNameJson)
         }
 
-        [PSCustomObject] [ordered] @{
+        [PSCustomObject] @{
             Name                            = $InputObject.Name
             DNSHostName                     = $InputObject.DNSHostName
             SamAccountName                  = $InputObject.SamAccountName

@@ -219,7 +219,7 @@ function Get-InitialADComputers {
         Write-Color -Text '[e] ', 'Only ', $AllComputerKeys.Count, ' computers were found in AD, which is below the safety limit of ', $SafetyADLimit, '. All mutations will be suppressed.' -Color Yellow, Cyan, Red, Cyan
     }
 
-    [PSCustomObject] [ordered] @{
+    [PSCustomObject] @{
         Succeeded            = $FailedDomains.Count -eq 0
         SafetyLimitSatisfied = $SafetyLimitSatisfied
         ComputerKeys         = $AllComputerKeys
