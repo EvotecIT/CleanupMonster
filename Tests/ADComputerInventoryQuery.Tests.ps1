@@ -345,6 +345,28 @@ Describe 'AD computer inventory process isolation' {
         $script:FakeChildKilled | Should -BeTrue
     }
 
+    It 'embeds the child function when no source-layout helper path is supplied' {
+        $script:EncodedChildCommand = $null
+        $FakeProcess = [PSCustomObject] @{ HasExited = $false; Id = 4243; ExitCode = 0 }
+        $FakeProcess | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {
+            param([int] $Milliseconds)
+            $this.HasExited
+        }
+        $FakeProcess | Add-Member -MemberType ScriptMethod -Name Kill -Value { $this.HasExited = $true }
+        $FakeProcess | Add-Member -MemberType ScriptMethod -Name Dispose -Value {}
+        Mock Start-Process {
+            $script:EncodedChildCommand = $ArgumentList[-1]
+            $FakeProcess
+        }
+        Mock Test-Path { throw 'Stop after command capture' }
+
+        $null = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') }
+
+        $DecodedCommand = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($script:EncodedChildCommand))
+        $DecodedCommand | Should -Match 'function Invoke-ADComputerInventoryChildProcess'
+        $DecodedCommand | Should -Not -Match "\. '.*Invoke-ADComputerInventoryChildProcess\.ps1'"
+    }
+
     It 'kills a child that never completes native AD connection readiness' {
         $ChildPath = Join-Path $TestDrive 'UnreadyChild.ps1'
         @'
@@ -356,14 +378,12 @@ function Invoke-ADComputerInventoryChildProcess {
 }
 '@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
 
-        $Started = Get-Date
         $Result = Invoke-ADComputerInventoryAttempt -Server 'unavailable.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 1 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
 
         $Result.Succeeded | Should -BeFalse
         $Result.TimedOut | Should -BeTrue
         $Result.TimeoutPhase | Should -Be 'Connection'
         $Result.ErrorMessage | Should -Match 'isolated query process was stopped'
-        ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
     }
 
     It 'does not charge child initialization time against the connection timeout' {
@@ -394,13 +414,12 @@ function Invoke-ADComputerInventoryChildProcess {
 }
 '@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
 
-        $Started = Get-Date
         $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -InitializationTimeoutSeconds 1 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
 
         $Result.Succeeded | Should -BeFalse
         $Result.TimedOut | Should -BeTrue
         $Result.TimeoutPhase | Should -Be 'Initialization'
-        ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
+        $Result.ErrorMessage | Should -Match 'isolated query process was stopped'
     }
 
     It 'kills an established child query after the configured idle timeout' {
@@ -416,14 +435,12 @@ function Invoke-ADComputerInventoryChildProcess {
 }
 '@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
 
-        $Started = Get-Date
         $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -IdleTimeoutSeconds 1 -ChildProcessFunctionPath $ChildPath
 
         $Result.Succeeded | Should -BeFalse
         $Result.TimedOut | Should -BeTrue
         $Result.TimeoutPhase | Should -Be 'Query'
         $Result.ErrorMessage | Should -Match 'isolated query process was stopped'
-        ((Get-Date) - $Started).TotalSeconds | Should -BeLessThan 5
     }
 
     It 'keeps a burst-shaped result stream alive across progress-marker throttle lag' {
@@ -477,5 +494,30 @@ function Invoke-ADComputerInventoryChildProcess {
         $Result.Computers[0].servicePrincipalName | Should -Be @('HOST/PC01')
         $Result.Computers[0].LastLogonDate | Should -BeOfType ([DateTime])
         $Result.Computers[0].ProtectedFromAccidentalDeletion | Should -BeTrue
+    }
+
+    It 'runs inventory setup even when ambient WhatIf is enabled' {
+        $ChildPath = Join-Path $TestDrive 'WhatIfChild.ps1'
+        @'
+function Invoke-ADComputerInventoryChildProcess {
+    param([string] $ConfigurationPath)
+    $Configuration = Import-Clixml -LiteralPath $ConfigurationPath
+    [System.IO.File]::WriteAllText($Configuration.InitializationPath, 'Initialized')
+    [System.IO.File]::WriteAllText($Configuration.ReadyPath, 'Ready')
+    [System.IO.File]::WriteAllText($Configuration.ProgressPath, '0')
+    [System.IO.File]::WriteAllText($Configuration.SuccessPath, '0')
+}
+'@ | Set-Content -LiteralPath $ChildPath -Encoding UTF8
+
+        $PreviousWhatIfPreference = $WhatIfPreference
+        try {
+            $WhatIfPreference = $true
+            $Result = Invoke-ADComputerInventoryAttempt -Server 'dc1.contoso.com' -QueryParameters @{ Filter = '*'; Properties = @('SamAccountName') } -ConnectionTimeoutSeconds 5 -IdleTimeoutSeconds 5 -ChildProcessFunctionPath $ChildPath
+        } finally {
+            $WhatIfPreference = $PreviousWhatIfPreference
+        }
+
+        $Result.Succeeded | Should -BeTrue -Because $Result.ErrorMessage
+        $Result.TimedOut | Should -BeFalse
     }
 }

@@ -23,7 +23,7 @@ function Invoke-ADComputerInventoryAttempt {
         [ValidateRange(1, 3600)]
         [int] $IdleTimeoutSeconds = 120,
         [DateTime] $Today = (Get-Date),
-        [string] $ChildProcessFunctionPath = (Join-Path $PSScriptRoot 'Invoke-ADComputerInventoryChildProcess.ps1')
+        [string] $ChildProcessFunctionPath
     )
 
     $Started = Get-Date
@@ -58,18 +58,31 @@ function Invoke-ADComputerInventoryAttempt {
             ErrorPath    = $ErrorPath
             DataPath     = $DataPath
         }
-        $Configuration | Export-Clixml -LiteralPath $ConfigurationPath -Depth 4
+        $PreviousWhatIfPreference = $WhatIfPreference
+        try {
+            # Inventory setup is non-destructive infrastructure required even
+            # when the caller previews later cleanup actions with -WhatIf.
+            $WhatIfPreference = $false
+            $Configuration | Export-Clixml -LiteralPath $ConfigurationPath -Depth 4
 
-        $EscapedFunctionPath = $ChildProcessFunctionPath.Replace("'", "''")
-        $EscapedConfigurationPath = $ConfigurationPath.Replace("'", "''")
-        $Command = "& { . '$EscapedFunctionPath'; Invoke-ADComputerInventoryChildProcess -ConfigurationPath '$EscapedConfigurationPath'; exit 0 }"
-        $EncodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Command))
-        $Process = Start-Process -FilePath $PowerShellPath `
-            -ArgumentList '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', $EncodedCommand `
-            -WindowStyle Hidden `
-            -RedirectStandardOutput $StandardOutputPath `
-            -RedirectStandardError $StandardErrorPath `
-            -PassThru
+            $EscapedConfigurationPath = $ConfigurationPath.Replace("'", "''")
+            if ($ChildProcessFunctionPath) {
+                $EscapedFunctionPath = $ChildProcessFunctionPath.Replace("'", "''")
+                $Command = "& { . '$EscapedFunctionPath'; Invoke-ADComputerInventoryChildProcess -ConfigurationPath '$EscapedConfigurationPath'; exit 0 }"
+            } else {
+                $ChildProcessFunction = Get-Command -Name Invoke-ADComputerInventoryChildProcess -CommandType Function -ErrorAction Stop
+                $Command = "& { function Invoke-ADComputerInventoryChildProcess {`n$($ChildProcessFunction.Definition)`n}; Invoke-ADComputerInventoryChildProcess -ConfigurationPath '$EscapedConfigurationPath'; exit 0 }"
+            }
+            $EncodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Command))
+            $Process = Start-Process -FilePath $PowerShellPath `
+                -ArgumentList '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', $EncodedCommand `
+                -WindowStyle Hidden `
+                -RedirectStandardOutput $StandardOutputPath `
+                -RedirectStandardError $StandardErrorPath `
+                -PassThru
+        } finally {
+            $WhatIfPreference = $PreviousWhatIfPreference
+        }
 
         $InitializationObserved = $false
         $ReadyObserved = $false
