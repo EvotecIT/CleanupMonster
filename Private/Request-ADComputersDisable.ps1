@@ -58,29 +58,25 @@
                     $Success = Disable-WinADComputer -Success $Success -WhatIfDisable:$WhatIfDisable -DontWriteToEventLog:$DontWriteToEventLog -Computer $Computer -Server $Server
                 }
                 if ($Success) {
-                    $ComputerIdentity = if (-not [string]::IsNullOrWhiteSpace($Computer.DistinguishedNameAfterMove)) {
-                        $Computer.DistinguishedNameAfterMove
-                    } else {
-                        $Computer.DistinguishedName
-                    }
+                    $CurrentDistinguishedName = Get-ADComputerCurrentDistinguishedName -Computer $Computer
                     if ($DisableModifyDescription -eq $true) {
                         $DisableModifyDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
                         try {
-                            Set-ADComputer -Identity $ComputerIdentity -Description $DisableModifyDescriptionText -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
-                            Write-Color -Text "[+] ", "Setting description on disabled computer ", $ComputerIdentity, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
+                            Set-ADComputer -Identity $CurrentDistinguishedName -Description $DisableModifyDescriptionText -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
+                            Write-Color -Text "[+] ", "Setting description on disabled computer ", $CurrentDistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
                         } catch {
                             $Computer.ActionComment = $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
-                            Write-Color -Text "[-] ", "Setting description on disabled computer ", $ComputerIdentity, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
+                            Write-Color -Text "[-] ", "Setting description on disabled computer ", $CurrentDistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         }
                     }
                     if ($DisableModifyAdminDescription) {
                         $DisableModifyAdminDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
                         try {
-                            Set-ADObject -Identity $ComputerIdentity -Replace @{ AdminDescription = $DisableModifyAdminDescriptionText } -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
-                            Write-Color -Text "[+] ", "Setting admin description on disabled computer ", $ComputerIdentity, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyAdminDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
+                            Set-ADObject -Identity $CurrentDistinguishedName -Replace @{ AdminDescription = $DisableModifyAdminDescriptionText } -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
+                            Write-Color -Text "[+] ", "Setting admin description on disabled computer ", $CurrentDistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyAdminDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
                         } catch {
-                            $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
-                            Write-Color -Text "[-] ", "Setting admin description on disabled computer ", $ComputerIdentity, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
+                            $Computer.ActionComment = $Computer.ActionComment + [System.Environment]::NewLine + $_.Exception.Message
+                            Write-Color -Text "[-] ", "Setting admin description on disabled computer ", $CurrentDistinguishedName, " (WhatIf: $WhatIfDisable) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         }
                     }
                 }
