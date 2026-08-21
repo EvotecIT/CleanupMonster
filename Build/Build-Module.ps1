@@ -18,7 +18,8 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     }
     New-ConfigurationManifest @Manifest
 
-    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSWriteColor', 'PSEventViewer', 'ADEssentials' -Guid Auto -Version Latest
+    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSEventViewer', 'ADEssentials' -Guid Auto -Version Latest
+    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -Version '1.0.3'
     New-ConfigurationModule -Type ExternalModule -Name @(
         'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
         'Microsoft.WSMan.Management', 'NetTCPIP', 'CimCmdlets'
