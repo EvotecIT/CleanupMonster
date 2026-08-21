@@ -30,7 +30,7 @@
         }, @{
             Guid          = '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f'
             ModuleName    = 'PSWriteColor'
-            ModuleVersion = '1.0.4'
+            ModuleVersion = '1.0.3'
         }, @{
             Guid          = '5df72a79-cdf6-4add-b38d-bcacf26fb7bc'
             ModuleName    = 'PSEventViewer'
