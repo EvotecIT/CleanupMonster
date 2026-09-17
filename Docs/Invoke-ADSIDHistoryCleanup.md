@@ -33,7 +33,7 @@ Generates a report of external SID history entries in the contoso.com forest wit
 PS > Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimitSID 2 -WhatIf
 ```
 
-Removes up to 2 internal SID history entries from objects in domain1.local.
+Previews removal of up to 2 internal SID history entries from objects in domain1.local without changing Active Directory.
 
 ### EXAMPLE 3
 ```powershell

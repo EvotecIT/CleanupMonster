@@ -97,7 +97,7 @@
     .EXAMPLE
     Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimitSID 2 -WhatIf
 
-    Removes up to 2 internal SID history entries from objects in domain1.local.
+    Previews removal of up to 2 internal SID history entries from objects in domain1.local without changing Active Directory.
 
     .EXAMPLE
     Invoke-ADSIDHistoryCleanup -ExcludeSIDHistoryDomain "S-1-5-21-1234567890-1234567890-1234567890" -WhatIf -RemoveLimitObject 2
