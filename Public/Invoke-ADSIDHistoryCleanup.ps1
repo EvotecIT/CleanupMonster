@@ -97,7 +97,7 @@
     .EXAMPLE
     Invoke-ADSIDHistoryCleanup -IncludeDomains "domain1.local" -IncludeType "Internal" -RemoveLimitSID 2 -WhatIf
 
-    Removes up to 2 internal SID history entries from objects in domain1.local.
+    Previews removal of up to 2 internal SID history entries from objects in domain1.local without changing Active Directory.
 
     .EXAMPLE
     Invoke-ADSIDHistoryCleanup -ExcludeSIDHistoryDomain "S-1-5-21-1234567890-1234567890-1234567890" -WhatIf -RemoveLimitObject 2
@@ -116,7 +116,6 @@
         IncludeType             = 'External'
         RemoveLimitSID          = 1
         RemoveLimitObject       = 2
-
         SafetyADLimit           = 1
         ShowHTML                = $true
         Online                  = $true
@@ -126,14 +125,11 @@
         ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"
         DataStorePath           = "$PSScriptRoot\ProcessedSIDHistory.xml"
     }
-
     # Run the script
     $Output = Invoke-ADSIDHistoryCleanup @invokeADSIDHistoryCleanupSplat
     $Output | Format-Table -AutoSize
-
     # Lets send an email
     $EmailBody = $Output.EmailBody
-
     Connect-MgGraph -Scopes 'Mail.Send' -NoWelcome
     Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated SID Cleanup Report" -Body $EmailBody -Priority Low -Verbose
     #>

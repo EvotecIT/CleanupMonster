@@ -1,15 +1,27 @@
-﻿Clear-Host
+﻿param(
+    [Alias('ConfigurationGateMode')]
+    [ValidateSet('Manifest', 'Build', 'Publish')]
+    [string] $RunMode = 'Build',
 
-Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
+    [bool] $SignModule = $false,
+
+    [string] $PowerShellGalleryApiKeyPath = 'C:\Support\Important\PowerShellGalleryAPI.txt',
+
+    [string] $GitHubApiKeyPath = 'C:\Support\Important\GitHubAPI.txt'
+)
+
+Import-Module PSPublishModule -Force -ErrorAction Stop
+
+Build-Module -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '3.1.X'
+        ModuleVersion        = '3.1.13'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
         CompanyName          = 'Evotec'
         Copyright            = "(c) 2011 - $((Get-Date).Year) Przemyslaw Klys @ Evotec. All rights reserved."
-        Description          = "This module provides an easy way to cleanup Active Directory from dead/old objects based on various criteria. It can also disable, move or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them."
+        Description          = 'This module provides an easy way to cleanup Active Directory and cloud devices from dead/old objects based on various criteria. It can also disable, move, retire or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them.'
         PowerShellVersion    = '5.1'
         Tags                 = 'windows', 'activedirectory'
         IconUri              = 'https://evotec.xyz/wp-content/uploads/2023/04/CleanupMonster.png'
@@ -18,15 +30,18 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     }
     New-ConfigurationManifest @Manifest
 
-    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML', 'PSEventViewer', 'ADEssentials' -Guid Auto -Version Latest
-    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -Version '1.0.3'
+    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML' -Guid Auto -Version Latest -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'PSEventViewer' -Guid Auto -Version '4.0.0' -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'ADEssentials' -Guid Auto -Version '1.0.5' -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -Version '1.0.3' -VersionSource PSGallery
     New-ConfigurationModule -Type ExternalModule -Name @(
         'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
         'Microsoft.WSMan.Management', 'NetTCPIP', 'CimCmdlets'
     )
     New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'ADEssentials'
     New-ConfigurationModuleSkip -IgnoreModuleName 'PowerJamf', 'GraphEssentials' -IgnoreFunctionName @(
-        'Get-JamfDevice', 'Get-MyDevice', 'Get-MyDeviceIntune'
+        'Disable-MyDevice', 'Get-JamfDevice', 'Get-MyDevice', 'Get-MyDeviceIntune',
+        'Invoke-MyDeviceRetire', 'Remove-MyAutopilotDevice', 'Remove-MyDevice', 'Remove-MyDeviceIntuneRecord'
     )
 
     $ConfigurationFormat = [ordered] @{
@@ -69,16 +84,18 @@ Invoke-ModuleBuild -ModuleName 'CleanupMonster' {
     # when creating PSD1 use special style without comments and with only required parameters
     New-ConfigurationFormat -ApplyTo 'DefaultPSD1', 'OnMergePSD1' -PSD1Style 'Minimal'
     # configuration for documentation, at the same time it enables documentation processing
-    New-ConfigurationDocumentation -Enable:$false -PathReadme 'Docs\Readme.md' -Path 'Docs'
+    New-ConfigurationDocumentation -Enable -PathReadme 'Docs\Readme.md' -Path 'Docs'
 
     #New-ConfigurationImportModule -ImportSelf
 
-    New-ConfigurationBuild -Enable:$true -SignModule -MergeModuleOnBuild -MergeFunctionsFromApprovedModules -CertificateThumbprint '483292C9E317AA13B07BB7A96AE9D1A5ED9E7703'
+    New-ConfigurationBuild -Enable:$true -SignModule:$SignModule -MergeModuleOnBuild -MergeFunctionsFromApprovedModules -CertificateThumbprint '92E95FB58EFFA6A4A75E77A33CDD6BFE6DD30F1A'
 
     New-ConfigurationArtefact -Type Unpacked -Enable -Path "$PSScriptRoot\..\Artefacts\Unpacked" -ModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules" -RequiredModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules" -AddRequiredModules
     New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.v<ModuleVersion>.zip'
 
     # options for publishing to github/psgallery
-    #New-ConfigurationPublish -Type PowerShellGallery -FilePath 'C:\Support\Important\PowerShellGalleryAPI.txt' -Enabled
-    #New-ConfigurationPublish -Type GitHub -FilePath 'C:\Support\Important\GitHubAPI.txt' -UserName 'EvotecIT' -Enabled
-}
+    New-ConfigurationPublish -Type PowerShellGallery -FilePath $PowerShellGalleryApiKeyPath -Enabled:$true -UseAsDependencyVersionSource
+    New-ConfigurationPublish -Type GitHub -FilePath $GitHubApiKeyPath -UserName 'EvotecIT' -Enabled:$true -GenerateReleaseNotes
+
+    New-ConfigurationGate -Mode $RunMode
+} -ExitCode

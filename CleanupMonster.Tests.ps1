@@ -4,12 +4,13 @@ if ($ModuleManifest.Count -ne 1) {
 }
 
 $ModuleInfo = Import-PowerShellDataFile -Path $ModuleManifest.FullName
+$PesterVersion = '5.7.1'
 
-if (-not (Get-Module -ListAvailable -Name Pester)) {
-    Install-Module -Name Pester -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber -Scope CurrentUser
+if (-not (Get-Module -ListAvailable -Name Pester | Where-Object Version -EQ $PesterVersion)) {
+    Install-Module -Name Pester -RequiredVersion $PesterVersion -Repository PSGallery -Force -SkipPublisherCheck -AllowClobber -Scope CurrentUser
 }
 
-Import-Module Pester -Force -ErrorAction Stop
+Import-Module Pester -RequiredVersion $PesterVersion -Force -ErrorAction Stop
 
 Write-Host "ModuleName: $($ModuleManifest.BaseName) Version: $($ModuleInfo.ModuleVersion)"
 Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
@@ -17,7 +18,8 @@ Write-Host "PowerShell Edition: $($PSVersionTable.PSEdition)"
 
 $Configuration = [PesterConfiguration]::Default
 $Configuration.Run.Path = "$PSScriptRoot\Tests"
-$Configuration.Run.Exit = $true
+$Configuration.Run.Exit = $false
+$Configuration.Run.PassThru = $true
 $Configuration.Should.ErrorAction = 'Continue'
 $Configuration.CodeCoverage.Enabled = $false
 $Configuration.Output.Verbosity = 'Detailed'

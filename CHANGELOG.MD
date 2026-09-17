@@ -1,4 +1,12 @@
-﻿### 3.1.12 - 2026.05.22
+﻿### 3.1.13 - 2026.09.17
+
+- Added guarded MSA and gMSA cleanup with reporting, action limits, selection criteria, and `WhatIf` support.
+- Added staged cloud-device cleanup for Entra ID, Intune, and Autopilot records, including pending-state tracking, orphan and broken-link handling, and duplicate-device protection.
+- Made multi-domain Active Directory inventory fail closed, bounded stalled domain-controller queries, and reduced memory use for large inventories and reports.
+- Hardened disable-and-move processing so follow-up updates use the computer's current distinguished name and failed updates remain visible in action results.
+- Updated the release path for PSEventViewer 4.0.0 and ADEssentials 1.0.5, the current signing certificate, deterministic PowerShell 5.1/7 tests, and gated PSGallery/GitHub publishing.
+
+### 3.1.12 - 2026.05.22
 
 - Added opt-in Autopilot identity removal during cloud-device delete cleanup through `-DeleteAutopilotIdentity`.
 - Added `-StageDisabledForDelete` so already-disabled stale devices can enter the pending-action queue before deletion.
