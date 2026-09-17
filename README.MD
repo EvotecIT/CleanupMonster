@@ -605,7 +605,7 @@ $Configuration = @{
     ShowHTML                       = $true
 }
 
-# Run one time as admin: Write-Event -ID 10 -LogName 'Application' -EntryType Information -Category 0 -Message 'Initialize' -Source 'CleanupComputers'
+# Run one time as admin: Write-EVXEvent -ID 10 -LogName 'Application' -EntryType Information -Category 0 -Message 'Initialize' -Source 'CleanupComputers' -CreateSource
 $Output = Invoke-ADComputersCleanup @Configuration
 $Output
 ```

@@ -28,14 +28,14 @@
                             Write-Color -Text "[i] Removing protected from accidental deletion flag for computer ", $Computer.DistinguishedName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
                             Set-ADObject -ProtectedFromAccidentalDeletion $false -Identity $Computer.DistinguishedName -Server $Server -ErrorAction Stop -Confirm:$false -WhatIf:$WhatIfDelete
                             if (-not $DontWriteToEventLog) {
-                                Write-Event -ID 15 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Removing protected from accidental deletion flag for computer $($Computer.SamAccountName) successful." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
+                                Write-EVXEvent -ID 15 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Removing protected from accidental deletion flag for computer $($Computer.SamAccountName) successful." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
                             }
                             $Success = $true
                         } catch {
                             $Success = $false
                             Write-Color -Text "[-] Removing protected from accidental deletion flag for computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                             if (-not $DontWriteToEventLog) {
-                                Write-Event -ID 15 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Removing protected from accidental deletion flag for computer $($Computer.SamAccountName) failed." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
+                                Write-EVXEvent -ID 15 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Removing protected from accidental deletion flag for computer $($Computer.SamAccountName) failed." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
                             }
                             foreach ($W in $Warnings) {
                                 Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
@@ -44,7 +44,7 @@
                     } else {
                         Write-Color -Text "[i] Computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' is protected from accidental deletion. Deletion skipped.' -Color Yellow, Green, Yellow
                         if (-not $DontWriteToEventLog) {
-                            Write-Event -ID 15 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Computer $($Computer.SamAccountName) is protected from accidental deletion. Deletion skipped." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
+                            Write-EVXEvent -ID 15 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Computer $($Computer.SamAccountName) is protected from accidental deletion. Deletion skipped." -AdditionalFields @('RemoveProtection', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
                         }
                         $Success = $false
                     }
@@ -59,7 +59,7 @@
                         Remove-ADObject -Identity $Computer.DistinguishedName -Recursive -WhatIf:$WhatIfDelete -Server $Server -ErrorAction Stop -Confirm:$false
                         Write-Color -Text "[+] Deleting computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) successful." -Color Yellow, Green, Yellow
                         if (-not $DontWriteToEventLog) {
-                            Write-Event -ID 12 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) successful." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
+                            Write-EVXEvent -ID 12 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) successful." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete) -WarningAction SilentlyContinue -WarningVariable warnings
                         }
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red
@@ -68,7 +68,7 @@
                         $Success = $false
                         Write-Color -Text "[-] Deleting computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDelete.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         if (-not $DontWriteToEventLog) {
-                            Write-Event -ID 12 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) failed." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
+                            Write-EVXEvent -ID 12 -LogName 'Application' -EntryType Error -Category 1000 -Source 'CleanupComputers' -Message "Deleting computer $($Computer.SamAccountName) failed." -AdditionalFields @('Delete', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDelete, $($_.Exception.Message)) -WarningAction SilentlyContinue -WarningVariable warnings
                         }
                         foreach ($W in $Warnings) {
                             Write-Color -Text "[-] ", "Warning: ", $W -Color Yellow, Cyan, Red

@@ -20,7 +20,7 @@ Describe 'Disable-WinADComputer' {
         $global:FlagRemoved = $false
         $global:DisableCalled = $false
         function Write-Color { param([Parameter(ValueFromRemainingArguments)][object[]]$Args) }
-        function Write-Event { param([Parameter(ValueFromRemainingArguments)][object[]]$Args) }
+        function Write-EVXEvent { param([Parameter(ValueFromRemainingArguments)][object[]]$Args) }
 
         function Disable-ADAccount {
             [CmdletBinding(SupportsShouldProcess)]
@@ -59,7 +59,7 @@ Describe 'Disable-WinADComputer' {
 
             $script:DisabledIdentity = $Identity
         }
-        function Write-Event {
+        function Write-EVXEvent {
             [CmdletBinding()]
             param(
                 $ID,

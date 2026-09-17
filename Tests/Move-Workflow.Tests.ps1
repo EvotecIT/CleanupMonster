@@ -5,7 +5,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersMove.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
-    function Write-Event { param([Parameter(ValueFromRemainingArguments = $true)] $Args) }
+    function Write-EVXEvent { param([Parameter(ValueFromRemainingArguments = $true)] $Args) }
     function ConvertFrom-DistinguishedName {
         param(
             [string] $DistinguishedName,

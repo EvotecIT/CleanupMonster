@@ -1,148 +1,1295 @@
 ---
 external help file: CleanupMonster-help.xml
 Module Name: CleanupMonster
-online version:
+online version: https://github.com/EvotecIT/CleanupMonster
 schema: 2.0.0
 ---
-
 # Invoke-CloudDevicesCleanup
-
 ## SYNOPSIS
-Stages cleanup for stale Microsoft Entra and Intune cloud devices from Microsoft Entra ID and Intune.
+Cleans up stale Microsoft Entra registered cloud devices.
+
+## SYNTAX
+### __AllParameterSets
+```powershell
+Invoke-CloudDevicesCleanup [[-RetireLastSeenIntuneMoreThan] <Int32>] [[-RetireLastSeenEntraMoreThan] <Int32>] [[-RetireRegisteredMoreThan] <Int32>] [[-RetireLimit] <int>] [[-DisableLastSeenEntraMoreThan] <Int32>] [[-DisableLastSeenIntuneMoreThan] <Int32>] [[-DisableRegisteredMoreThan] <Int32>] [[-DisableListProcessedMoreThan] <Int32>] [[-DisableLimit] <int>] [[-StageDisabledForDeleteLimit] <int>] [[-DeleteLastSeenEntraMoreThan] <Int32>] [[-DeleteLastSeenIntuneMoreThan] <Int32>] [[-DeleteRegisteredMoreThan] <Int32>] [[-DeleteListProcessedMoreThan] <Int32>] [[-DeleteLimit] <int>] [[-DeleteRemoveIntuneRecord] <bool>] [[-RemoveAutopilotIdentityLastContactMoreThan] <Int32>] [[-RemoveAutopilotIdentityIntuneAssociationState] <string>] [[-RemoveAutopilotIdentityEntraAssociationState] <string>] [[-RemoveAutopilotIdentityLimit] <int>] [[-IncludeJoinType] <string[]>] [[-IncludeOperatingSystem] <array>] [[-ExcludeOperatingSystem] <array>] [[-IncludeOperatingSystemVersion] <array>] [[-ExcludeOperatingSystemVersion] <array>] [[-IntuneLinkState] <string>] [[-AutopilotState] <string>] [[-OwnerState] <string>] [[-ManagementState] <string>] [[-ComplianceState] <string>] [[-EnabledState] <string>] [[-IncludeManagementAgent] <array>] [[-ExcludeManagementAgent] <array>] [[-IncludeEnrollmentType] <array>] [[-ExcludeEnrollmentType] <array>] [[-IncludeDeviceRegistrationState] <array>] [[-ExcludeDeviceRegistrationState] <array>] [[-IncludeAutopilotGroupTag] <array>] [[-ExcludeAutopilotGroupTag] <array>] [[-Exclusions] <array>] [[-PreserveDuplicateDeviceNames] <bool>] [[-DataStorePath] <string>] [[-LogPath] <string>] [[-LogMaximum] <int>] [[-LogTimeFormat] <string>] [[-ReportPath] <string>] [[-SafetyEntraLimit] <Int32>] [[-SafetyIntuneLimit] <Int32>] [-Retire] [-RetireIncludeIntuneOnly] [-Disable] [-DisableIncludeEntraOnly] [-StageDisabledForDelete] [-Delete] [-DeleteIncludeEntraOnly] [-DeleteIncludeIntuneOnly] [-DeleteAutopilotIdentity] [-RemoveAutopilotIdentity] [-IncludeUnknownOperatingSystem] [-IncludeUnknownOperatingSystemVersion] [-IncludeUnknownActivity] [-IncludeCompanyOwned] [-ReportOnly] [-WhatIfRetire] [-WhatIfDisable] [-WhatIfStageDelete] [-WhatIfDelete] [-WhatIfRemoveAutopilotIdentity] [-LogShowTime] [-Suppress] [-ShowHTML] [-Online] [-WhatIf] [-Confirm] [<CommonParameters>]
+```
 
 ## DESCRIPTION
-`Invoke-CloudDevicesCleanup` is the cloud-side companion to AD computer cleanup.
-It targets Microsoft Entra registered mobile devices by default, builds a combined Entra and Intune inventory,
-classifies records as matched or orphaned, and supports staged actions:
+Handles staged cleanup for Microsoft Entra and Intune cloud device records.
+The default operating-system scope is iOS and Android because these are the
+intended mobile-device cleanup targets, but the scope can be changed with
+IncludeOperatingSystem and ExcludeOperatingSystem.
 
-- `Retire` for Intune-managed devices
-- `Disable` for Microsoft Entra device objects
-- `Delete` for final record cleanup
+The workflow supports three explicit stages:
+- Retire: retires stale Intune managed devices.
+- Disable: disables stale Microsoft Entra devices after matching criteria or pending-list age.
+- Delete: removes stale Microsoft Entra devices and, by default, eligible Intune records.
+- RemoveAutopilotIdentity: removes stale Windows Autopilot identities without deleting Entra or Intune records.
 
-The workflow keeps its own pending datastore so actions can be separated across multiple runs.
-Real successful retire and disable actions are stored in `PendingActions`; `-ReportOnly`,
-top-level `-WhatIf`, and action-specific preview switches do not mutate pending cleanup state.
-Use `-StageDisabledForDelete` to add already-disabled stale devices to the same pending queue
-without deleting them immediately.
+The cmdlet keeps a datastore with PendingActions and History so staged actions
+can be reviewed over multiple runs. ReportOnly and WhatIf/action-specific
+WhatIf modes show candidates without mutating pending cleanup state.
 
-Orphan records are still discovered by default, but actioning them is intentionally explicit:
+Same-name Windows Autopilot and hybrid/cloud-join duplicate groups are preserved
+from destructive cloud actions by default. This protects the by-design duplicate
+Entra objects created during Windows Autopilot Microsoft Entra hybrid deployments.
+Use PreserveDuplicateDeviceNames:$false only after reviewing the duplicate group.
 
-- `-RetireIncludeIntuneOnly`
-- `-DisableIncludeEntraOnly`
-- `-DeleteIncludeEntraOnly`
-- `-DeleteIncludeIntuneOnly`
-
-Destructive cloud cleanup treats missing Graph data as unsafe:
-
-- blank activity timestamps are excluded from destructive action selection
-- add `-IncludeUnknownActivity` only when blank activity should be treated like "never synced/seen"
-- only `AzureAD registered` records are included by default; add `-IncludeJoinType 'AzureAD joined'` explicitly for Windows cloud-joined cleanup
-- pending devices are not promoted if current inventory loses activity that existed when staged
-- Entra-backed disable requires `Enabled -eq $true`
-- Entra-backed delete requires `Enabled -eq $false`
-- unknown Entra enabled state is excluded from disable/delete
-- `-AutopilotState NotOnboarded` only matches when Autopilot inventory was loaded successfully
-- `-DeleteAutopilotIdentity` requires Autopilot inventory and removes the Autopilot identity before Intune/Entra records
-- `-StageDisabledForDelete` lets already-disabled devices wait the normal delete grace period instead of bypassing pending state
+Blank activity timestamps are intentionally excluded from destructive actions by default.
+This follows Microsoft guidance for stale-device cleanup where activity timestamps can be empty
+even for active devices.
+Hybrid Azure AD joined, Azure AD joined, synchronized, non-registered, and unknown registration
+records are excluded from this cloud-device workflow; use Invoke-ADComputersCleanup for hybrid device lifecycle cleanup.
 
 ## EXAMPLES
 
-### Example 1
+### EXAMPLE 1
 ```powershell
-Invoke-CloudDevicesCleanup -Retire -ReportOnly -WhatIf -ShowHTML
+PS > Invoke-CloudDevicesCleanup -Retire -ReportOnly -ShowHTML
 ```
 
-Preview stale cloud-device candidates without making changes.
+Builds a report of Intune retire candidates using the default stale threshold without changing devices or cleanup state.
 
-### Example 2
+### EXAMPLE 2
 ```powershell
-Invoke-CloudDevicesCleanup `
-    -Retire `
-    -Disable `
-    -Delete `
-    -RetireLastSeenIntuneMoreThan 120 `
-    -DisableListProcessedMoreThan 30 `
-    -DeleteListProcessedMoreThan 30
+PS > Invoke-CloudDevicesCleanup -Retire -Disable -Delete -RetireLastSeenIntuneMoreThan 120 -DisableListProcessedMoreThan 30 -DeleteListProcessedMoreThan 30
 ```
 
-Run the staged lifecycle for stale mobile devices with explicit grace periods.
+Runs the full staged workflow: retire stale Intune devices, disable pending devices after 30 days, and delete pending devices after 30 days.
 
-### Example 3
+### EXAMPLE 3
 ```powershell
-Invoke-CloudDevicesCleanup `
-    -Retire `
-    -Disable `
-    -Delete `
-    -WhatIf `
-    -SafetyEntraLimit 1000 `
-    -SafetyIntuneLimit 1000 `
-    -ReportPath C:\Reports\CloudDevices.html `
-    -ShowHTML
+PS > Invoke-CloudDevicesCleanup -Retire -Disable -Delete -WhatIf -SafetyEntraLimit 1000 -SafetyIntuneLimit 1000 -ReportPath C:\Reports\CloudDevices.html -ShowHTML
 ```
 
-Preview all stages, stop on suspiciously low Graph inventory, and generate an HTML report.
+Previews all enabled stages, requires minimum inventory counts, writes an HTML report, and opens it for review.
 
-### Example 4
+### EXAMPLE 4
 ```powershell
-Invoke-CloudDevicesCleanup `
-    -StageDisabledForDelete `
-    -StageDisabledForDeleteLimit 25 `
-    -IncludeJoinType 'AzureAD joined','AzureAD registered' `
-    -IncludeOperatingSystem '*' `
-    -IncludeUnknownOperatingSystem `
-    -IncludeUnknownActivity `
-    -DeleteLastSeenEntraMoreThan 90 `
-    -DeleteAutopilotIdentity `
-    -WhatIfStageDelete `
-    -ShowHTML
+PS > Invoke-CloudDevicesCleanup -Delete -DeleteIncludeIntuneOnly -DeleteRemoveIntuneRecord $true -DeleteLastSeenIntuneMoreThan 180 -WhatIfDelete
 ```
 
-Preview staging already-disabled stale devices into `PendingActions` so daily automation can delete them after the configured grace period.
+Previews cleanup of stale Intune-only orphan records without deleting anything or updating the pending-action datastore.
 
-### Example 5
+### EXAMPLE 5
 ```powershell
-Invoke-CloudDevicesCleanup `
-    -Delete `
-    -WhatIfDelete `
-    -IncludeJoinType 'AzureAD joined' `
-    -IncludeOperatingSystem 'Windows*' `
-    -DeleteLastSeenEntraMoreThan 180 `
-    -DeleteRegisteredMoreThan 365 `
-    -DeleteAutopilotIdentity `
-    -AutopilotState Onboarded `
-    -OwnerState WithoutOwner `
-    -ManagementState Mdm `
-    -ComplianceState NonCompliant `
-    -EnabledState Disabled `
-    -SafetyEntraLimit 1000 `
-    -SafetyIntuneLimit 1000 `
-    -ShowHTML
+PS > Invoke-CloudDevicesCleanup -RemoveAutopilotIdentity -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem '*' -IncludeUnknownOperatingSystem -RemoveAutopilotIdentityIntuneAssociationState Missing -RemoveAutopilotIdentityLastContactMoreThan 90 -WhatIfRemoveAutopilotIdentity -ShowHTML
 ```
 
-Preview deletion of disabled, old, inactive Windows cloud-joined devices that are Autopilot onboarded, MDM-managed, noncompliant, and have no owner, including the Autopilot identity delete sub-action.
+Previews removing stale Windows Autopilot identities whose associated Intune managed-device id is missing.
 
-### Example 6
+### EXAMPLE 6
 ```powershell
-Invoke-CloudDevicesCleanup `
-    -Disable `
-    -WhatIfDisable `
-    -IncludeJoinType 'AzureAD joined' `
-    -IncludeOperatingSystem 'Windows*' `
-    -IncludeOperatingSystemVersion '10.0.19045*' `
-    -AutopilotState NotOnboarded `
-    -OwnerState WithoutOwner `
-    -DisableLastSeenEntraMoreThan 180 `
-    -ShowHTML
+PS > Invoke-CloudDevicesCleanup -Disable -DisableIncludeEntraOnly -DisableListProcessedMoreThan $null -IntuneLinkState Broken -DisableLastSeenEntraMoreThan 90 -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem '*' -IncludeUnknownOperatingSystem -WhatIfDisable -ShowHTML
 ```
 
-Preview disabling Windows 10 22H2 cloud-joined devices that are inactive, ownerless, and confirmed not present in Autopilot inventory.
+Previews disabling Entra devices older than 90 days that claim Intune/MDM management but have no matching Intune managed-device record.
 
-## NOTES
+### EXAMPLE 7
+```powershell
+PS > $cloudCleanup = Invoke-CloudDevicesCleanup -Disable -DisableLastSeenEntraMoreThan 180 -IncludeOperatingSystem 'Android*' -ExcludeOperatingSystem '*Dedicated*' -Confirm
+$cloudCleanup.CurrentRun | Format-Table Name, Action, ActionStatus, ActionDate
+```
 
-- Designed primarily for `iOS` and `Android` Microsoft Entra registered devices, with explicit opt-in filters for Windows and AzureAD joined devices.
-- Inventory includes `Matched`, `EntraOnly`, and `IntuneOnly` record states.
-- Default behavior excludes company-owned devices unless explicitly included.
-- Stage already-disabled devices with `-StageDisabledForDelete` when they were disabled outside CleanupMonster but should still wait before deletion.
-- Use `-IncludeUnknownActivity` to intentionally treat blank Entra/Intune activity as stale, matching "never synced/seen" hybrid cleanup semantics.
-- Autopilot identity removal is opt-in via `-DeleteAutopilotIdentity`; use `-WhatIfDelete` to preview the full delete stage.
-- Use `-Confirm` when running interactively and keep `RetireLimit`, `DisableLimit`, and `DeleteLimit` low during rollout.
+Disables matching Android Entra-backed devices after confirmation and reviews the current run.
+
+## PARAMETERS
+
+### -AutopilotState
+Filters action candidates by Windows Autopilot inventory state: Any, Onboarded, or NotOnboarded.
+NotOnboarded only matches when Autopilot inventory was loaded successfully.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Onboarded, NotOnboarded
+
+Required: False
+Position: 26
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ComplianceState
+Filters action candidates by compliance state: Any, Compliant, NonCompliant, or Unknown.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Compliant, NonCompliant, Unknown
+
+Required: False
+Position: 29
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DataStorePath
+Path to the XML datastore that tracks PendingActions and History.
+Defaults to ProcessedCloudDevices.xml next to this function.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 41
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Delete
+Enables the final delete stage.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteAutopilotIdentity
+Removes Windows Autopilot device identities before deleting Intune or Entra records.
+When enabled, Autopilot inventory must load successfully. If an onboarded device cannot
+have its Autopilot identity removed, the Intune and Entra record delete sub-actions are skipped.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteIncludeEntraOnly
+Allows delete-stage processing of Entra-only orphan records.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteIncludeIntuneOnly
+Allows delete-stage processing of Intune-only orphan records.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteLastSeenEntraMoreThan
+Delete devices only when the Entra LastSeenDays value is greater than this number.
+Entra-backed devices must have Enabled equal to $false; unknown enabled state is treated as unsafe.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 10
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteLastSeenIntuneMoreThan
+Delete devices only when the Intune LastSeenDays value is greater than this number.
+Devices with blank Intune activity are not selected by this criterion.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 11
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteLimit
+Maximum number of devices to delete in one run. 0 means unlimited. Default is 10.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 14
+Default value: 10
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteListProcessedMoreThan
+Delete devices only after they were previously actioned and remained pending longer than this number of days.
+Defaults to 30 days.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 13
+Default value: 30
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteRegisteredMoreThan
+Delete devices only when the device registration/enrollment age is greater than this number of days.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 12
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DeleteRemoveIntuneRecord
+Controls whether delete-stage processing also removes eligible Intune managed-device records.
+Defaults to $true.
+
+```yaml
+Type: Boolean
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 15
+Default value: True
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Disable
+Enables the Microsoft Entra disable stage.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableIncludeEntraOnly
+Allows disable-stage processing of Entra-only records.
+By default, Entra-only records are discovered and reported but not actioned.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableLastSeenEntraMoreThan
+Disable devices only when the Entra LastSeenDays value is greater than this number.
+Entra-backed devices must have Enabled equal to $true; unknown enabled state is treated as unsafe.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 4
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableLastSeenIntuneMoreThan
+Disable devices only when the Intune LastSeenDays value is greater than this number.
+Devices with blank Intune activity are not selected by this criterion.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 5
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableLimit
+Maximum number of devices to disable in one run. 0 means unlimited. Default is 10.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 8
+Default value: 10
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableListProcessedMoreThan
+Disable devices only after they were previously actioned and remained pending longer than this number of days.
+Defaults to 30 days.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 7
+Default value: 30
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -DisableRegisteredMoreThan
+Disable devices only when the device registration/enrollment age is greater than this number of days.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 6
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -EnabledState
+Filters action candidates by Microsoft Entra enabled state: Any, Enabled, Disabled, or Unknown.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Enabled, Disabled, Unknown
+
+Required: False
+Position: 30
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeAutopilotGroupTag
+Autopilot group-tag patterns to exclude for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 38
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeDeviceRegistrationState
+Intune device-registration-state patterns to exclude for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 36
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeEnrollmentType
+Enrollment-type patterns to exclude for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 34
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeManagementAgent
+Management-agent patterns to exclude for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 32
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeOperatingSystem
+Operating-system patterns to exclude when building cloud-device inventory.
+Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 22
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ExcludeOperatingSystemVersion
+Operating-system version patterns to exclude when building cloud-device inventory.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 24
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Exclusions
+Device names, Entra object IDs, Intune managed-device IDs, or other supported identifiers to exclude from cleanup.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 39
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeAutopilotGroupTag
+Autopilot group-tag patterns to include for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 37
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeCompanyOwned
+Includes company-owned devices in candidate selection. By default company-owned devices are excluded from actions.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeDeviceRegistrationState
+Intune device-registration-state patterns to include for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 35
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeEnrollmentType
+Enrollment-type patterns to include for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 33
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeJoinType
+Microsoft Entra join-type values to include when building cloud-device inventory.
+Defaults to AzureAD registered. Add AzureAD joined explicitly for Windows cloud-joined cleanup.
+
+```yaml
+Type: String[]
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Hybrid AzureAD, AzureAD joined, AzureAD registered, Not available
+
+Required: False
+Position: 20
+Default value: @('AzureAD registered')
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeManagementAgent
+Management-agent patterns to include for action candidates. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 31
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeOperatingSystem
+Operating-system patterns to include when building cloud-device inventory.
+Defaults to iOS and Android patterns. Wildcards are supported.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 21
+Default value: @('iOS*', 'Android*')
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeOperatingSystemVersion
+Operating-system version patterns to include when building cloud-device inventory.
+
+```yaml
+Type: Array
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 23
+Default value: @()
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeUnknownActivity
+Allows blank Entra and Intune activity timestamps to satisfy configured LastSeen*MoreThan filters.
+By default, unknown activity is treated as unsafe and excluded from destructive action selection.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeUnknownOperatingSystem
+Allows records with blank operating-system values to remain in inventory.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IncludeUnknownOperatingSystemVersion
+Allows records with blank operating-system-version values when version filters are set.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -IntuneLinkState
+Filters action candidates by the relationship between Microsoft Entra MDM metadata and Intune managed-device inventory.
+Broken means the Entra device claims Intune/MDM management but no matching Intune managed-device record exists.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Healthy, Broken, NotClaimed, IntuneOnly
+
+Required: False
+Position: 25
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogMaximum
+Maximum number of rotated log files to keep. Default is 5.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 43
+Default value: 5
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogPath
+Path to a log file. When omitted, file logging is not enabled.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 42
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogShowTime
+Includes timestamps in log output.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -LogTimeFormat
+Date/time format used when LogShowTime is enabled.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 44
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ManagementState
+Filters action candidates by management state: Any, Managed, Unmanaged, Mdm, or NotMdm.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Managed, Unmanaged, Mdm, NotMdm
+
+Required: False
+Position: 28
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Online
+Uses CDN-hosted CSS and JavaScript assets for the HTML report, reducing report file size.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -OwnerState
+Filters action candidates by owner presence: Any, WithOwner, or WithoutOwner.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, WithOwner, WithoutOwner
+
+Required: False
+Position: 27
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -PreserveDuplicateDeviceNames
+Preserves same-name Windows Autopilot and hybrid/cloud-join duplicate groups from retire, disable, delete, and standalone Autopilot identity removal.
+Defaults to $true.
+
+```yaml
+Type: Boolean
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 40
+Default value: True
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoveAutopilotIdentity
+Removes selected Windows Autopilot device identities without deleting matching Intune or Entra records.
+Defaults to requiring a missing associated Intune managed-device id and a last-contact age greater than 90 days.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoveAutopilotIdentityEntraAssociationState
+Filters Autopilot identity removal by the Autopilot associated Microsoft Entra device value.
+EqualsSerialNumber and NotEqualsSerialNumber compare the Autopilot resource/display name with the Autopilot serial number.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Missing, Present, EqualsSerialNumber, NotEqualsSerialNumber
+
+Required: False
+Position: 18
+Default value: Any
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoveAutopilotIdentityIntuneAssociationState
+Filters Autopilot identity removal by the Autopilot associated Intune managed-device id.
+Defaults to Missing.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values: Any, Missing, Present
+
+Required: False
+Position: 17
+Default value: Missing
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoveAutopilotIdentityLastContactMoreThan
+Removes Autopilot identities only when the Autopilot LastContacted age is greater than this number of days.
+Defaults to 90 days. Blank Autopilot last-contact values are excluded unless IncludeUnknownActivity is set.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 16
+Default value: 90
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RemoveAutopilotIdentityLimit
+Maximum number of Autopilot identities to remove in one run. 0 means unlimited. Default is 10.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 19
+Default value: 10
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ReportOnly
+Generates inventory and reports without executing retire, disable, or delete actions and without writing updated cleanup state.
+Existing pending actions are still read so staged candidates can be reported accurately.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ReportPath
+Path where the HTML report is written.
+Defaults to ProcessedCloudDevices.html next to this function.
+
+```yaml
+Type: String
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 45
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Retire
+Enables the Intune retire stage.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RetireIncludeIntuneOnly
+Allows retire-stage processing of Intune-only orphan records.
+By default, orphan Intune records are discovered and reported but not actioned.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RetireLastSeenEntraMoreThan
+Retire devices only when the Entra LastSeenDays value is greater than this number.
+Devices with blank Entra activity are not selected by this criterion.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 1
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RetireLastSeenIntuneMoreThan
+Retire devices only when the Intune LastSeenDays value is greater than this number.
+Defaults to 120 days. Devices with blank Intune activity are not selected by this criterion.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 0
+Default value: 120
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RetireLimit
+Maximum number of devices to retire in one run. 0 means unlimited. Default is 10.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 3
+Default value: 10
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RetireRegisteredMoreThan
+Retire devices only when the device registration/enrollment age is greater than this number of days.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 2
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SafetyEntraLimit
+Stops processing if the Entra inventory count is below this value.
+Use this as a guard against partial Graph inventory responses.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 46
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -SafetyIntuneLimit
+Stops processing if the Intune inventory count is below this value.
+Use this as a guard against partial Graph inventory responses.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 47
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ShowHTML
+Opens the generated HTML report after the run.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -StageDisabledForDelete
+Adds already-disabled delete candidates to PendingActions without deleting them.
+Use this for daily automation where pre-disabled stale devices should wait the
+same DeleteListProcessedMoreThan grace period as devices disabled by CleanupMonster.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -StageDisabledForDeleteLimit
+Maximum number of already-disabled devices to stage for later delete in one run.
+0 means unlimited. Default is 10.
+
+```yaml
+Type: Int32
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: 9
+Default value: 10
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Suppress
+Suppresses returning the export object to the pipeline.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIfDelete
+Previews delete actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIfDisable
+Previews disable actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIfRemoveAutopilotIdentity
+Previews standalone Autopilot identity removal only. Preview results are shown in the current report but are not stored in history.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIfRetire
+Previews retire actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WhatIfStageDelete
+Previews staging already-disabled delete candidates without updating the pending-action datastore.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### CommonParameters
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
+
+## INPUTS
+
+- `None`
+
+## OUTPUTS
+
+- `None`
+
+## RELATED LINKS
+
+- None

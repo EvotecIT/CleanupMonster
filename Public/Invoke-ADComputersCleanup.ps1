@@ -485,7 +485,6 @@
         DisableLimit                   = 2 # 0 means unlimited, ignored for reports
         DisableModifyDescription       = $false
         DisableAdminModifyDescription  = $true
-
         Delete                         = $true
         DeleteIsEnabled                = $false
         DeleteNoServicePrincipalName   = $null
@@ -496,17 +495,14 @@
             # 'Windows Server*'
         )
         DeleteIncludeSystems           = @(
-
         )
         DeleteLimit                    = 2 # 0 means unlimited, ignored for reports
-
         Exclusions                     = @(
             '*OU=Domain Controllers*'
             '*OU=Servers,OU=Production*'
             'EVOMONSTER$'
             'EVOMONSTER.AD.EVOTEC.XYZ'
         )
-
         Filter                         = '*'
         WhatIfDisable                  = $true
         WhatIfDelete                   = $true
@@ -515,8 +511,7 @@
         ReportPath                     = "$PSScriptRoot\Reports\DeleteComputers_$((Get-Date).ToString('yyyy-MM-dd_HH_mm_ss')).html"
         ShowHTML                       = $true
     }
-
-    # Run one time as admin: Write-Event -ID 10 -LogName 'Application' -EntryType Information -Category 0 -Message 'Initialize' -Source 'CleanupComputers'
+    # Run one time as admin: Write-EVXEvent -ID 10 -LogName 'Application' -EntryType Information -Category 0 -Message 'Initialize' -Source 'CleanupComputers' -CreateSource
     $Output = Invoke-ADComputersCleanup @Configuration
     $Output
 
