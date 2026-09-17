@@ -39,7 +39,8 @@ Blank activity timestamps are intentionally excluded from destructive actions by
 This follows Microsoft guidance for stale-device cleanup where activity timestamps can be empty
 even for active devices.
 Hybrid Azure AD joined, Azure AD joined, synchronized, non-registered, and unknown registration
-records are excluded from this cloud-device workflow; use Invoke-ADComputersCleanup for hybrid device lifecycle cleanup.
+records are excluded by default. Use IncludeJoinType to opt in to supported joined-device cleanup paths,
+and use Invoke-ADComputersCleanup for hybrid Active Directory device lifecycle cleanup.
 
 ## EXAMPLES
 

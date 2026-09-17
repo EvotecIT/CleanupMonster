@@ -55,9 +55,7 @@ $invokeADSIDHistoryCleanupSplat = @{
     IncludeType             = 'External'
     RemoveLimitSID          = 1
     RemoveLimitObject       = 2
-```
-
-SafetyADLimit           = 1
+    SafetyADLimit           = 1
     ShowHTML                = $true
     Online                  = $true
     DisabledOnly            = $true
@@ -66,16 +64,15 @@ SafetyADLimit           = 1
     ReportPath              = "$PSScriptRoot\ProcessedSIDHistory.html"
     DataStorePath           = "$PSScriptRoot\ProcessedSIDHistory.xml"
 }
-
 # Run the script
 $Output = Invoke-ADSIDHistoryCleanup @invokeADSIDHistoryCleanupSplat
 $Output | Format-Table -AutoSize
-
 # Lets send an email
 $EmailBody = $Output.EmailBody
-
 Connect-MgGraph -Scopes 'Mail.Send' -NoWelcome
 Send-EmailMessage -To 'przemyslaw.klys@test.pl' -From 'przemyslaw.klys@test.pl' -MgGraphRequest -Subject "Automated SID Cleanup Report" -Body $EmailBody -Priority Low -Verbose
+```
+
 
 ## PARAMETERS
 
