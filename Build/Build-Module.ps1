@@ -90,7 +90,7 @@ Build-Module -ModuleName 'CleanupMonster' {
 
     New-ConfigurationBuild -Enable:$true -SignModule:$SignModule -MergeModuleOnBuild -MergeFunctionsFromApprovedModules -CertificateThumbprint '92E95FB58EFFA6A4A75E77A33CDD6BFE6DD30F1A'
 
-    New-ConfigurationArtefact -Type Unpacked -Enable -Path "$PSScriptRoot\..\Artefacts\Unpacked" -ModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules" -RequiredModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules" -AddRequiredModules
+    New-ConfigurationArtefact -Type Unpacked -Enable -Path "$PSScriptRoot\..\Artefacts\Unpacked" -ModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules" -RequiredModulesPath "$PSScriptRoot\..\Artefacts\Unpacked\Modules" -AddRequiredModules -RequiredModulesSource Download -RequiredModulesTool PowerShellGet -RequiredModulesRepository PSGallery
     New-ConfigurationArtefact -Type Packed -Enable -Path "$PSScriptRoot\..\Artefacts\Packed" -ArtefactName '<ModuleName>.v<ModuleVersion>.zip'
 
     # options for publishing to github/psgallery
