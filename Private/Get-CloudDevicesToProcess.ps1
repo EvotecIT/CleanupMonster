@@ -290,6 +290,12 @@ function Get-CloudDevicesToProcess {
             }
         }
 
+        if ($null -ne $ActionIf.IntuneStaleWhenPresentMoreThan -and $device.HasIntuneRecord) {
+            if ($null -eq $device.IntuneLastSeenDays -or $device.IntuneLastSeenDays -le $ActionIf.IntuneStaleWhenPresentMoreThan) {
+                continue
+            }
+        }
+
         if ($null -ne $ActionIf.RegisteredMoreThan) {
             if ($null -eq $device.RegisteredDays -or $device.RegisteredDays -le $ActionIf.RegisteredMoreThan) {
                 continue

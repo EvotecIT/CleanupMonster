@@ -19,6 +19,31 @@ BeforeAll {
 }
 
 Describe 'Cloud device inventory and selection helpers' {
+    It 'keeps an ambiguous Autopilot match when another inventory source has an identity ID' {
+        Mock Get-MyDevice {
+            @([PSCustomObject] @{
+                    Name = 'Windows-Ambiguous'; EntraDeviceObjectId = 'entra-ambiguous'; DeviceId = 'device-ambiguous'
+                    Enabled = $false; OperatingSystem = 'Windows'; TrustType = 'AzureAD joined'
+                    LastSeen = (Get-Date).AddDays(-200); FirstSeen = (Get-Date).AddDays(-300)
+                    AutopilotInventoryLoaded = $true; AutopilotOnboarded = $true; AutopilotDeviceId = 'autopilot-unique'
+                })
+        }
+        Mock Get-MyDeviceIntune {
+            @([PSCustomObject] @{
+                    Name = 'Windows-Ambiguous'; ManagedDeviceId = 'managed-ambiguous'; AzureAdDeviceId = 'device-ambiguous'
+                    OperatingSystem = 'Windows'; LastSeen = (Get-Date).AddDays(-200); FirstSeen = (Get-Date).AddDays(-300)
+                    AutopilotInventoryLoaded = $true; AutopilotMatchAmbiguous = $true; AutopilotOnboarded = $true
+                })
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -IncludeAutopilotInventory)
+
+        $devices | Should -HaveCount 1
+        $devices[0].AutopilotMatchAmbiguous | Should -BeTrue
+        $devices[0].AutopilotOnboarded | Should -BeTrue
+        $devices[0].AutopilotDeviceId | Should -Be $null
+    }
+
     It 'includes Intune orphan records in inventory output' {
         Mock Get-MyDevice {
             @(
@@ -1934,5 +1959,53 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 1
         $candidates[0].ProcessedDeviceKey | Should -Be 'entra:entra-8'
         $candidates[0].MatchedProcessedDeviceKey | Should -Be 'intune:managed-8'
+    }
+
+    It 'blocks recent or unknown Intune activity while retaining Entra-only candidates' {
+        $devices = @(
+            foreach ($record in @(
+                    @{ Name = 'Mac-Recent'; HasIntune = $true; IntuneDays = 5 }
+                    @{ Name = 'Android-Unknown'; HasIntune = $true; IntuneDays = $null }
+                    @{ Name = 'iPhone-Old'; HasIntune = $true; IntuneDays = 200 }
+                    @{ Name = 'Windows-EntraOnly'; HasIntune = $false; IntuneDays = $null }
+                )) {
+                [PSCustomObject] @{
+                    Name                   = $record.Name
+                    EntraDeviceObjectId    = $record.Name
+                    DeviceId               = $record.Name
+                    ManagedDeviceId        = if ($record.HasIntune) { $record.Name } else { $null }
+                    HasEntraRecord         = $true
+                    HasIntuneRecord        = $record.HasIntune
+                    RecordState            = if ($record.HasIntune) { 'Matched' } else { 'EntraOnly' }
+                    ManagedDeviceOwnerType = 'company'
+                    EntraLastSeenDays      = 300
+                    IntuneLastSeenDays     = $record.IntuneDays
+                    RegisteredDays         = 400
+                    Enabled                = $true
+                }
+            }
+        )
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan        = 90
+            IntuneStaleWhenPresentMoreThan = 90
+            ListProcessedMoreThan        = $null
+            IncludeEntraOnly             = $true
+            ExcludeCompanyOwned          = $false
+        }
+
+        $disableCandidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $disableCandidates.Count | Should -Be 2
+        $disableCandidates.Name | Should -Contain 'iPhone-Old'
+        $disableCandidates.Name | Should -Contain 'Windows-EntraOnly'
+
+        foreach ($device in $devices) { $device.Enabled = $false }
+        $actionIf.LastSeenEntraMoreThan = 180
+        $actionIf.IntuneStaleWhenPresentMoreThan = 180
+        $deleteCandidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $deleteCandidates.Count | Should -Be 2
+        $deleteCandidates.Name | Should -Contain 'iPhone-Old'
+        $deleteCandidates.Name | Should -Contain 'Windows-EntraOnly'
     }
 }

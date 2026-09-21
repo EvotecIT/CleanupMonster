@@ -169,6 +169,11 @@ function Invoke-CloudDevicesCleanup {
     Allows blank Entra and Intune activity timestamps to satisfy configured LastSeen*MoreThan filters.
     By default, unknown activity is treated as unsafe and excluded from destructive action selection.
 
+    .PARAMETER ProtectRecentIntuneActivity
+    For disable and delete stages with an Entra last-seen threshold, also require any matching
+    Intune record to have a known last sync older than that stage's threshold. Entra-only
+    records remain eligible using the Entra threshold.
+
     .PARAMETER IntuneLinkState
     Filters action candidates by the relationship between Microsoft Entra MDM metadata and Intune managed-device inventory.
     Broken means the Entra device claims Intune/MDM management but no matching Intune managed-device record exists.
@@ -363,6 +368,7 @@ function Invoke-CloudDevicesCleanup {
         [switch] $IncludeUnknownOperatingSystem,
         [switch] $IncludeUnknownOperatingSystemVersion,
         [switch] $IncludeUnknownActivity,
+        [switch] $ProtectRecentIntuneActivity,
         [ValidateSet('Any', 'Healthy', 'Broken', 'NotClaimed', 'IntuneOnly')]
         [string] $IntuneLinkState = 'Any',
         [ValidateSet('Any', 'Onboarded', 'NotOnboarded')]
@@ -496,6 +502,7 @@ function Invoke-CloudDevicesCleanup {
     $disableOnlyIf = [ordered] @{
         LastSeenEntraMoreThan  = $DisableLastSeenEntraMoreThan
         LastSeenIntuneMoreThan = $DisableLastSeenIntuneMoreThan
+        IntuneStaleWhenPresentMoreThan = if ($ProtectRecentIntuneActivity) { $DisableLastSeenEntraMoreThan } else { $null }
         RegisteredMoreThan     = $DisableRegisteredMoreThan
         ListProcessedMoreThan  = $DisableListProcessedMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent
@@ -521,6 +528,7 @@ function Invoke-CloudDevicesCleanup {
     $deleteOnlyIf = [ordered] @{
         LastSeenEntraMoreThan  = $DeleteLastSeenEntraMoreThan
         LastSeenIntuneMoreThan = $DeleteLastSeenIntuneMoreThan
+        IntuneStaleWhenPresentMoreThan = if ($ProtectRecentIntuneActivity) { $DeleteLastSeenEntraMoreThan } else { $null }
         RegisteredMoreThan     = $DeleteRegisteredMoreThan
         ListProcessedMoreThan  = $DeleteListProcessedMoreThan
         IncludeUnknownActivity = $IncludeUnknownActivity.IsPresent

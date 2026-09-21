@@ -211,7 +211,11 @@ function Get-InitialCloudDevices {
         $entraRegisteredDays = & $getAgeDays $entraDevice.FirstSeen
         $intuneRegisteredDays = if ($intuneDevice) { & $getAgeDays $intuneDevice.FirstSeen } else { $null }
         $autopilotInventoryLoaded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotInventoryLoaded'
+        $autopilotMatchAmbiguous = ($intuneDevice -and $intuneDevice.AutopilotMatchAmbiguous -eq $true) -or ($entraDevice.AutopilotMatchAmbiguous -eq $true)
         $autopilotOnboarded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotOnboarded'
+        if ($autopilotMatchAmbiguous) {
+            $autopilotOnboarded = $true
+        }
         $autopilotLastContacted = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContacted'
         $autopilotLastContactedDays = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContactedDays'
         if ($null -eq $autopilotLastContactedDays -and $autopilotLastContacted) {
@@ -265,8 +269,9 @@ function Get-InitialCloudDevices {
                 ComplianceState            = if ($intuneDevice) { $intuneDevice.ComplianceState } else { $null }
                 ManagementAgent            = if ($intuneDevice) { $intuneDevice.ManagementAgent } else { $null }
                 AutopilotInventoryLoaded   = $autopilotInventoryLoaded
+                AutopilotMatchAmbiguous    = $autopilotMatchAmbiguous
                 AutopilotOnboarded         = $autopilotOnboarded
-                AutopilotDeviceId          = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotDeviceId'
+                AutopilotDeviceId          = if ($autopilotMatchAmbiguous) { $null } else { & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotDeviceId' }
                 AutopilotManagedDeviceId   = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotManagedDeviceId'
                 AutopilotAzureAdDeviceId   = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotAzureAdDeviceId'
                 AutopilotResourceName      = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotResourceName'
@@ -341,6 +346,7 @@ function Get-InitialCloudDevices {
                 ComplianceState            = $intuneDevice.ComplianceState
                 ManagementAgent            = $intuneDevice.ManagementAgent
                 AutopilotInventoryLoaded   = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotInventoryLoaded'
+                AutopilotMatchAmbiguous    = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotMatchAmbiguous'
                 AutopilotOnboarded         = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotOnboarded'
                 AutopilotDeviceId          = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotDeviceId'
                 AutopilotManagedDeviceId   = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotManagedDeviceId'
