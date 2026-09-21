@@ -27,7 +27,7 @@
         $PSBoundParameters.ContainsKey('MoveLastSyncAzureMoreThan')) {
         Write-Color "[i] ", "Getting all computers from AzureAD" -Color Yellow, Cyan, Green
 
-        [Array] $Devices = Get-MyDevice -Synchronized -WarningAction SilentlyContinue -WarningVariable WarningVar
+        [Array] $Devices = Get-MyDevice -Synchronized -PropertySet Computer -WarningAction SilentlyContinue -WarningVariable WarningVar
         if ($WarningVar) {
             Write-Color "[e] ", "Error getting computers from AzureAD: ", $WarningVar, " Terminating!" -Color Yellow, Red, Yellow, Red
             return $false
@@ -51,7 +51,7 @@
         $PSBoundParameters.ContainsKey('MoveLastSeenIntuneMoreThan')) {
         Write-Color "[i] ", "Getting all computers from Intune" -Color Yellow, Cyan, Green
 
-        [Array] $DevicesIntune = Get-MyDeviceIntune -WarningAction SilentlyContinue -WarningVariable WarningVar -Synchronized
+        [Array] $DevicesIntune = Get-MyDeviceIntune -PropertySet Computer -WarningAction SilentlyContinue -WarningVariable WarningVar -Synchronized
         if ($WarningVar) {
             Write-Color "[e] ", "Error getting computers from Intune: ", $WarningVar, " Terminating!" -Color Yellow, Red, Yellow, Red
             return $false
