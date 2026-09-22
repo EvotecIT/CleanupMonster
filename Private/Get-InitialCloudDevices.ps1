@@ -170,10 +170,16 @@ function Get-InitialCloudDevices {
     Write-Color -Text '[i] ', 'Cloud devices found in Intune: ', $intuneDevices.Count -Color Yellow, Cyan, Green
 
     $intuneByAzureDeviceId = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $ambiguousIntuneAzureDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $matchedIntuneManagedDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($intuneDevice in $intuneDevices) {
-        if ($intuneDevice.AzureAdDeviceId -and -not $intuneByAzureDeviceId.ContainsKey($intuneDevice.AzureAdDeviceId)) {
-            $intuneByAzureDeviceId[$intuneDevice.AzureAdDeviceId] = $intuneDevice
+        $azureAdDeviceId = [string] $intuneDevice.AzureAdDeviceId
+        if (-not [string]::IsNullOrWhiteSpace($azureAdDeviceId) -and $azureAdDeviceId -ne [guid]::Empty.ToString()) {
+            if ($intuneByAzureDeviceId.ContainsKey($azureAdDeviceId)) {
+                $null = $ambiguousIntuneAzureDeviceIds.Add($azureAdDeviceId)
+            } else {
+                $intuneByAzureDeviceId[$azureAdDeviceId] = $intuneDevice
+            }
         }
     }
 
@@ -211,7 +217,11 @@ function Get-InitialCloudDevices {
         $entraRegisteredDays = & $getAgeDays $entraDevice.FirstSeen
         $intuneRegisteredDays = if ($intuneDevice) { & $getAgeDays $intuneDevice.FirstSeen } else { $null }
         $autopilotInventoryLoaded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotInventoryLoaded'
+        $autopilotMatchAmbiguous = ($intuneDevice -and $intuneDevice.AutopilotMatchAmbiguous -eq $true) -or ($entraDevice.AutopilotMatchAmbiguous -eq $true)
         $autopilotOnboarded = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotOnboarded'
+        if ($autopilotMatchAmbiguous) {
+            $autopilotOnboarded = $true
+        }
         $autopilotLastContacted = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContacted'
         $autopilotLastContactedDays = & $getFirstNonNullPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotLastContactedDays'
         if ($null -eq $autopilotLastContactedDays -and $autopilotLastContacted) {
@@ -233,6 +243,7 @@ function Get-InitialCloudDevices {
                 ManagedDeviceId            = if ($intuneDevice) { $intuneDevice.ManagedDeviceId } else { $null }
                 HasEntraRecord             = $true
                 HasIntuneRecord            = [bool] $intuneDevice
+                IntuneMatchAmbiguous       = [bool] ($entraDevice.DeviceId -and $ambiguousIntuneAzureDeviceIds.Contains($entraDevice.DeviceId))
                 RecordState                = if ($intuneDevice) { 'Matched' } else { 'EntraOnly' }
                 RecordSource               = if ($intuneDevice) { 'Microsoft Entra ID + Intune' } else { 'Microsoft Entra ID only' }
                 IntuneLinkState            = $intuneLinkState
@@ -265,8 +276,9 @@ function Get-InitialCloudDevices {
                 ComplianceState            = if ($intuneDevice) { $intuneDevice.ComplianceState } else { $null }
                 ManagementAgent            = if ($intuneDevice) { $intuneDevice.ManagementAgent } else { $null }
                 AutopilotInventoryLoaded   = $autopilotInventoryLoaded
+                AutopilotMatchAmbiguous    = $autopilotMatchAmbiguous
                 AutopilotOnboarded         = $autopilotOnboarded
-                AutopilotDeviceId          = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotDeviceId'
+                AutopilotDeviceId          = if ($autopilotMatchAmbiguous) { $null } else { & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotDeviceId' }
                 AutopilotManagedDeviceId   = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotManagedDeviceId'
                 AutopilotAzureAdDeviceId   = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotAzureAdDeviceId'
                 AutopilotResourceName      = & $getFirstPropertyValue -InputObject @($intuneDevice, $entraDevice) -Name 'AutopilotResourceName'
@@ -290,6 +302,8 @@ function Get-InitialCloudDevices {
         }
 
         $operatingSystem = $intuneDevice.OperatingSystem
+        $azureAdDeviceId = [string] $intuneDevice.AzureAdDeviceId
+        $hasUsableAzureAdDeviceId = -not [string]::IsNullOrWhiteSpace($azureAdDeviceId) -and $azureAdDeviceId -ne [guid]::Empty.ToString()
         $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -OperatingSystemVersion $intuneDevice.OperatingSystemVersion -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -Name $intuneDevice.Name -DeviceId $intuneDevice.AzureAdDeviceId -EntraDeviceObjectId $intuneDevice.EntraDeviceObjectId -ManagedDeviceId $intuneDevice.ManagedDeviceId
         if (-not $deviceInScope) {
             continue
@@ -309,6 +323,7 @@ function Get-InitialCloudDevices {
                 ManagedDeviceId            = $intuneDevice.ManagedDeviceId
                 HasEntraRecord             = [bool] $intuneDevice.EntraDeviceObjectId
                 HasIntuneRecord            = $true
+                IntuneMatchAmbiguous       = [bool] ($hasUsableAzureAdDeviceId -and $ambiguousIntuneAzureDeviceIds.Contains($azureAdDeviceId))
                 RecordState                = 'IntuneOnly'
                 RecordSource               = 'Intune only'
                 IntuneLinkState            = 'IntuneOnly'
@@ -341,6 +356,7 @@ function Get-InitialCloudDevices {
                 ComplianceState            = $intuneDevice.ComplianceState
                 ManagementAgent            = $intuneDevice.ManagementAgent
                 AutopilotInventoryLoaded   = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotInventoryLoaded'
+                AutopilotMatchAmbiguous    = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotMatchAmbiguous'
                 AutopilotOnboarded         = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotOnboarded'
                 AutopilotDeviceId          = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotDeviceId'
                 AutopilotManagedDeviceId   = Get-CloudDevicePropertyValue -InputObject $intuneDevice -Name 'AutopilotManagedDeviceId'

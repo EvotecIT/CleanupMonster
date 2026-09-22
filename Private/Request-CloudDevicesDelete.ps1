@@ -36,10 +36,21 @@ function Request-CloudDevicesDelete {
         $autopilotIdentityRemoved = $false
 
         if (-not $ReportOnly) {
-            if ($DeleteAutopilotIdentity) {
+            if ($device.IntuneMatchAmbiguous -eq $true) {
+                $subActionExecuted = $true
+                $subActionSuccess = $false
+                $continueRecordDelete = $false
+                $subActionMessages.Add('Intune: Multiple records link to this Entra device; record delete was skipped.')
+            }
+            if ($continueRecordDelete -and $DeleteAutopilotIdentity) {
                 $operatingSystem = [string] $device.OperatingSystem
                 $autopilotMayApply = [string]::IsNullOrWhiteSpace($operatingSystem) -or $operatingSystem -eq 'Unknown' -or $operatingSystem -like 'Windows*'
-                if ($device.AutopilotOnboarded -eq $true) {
+                if ($autopilotMayApply -and $device.AutopilotMatchAmbiguous -eq $true) {
+                    $subActionExecuted = $true
+                    $subActionSuccess = $false
+                    $continueRecordDelete = $false
+                    $subActionMessages.Add('Autopilot: Multiple identities match this device; record delete was skipped.')
+                } elseif ($autopilotMayApply -and $device.AutopilotOnboarded -eq $true) {
                     $subActionExecuted = $true
                     if ([string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
                         $subActionSuccess = $false
@@ -73,6 +84,8 @@ function Request-CloudDevicesDelete {
                 }
                 if (-not $removeIntuneResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
                     $subActionSuccess = $false
+                    $continueRecordDelete = $false
+                    $subActionMessages.Add('Entra: Record delete was skipped because Intune removal failed.')
                 }
             }
 

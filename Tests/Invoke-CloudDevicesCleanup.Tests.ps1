@@ -21,6 +21,21 @@ BeforeAll {
 }
 
 Describe 'Invoke-CloudDevicesCleanup' {
+    It 'uses each Entra age as the optional Intune recency threshold' {
+        $script:intuneThresholds = @{}
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            param($Type, $Devices, $ActionIf, $ProcessedDevices)
+            $script:intuneThresholds[$Type] = $ActionIf.IntuneStaleWhenPresentMoreThan
+            @()
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -Delete -DisableLastSeenEntraMoreThan 90 -DeleteLastSeenEntraMoreThan 180 -ProtectRecentIntuneActivity -Suppress | Out-Null
+
+        $script:intuneThresholds['Disable'] | Should -Be 90
+        $script:intuneThresholds['Delete'] | Should -Be 180
+    }
+
     It 'retires stale cloud devices when retire mode is enabled' {
         Mock Get-InitialCloudDevices {
             @(

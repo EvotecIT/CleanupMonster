@@ -8,7 +8,7 @@ function Assert-CloudDeviceCleanupSettings {
         return $false
     }
 
-    $minimumVersion = [version] '0.0.57'
+    $minimumVersion = [version] '0.0.63'
     if ($moduleAvailable.Version -lt $minimumVersion) {
         Write-Color -Text '[e] ', "'GraphEssentials' module is outdated for cloud-device cleanup. Please update to minimum version '$minimumVersion'. Terminating." -Color Yellow, Red
         return $false
@@ -39,10 +39,12 @@ function Assert-CloudDeviceCleanupSettings {
         return $false
     }
 
-    $inventoryCommand = $resolvedCommands['Get-MyDeviceIntune']
-    if ($inventoryCommand.ModuleName -ne 'GraphEssentials' -or -not $inventoryCommand.Module -or $inventoryCommand.Module.Version -lt $minimumVersion) {
-        Write-Color -Text '[e] ', "'Get-MyDeviceIntune' is not provided by the required GraphEssentials version '$minimumVersion' in the current session. Import the updated module and try again. Terminating." -Color Yellow, Red
-        return $false
+    foreach ($inventoryCommandName in @('Get-MyDevice', 'Get-MyDeviceIntune')) {
+        $inventoryCommand = $resolvedCommands[$inventoryCommandName]
+        if ($inventoryCommand.ModuleName -ne 'GraphEssentials' -or -not $inventoryCommand.Module -or $inventoryCommand.Module.Version -lt $minimumVersion) {
+            Write-Color -Text '[e] ', "'$inventoryCommandName' is not provided by the required GraphEssentials version '$minimumVersion' in the current session. Import the updated module and try again. Terminating." -Color Yellow, Red
+            return $false
+        }
     }
 
     $true

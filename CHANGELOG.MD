@@ -1,4 +1,14 @@
-﻿### 3.1.13 - 2026.09.17
+﻿### 3.1.15
+
+- Stop Entra deletion when Intune record removal fails during cloud-device cleanup.
+- Apply Autopilot identity deletion only to Windows or unknown-OS records.
+- Allow optional Intune recency protection for staged Entra disable and deletion while retaining Entra-only candidates.
+- Keep ambiguous Windows Autopilot associations out of final deletion when GraphEssentials reports multiple matches.
+- Add a staged Entra and Intune cleanup example for Windows, Android, iOS, iPadOS, and macOS.
+- Require GraphEssentials 0.0.63 for cloud cleanup so Autopilot match ambiguity is available.
+- Skip destructive cloud actions when multiple Intune records link to one Entra device, and limit standalone Autopilot removal to Windows.
+
+### 3.1.13 - 2026.09.17
 
 - Added guarded MSA and gMSA cleanup with reporting, action limits, selection criteria, and `WhatIf` support.
 - Added staged cloud-device cleanup for Entra ID, Intune, and Autopilot records, including pending-state tracking, orphan and broken-link handling, and duplicate-device protection.

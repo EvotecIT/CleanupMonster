@@ -19,6 +19,82 @@ BeforeAll {
 }
 
 Describe 'Cloud device inventory and selection helpers' {
+    It 'keeps empty-guid Intune orphans independent for deletion' {
+        Mock Get-MyDevice { @() }
+        Mock Get-MyDeviceIntune {
+            [PSCustomObject] @{ Name = 'Android-Orphan-01'; ManagedDeviceId = 'managed-orphan-1'; AzureAdDeviceId = [guid]::Empty; OperatingSystem = 'Android'; DeviceRegistrationState = 'registered'; LastSeenDays = 200 }
+            [PSCustomObject] @{ Name = 'Android-Orphan-02'; ManagedDeviceId = 'managed-orphan-2'; AzureAdDeviceId = [guid]::Empty.ToString(); OperatingSystem = 'Android'; DeviceRegistrationState = 'registered'; LastSeenDays = 220 }
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered' -IncludeOperatingSystem @('Android*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 2
+        @($devices | Where-Object { $_.IntuneMatchAmbiguous }).Count | Should -Be 0
+        @($devices | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count | Should -Be 2
+        $actionIf = [ordered] @{ IncludeIntuneOnly = $true; LastSeenIntuneMoreThan = 180 }
+        @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})) | Should -HaveCount 2
+    }
+
+    It 'blocks Entra actions when two Intune records link to the same device' {
+        Mock Get-MyDevice {
+            [PSCustomObject] @{
+                Name = 'iPhone-01'; EntraDeviceObjectId = 'entra-1'; DeviceId = 'device-1'
+                Enabled = $true; OperatingSystem = 'iOS'; TrustType = 'AzureAD registered'
+                LastSeenDays = 200; FirstSeen = (Get-Date).AddDays(-300)
+            }
+        }
+        Mock Get-MyDeviceIntune {
+            [PSCustomObject] @{ Name = 'iPhone-01'; ManagedDeviceId = 'managed-old'; AzureAdDeviceId = 'device-1'; OperatingSystem = 'iOS'; DeviceRegistrationState = 'registered'; LastSeenDays = 200 }
+            [PSCustomObject] @{ Name = 'iPhone-01'; ManagedDeviceId = 'managed-new'; AzureAdDeviceId = 'device-1'; OperatingSystem = 'iOS'; DeviceRegistrationState = 'registered'; LastSeenDays = 1 }
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered' -IncludeOperatingSystem @('iOS*') -ExcludeOperatingSystem @() -Exclusions @())
+        $devices | Should -HaveCount 2
+        @($devices | Where-Object { $_.IntuneMatchAmbiguous }).Count | Should -Be 2
+
+        $actionIf = [ordered] @{ LastSeenEntraMoreThan = 90; IntuneStaleWhenPresentMoreThan = 90; IncludeEntraOnly = $true }
+        @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})) | Should -BeNullOrEmpty
+        ($devices | Where-Object { $_.RecordState -eq 'Matched' }).Enabled = $false
+        @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})) | Should -BeNullOrEmpty
+    }
+
+    It 'excludes non-Windows devices from standalone Autopilot removal' {
+        $devices = @(
+            [PSCustomObject] @{ Name = 'Mac-01'; ManagedDeviceId = 'managed-mac'; OperatingSystem = 'macOS'; AutopilotOnboarded = $true; AutopilotDeviceId = 'autopilot-1' }
+            [PSCustomObject] @{ Name = 'Windows-01'; ManagedDeviceId = 'managed-win'; OperatingSystem = 'Windows'; AutopilotOnboarded = $true; AutopilotDeviceId = 'autopilot-2' }
+        )
+
+        $candidates = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $devices -ActionIf ([ordered] @{}) -ProcessedDevices ([ordered] @{}))
+
+        $candidates | Should -HaveCount 1
+        $candidates[0].Name | Should -Be 'Windows-01'
+    }
+
+    It 'keeps an ambiguous Autopilot match when another inventory source has an identity ID' {
+        Mock Get-MyDevice {
+            @([PSCustomObject] @{
+                    Name = 'Windows-Ambiguous'; EntraDeviceObjectId = 'entra-ambiguous'; DeviceId = 'device-ambiguous'
+                    Enabled = $false; OperatingSystem = 'Windows'; TrustType = 'AzureAD joined'
+                    LastSeen = (Get-Date).AddDays(-200); FirstSeen = (Get-Date).AddDays(-300)
+                    AutopilotInventoryLoaded = $true; AutopilotOnboarded = $true; AutopilotDeviceId = 'autopilot-unique'
+                })
+        }
+        Mock Get-MyDeviceIntune {
+            @([PSCustomObject] @{
+                    Name = 'Windows-Ambiguous'; ManagedDeviceId = 'managed-ambiguous'; AzureAdDeviceId = 'device-ambiguous'
+                    OperatingSystem = 'Windows'; LastSeen = (Get-Date).AddDays(-200); FirstSeen = (Get-Date).AddDays(-300)
+                    AutopilotInventoryLoaded = $true; AutopilotMatchAmbiguous = $true; AutopilotOnboarded = $true
+                })
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -IncludeAutopilotInventory)
+
+        $devices | Should -HaveCount 1
+        $devices[0].AutopilotMatchAmbiguous | Should -BeTrue
+        $devices[0].AutopilotOnboarded | Should -BeTrue
+        $devices[0].AutopilotDeviceId | Should -Be $null
+    }
+
     It 'includes Intune orphan records in inventory output' {
         Mock Get-MyDevice {
             @(
@@ -934,6 +1010,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices = @(
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-Orphan'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-ap-orphan'
                 DeviceId                      = 'device-ap-orphan'
                 HasEntraRecord                = $true
@@ -951,6 +1028,7 @@ Describe 'Cloud device inventory and selection helpers' {
             }
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-Managed'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-ap-managed'
                 DeviceId                      = 'device-ap-managed'
                 HasEntraRecord                = $true
@@ -989,6 +1067,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices = @(
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-MissingEntra'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-missing-entra'
                 DeviceId                      = 'device-missing-entra'
                 HasEntraRecord                = $true
@@ -1006,6 +1085,7 @@ Describe 'Cloud device inventory and selection helpers' {
             }
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-AssociatedEntra'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-associated-entra'
                 DeviceId                      = 'device-associated-entra'
                 HasEntraRecord                = $true
@@ -1934,5 +2014,53 @@ Describe 'Cloud device inventory and selection helpers' {
         $candidates.Count | Should -Be 1
         $candidates[0].ProcessedDeviceKey | Should -Be 'entra:entra-8'
         $candidates[0].MatchedProcessedDeviceKey | Should -Be 'intune:managed-8'
+    }
+
+    It 'blocks recent or unknown Intune activity while retaining Entra-only candidates' {
+        $devices = @(
+            foreach ($record in @(
+                    @{ Name = 'Mac-Recent'; HasIntune = $true; IntuneDays = 5 }
+                    @{ Name = 'Android-Unknown'; HasIntune = $true; IntuneDays = $null }
+                    @{ Name = 'iPhone-Old'; HasIntune = $true; IntuneDays = 200 }
+                    @{ Name = 'Windows-EntraOnly'; HasIntune = $false; IntuneDays = $null }
+                )) {
+                [PSCustomObject] @{
+                    Name                   = $record.Name
+                    EntraDeviceObjectId    = $record.Name
+                    DeviceId               = $record.Name
+                    ManagedDeviceId        = if ($record.HasIntune) { $record.Name } else { $null }
+                    HasEntraRecord         = $true
+                    HasIntuneRecord        = $record.HasIntune
+                    RecordState            = if ($record.HasIntune) { 'Matched' } else { 'EntraOnly' }
+                    ManagedDeviceOwnerType = 'company'
+                    EntraLastSeenDays      = 300
+                    IntuneLastSeenDays     = $record.IntuneDays
+                    RegisteredDays         = 400
+                    Enabled                = $true
+                }
+            }
+        )
+        $actionIf = [ordered] @{
+            LastSeenEntraMoreThan        = 90
+            IntuneStaleWhenPresentMoreThan = 90
+            ListProcessedMoreThan        = $null
+            IncludeEntraOnly             = $true
+            ExcludeCompanyOwned          = $false
+        }
+
+        $disableCandidates = @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $disableCandidates.Count | Should -Be 2
+        $disableCandidates.Name | Should -Contain 'iPhone-Old'
+        $disableCandidates.Name | Should -Contain 'Windows-EntraOnly'
+
+        foreach ($device in $devices) { $device.Enabled = $false }
+        $actionIf.LastSeenEntraMoreThan = 180
+        $actionIf.IntuneStaleWhenPresentMoreThan = 180
+        $deleteCandidates = @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{}))
+
+        $deleteCandidates.Count | Should -Be 2
+        $deleteCandidates.Name | Should -Contain 'iPhone-Old'
+        $deleteCandidates.Name | Should -Contain 'Windows-EntraOnly'
     }
 }

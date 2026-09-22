@@ -25,7 +25,11 @@ function Request-CloudDevicesRemoveAutopilotIdentity {
         $actionStatus = 'False'
         $actionNotes = $null
 
-        if ($ReportOnly) {
+        if ([string] $device.OperatingSystem -notlike 'Windows*') {
+            $actionNotes = 'Autopilot: Identity removal is only supported for Windows devices.'
+        } elseif ($device.IntuneMatchAmbiguous -eq $true -or $device.AutopilotMatchAmbiguous -eq $true) {
+            $actionNotes = 'Autopilot: Device association is ambiguous; identity removal was skipped.'
+        } elseif ($ReportOnly) {
             $actionStatus = 'ReportOnly'
             $actionNotes = 'Autopilot identity removal previewed by report-only mode.'
         } elseif ([string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
