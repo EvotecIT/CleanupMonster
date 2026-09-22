@@ -25,9 +25,15 @@
         $PSBoundParameters.ContainsKey('DeleteLastSyncAzureMoreThan') -or
         $PSBoundParameters.ContainsKey('MoveLastSeenAzureMoreThan') -or
         $PSBoundParameters.ContainsKey('MoveLastSyncAzureMoreThan')) {
-        Write-Color "[i] ", "Getting all computers from AzureAD" -Color Yellow, Cyan, Green
+        Write-Color "[i] ", "Getting synchronized computers from AzureAD (page progress follows)" -Color Yellow, Cyan, Green
 
-        [Array] $Devices = Get-MyDevice -Synchronized -WarningAction SilentlyContinue -WarningVariable WarningVar
+        [Array] $Devices = @(Get-MyDevice -Synchronized -PropertySet Computer -ReportProgress -WarningAction SilentlyContinue -WarningVariable WarningVar 6>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.InformationRecord]) {
+                Write-Color "[i] ", ([string] $_.MessageData) -Color Yellow, Cyan
+            } else {
+                $_
+            }
+        })
         if ($WarningVar) {
             Write-Color "[e] ", "Error getting computers from AzureAD: ", $WarningVar, " Terminating!" -Color Yellow, Red, Yellow, Red
             return $false
@@ -36,8 +42,14 @@
             Write-Color "[e] ", "No computers found in AzureAD, terminating! Please disable Azure AD integration or fix connectivity." -Color Yellow, Red
             return $false
         }
+        Write-Color "[i] ", "AzureAD download complete. Indexing ", $Devices.Count, " computers for AD correlation." -Color Yellow, Cyan, Green, Cyan
+        $indexedCount = 0
         foreach ($Device in $Devices) {
             $AzureInformationCache.AzureAD[$Device.Name] = $Device
+            $indexedCount++
+            if ($indexedCount % 25000 -eq 0) {
+                Write-Color "[i] ", "Indexed ", $indexedCount, " of ", $Devices.Count, " AzureAD computers." -Color Yellow, Cyan, Green, Cyan, Green
+            }
         }
 
         if ($null -ne $SafetyAzureADLimit -and $Devices.Count -lt $SafetyAzureADLimit) {
@@ -49,9 +61,15 @@
     if ($PSBoundParameters.ContainsKey('DisableLastSeenIntuneMoreThan') -or
         $PSBoundParameters.ContainsKey('DeleteLastSeenIntuneMoreThan') -or
         $PSBoundParameters.ContainsKey('MoveLastSeenIntuneMoreThan')) {
-        Write-Color "[i] ", "Getting all computers from Intune" -Color Yellow, Cyan, Green
+        Write-Color "[i] ", "Getting synchronized computers from Intune (page progress follows)" -Color Yellow, Cyan, Green
 
-        [Array] $DevicesIntune = Get-MyDeviceIntune -WarningAction SilentlyContinue -WarningVariable WarningVar -Synchronized
+        [Array] $DevicesIntune = @(Get-MyDeviceIntune -Synchronized -PropertySet Computer -ReportProgress -WarningAction SilentlyContinue -WarningVariable WarningVar 6>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.InformationRecord]) {
+                Write-Color "[i] ", ([string] $_.MessageData) -Color Yellow, Cyan
+            } else {
+                $_
+            }
+        })
         if ($WarningVar) {
             Write-Color "[e] ", "Error getting computers from Intune: ", $WarningVar, " Terminating!" -Color Yellow, Red, Yellow, Red
             return $false
@@ -61,8 +79,14 @@
             return $false
         }
 
+        Write-Color "[i] ", "Intune download complete. Indexing ", $DevicesIntune.Count, " computers for AD correlation." -Color Yellow, Cyan, Green, Cyan
+        $indexedIntuneCount = 0
         foreach ($device in $DevicesIntune) {
             $AzureInformationCache.Intune[$Device.Name] = $device
+            $indexedIntuneCount++
+            if ($indexedIntuneCount % 25000 -eq 0) {
+                Write-Color "[i] ", "Indexed ", $indexedIntuneCount, " of ", $DevicesIntune.Count, " Intune computers." -Color Yellow, Cyan, Green, Cyan, Green
+            }
         }
 
         if ($null -ne $SafetyIntuneLimit -and $DevicesIntune.Count -lt $SafetyIntuneLimit) {

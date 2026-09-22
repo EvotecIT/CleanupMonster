@@ -50,10 +50,18 @@
             Write-Color -Text "[e] ", "'GraphEssentials' module is required but not available. Terminating." -Color Yellow, Red
             return $false
         }
-        $ModuleVersion = [version]'0.0.46'
+        $ModuleVersion = [version]'0.0.63'
         if ($ModuleAvailable.Version -lt $ModuleVersion) {
             Write-Color -Text "[e] ", "'GraphEssentials' module is outdated. Please update to the latest version minimum '$ModuleVersion'. Terminating." -Color Yellow, Red
             return $false
+        }
+        foreach ($CommandName in @('Get-MyDevice', 'Get-MyDeviceIntune')) {
+            $Command = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
+            if (-not $Command -or $Command.ModuleName -ne 'GraphEssentials' -or
+                -not $Command.Module -or $Command.Module.Version -lt $ModuleVersion) {
+                Write-Color -Text "[e] ", "'$CommandName' must come from GraphEssentials version '$ModuleVersion' or later in the current session. Terminating." -Color Yellow, Red
+                return $false
+            }
         }
     }
     if ($JamfRequired) {
