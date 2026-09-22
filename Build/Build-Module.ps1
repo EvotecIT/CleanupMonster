@@ -15,7 +15,7 @@ Import-Module PSPublishModule -Force -ErrorAction Stop
 Build-Module -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '3.1.13'
+        ModuleVersion        = '3.1.14'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
