@@ -16,7 +16,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
         Mock Get-Module {
             [PSCustomObject] @{
                 Name    = 'GraphEssentials'
-                Version = [version] '0.0.57'
+                Version = [version] '0.0.63'
             }
         }
         Mock Get-Command {
@@ -25,13 +25,13 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = [version] '0.0.57'
+                    Version = [version] '0.0.63'
                 }
             }
         }
     }
 
-    It 'accepts the GraphEssentials release that provides lifecycle projection' {
+    It 'accepts the GraphEssentials release that provides unambiguous Autopilot matching' {
         Assert-CloudDeviceCleanupSettings | Should -BeTrue
     }
 
@@ -39,7 +39,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
         Mock Get-Module {
             [PSCustomObject] @{
                 Name    = 'GraphEssentials'
-                Version = [version] '0.0.56'
+                Version = [version] '0.0.62'
             }
         }
 
@@ -53,7 +53,22 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = [version] '0.0.56'
+                    Version = [version] '0.0.62'
+                }
+            }
+        }
+
+        Assert-CloudDeviceCleanupSettings | Should -BeFalse
+    }
+
+    It 'rejects an older Entra inventory command while Intune inventory is current' {
+        Mock Get-Command {
+            param($Name)
+            [PSCustomObject] @{
+                Name       = $Name
+                ModuleName = 'GraphEssentials'
+                Module     = [PSCustomObject] @{
+                    Version = if ($Name -eq 'Get-MyDevice') { [version] '0.0.62' } else { [version] '0.0.63' }
                 }
             }
         }
