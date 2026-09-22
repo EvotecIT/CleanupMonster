@@ -173,11 +173,12 @@ function Get-InitialCloudDevices {
     $ambiguousIntuneAzureDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $matchedIntuneManagedDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($intuneDevice in $intuneDevices) {
-        if ($intuneDevice.AzureAdDeviceId) {
-            if ($intuneByAzureDeviceId.ContainsKey($intuneDevice.AzureAdDeviceId)) {
-                $null = $ambiguousIntuneAzureDeviceIds.Add($intuneDevice.AzureAdDeviceId)
+        $azureAdDeviceId = [string] $intuneDevice.AzureAdDeviceId
+        if (-not [string]::IsNullOrWhiteSpace($azureAdDeviceId) -and $azureAdDeviceId -ne [guid]::Empty.ToString()) {
+            if ($intuneByAzureDeviceId.ContainsKey($azureAdDeviceId)) {
+                $null = $ambiguousIntuneAzureDeviceIds.Add($azureAdDeviceId)
             } else {
-                $intuneByAzureDeviceId[$intuneDevice.AzureAdDeviceId] = $intuneDevice
+                $intuneByAzureDeviceId[$azureAdDeviceId] = $intuneDevice
             }
         }
     }
@@ -301,6 +302,8 @@ function Get-InitialCloudDevices {
         }
 
         $operatingSystem = $intuneDevice.OperatingSystem
+        $azureAdDeviceId = [string] $intuneDevice.AzureAdDeviceId
+        $hasUsableAzureAdDeviceId = -not [string]::IsNullOrWhiteSpace($azureAdDeviceId) -and $azureAdDeviceId -ne [guid]::Empty.ToString()
         $deviceInScope = Test-CloudDeviceInventoryScope -OperatingSystem $operatingSystem -OperatingSystemVersion $intuneDevice.OperatingSystemVersion -IncludeOperatingSystem $IncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -Name $intuneDevice.Name -DeviceId $intuneDevice.AzureAdDeviceId -EntraDeviceObjectId $intuneDevice.EntraDeviceObjectId -ManagedDeviceId $intuneDevice.ManagedDeviceId
         if (-not $deviceInScope) {
             continue
@@ -320,7 +323,7 @@ function Get-InitialCloudDevices {
                 ManagedDeviceId            = $intuneDevice.ManagedDeviceId
                 HasEntraRecord             = [bool] $intuneDevice.EntraDeviceObjectId
                 HasIntuneRecord            = $true
-                IntuneMatchAmbiguous       = [bool] ($intuneDevice.AzureAdDeviceId -and $ambiguousIntuneAzureDeviceIds.Contains($intuneDevice.AzureAdDeviceId))
+                IntuneMatchAmbiguous       = [bool] ($hasUsableAzureAdDeviceId -and $ambiguousIntuneAzureDeviceIds.Contains($azureAdDeviceId))
                 RecordState                = 'IntuneOnly'
                 RecordSource               = 'Intune only'
                 IntuneLinkState            = 'IntuneOnly'

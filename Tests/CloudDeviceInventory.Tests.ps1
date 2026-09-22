@@ -19,6 +19,22 @@ BeforeAll {
 }
 
 Describe 'Cloud device inventory and selection helpers' {
+    It 'keeps empty-guid Intune orphans independent for deletion' {
+        Mock Get-MyDevice { @() }
+        Mock Get-MyDeviceIntune {
+            [PSCustomObject] @{ Name = 'Android-Orphan-01'; ManagedDeviceId = 'managed-orphan-1'; AzureAdDeviceId = [guid]::Empty; OperatingSystem = 'Android'; DeviceRegistrationState = 'registered'; LastSeenDays = 200 }
+            [PSCustomObject] @{ Name = 'Android-Orphan-02'; ManagedDeviceId = 'managed-orphan-2'; AzureAdDeviceId = [guid]::Empty.ToString(); OperatingSystem = 'Android'; DeviceRegistrationState = 'registered'; LastSeenDays = 220 }
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered' -IncludeOperatingSystem @('Android*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 2
+        @($devices | Where-Object { $_.IntuneMatchAmbiguous }).Count | Should -Be 0
+        @($devices | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count | Should -Be 2
+        $actionIf = [ordered] @{ IncludeIntuneOnly = $true; LastSeenIntuneMoreThan = 180 }
+        @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})) | Should -HaveCount 2
+    }
+
     It 'blocks Entra actions when two Intune records link to the same device' {
         Mock Get-MyDevice {
             [PSCustomObject] @{
