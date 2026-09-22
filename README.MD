@@ -69,6 +69,14 @@ Thank you for considering supporting this project!
 Install-Module -Name CleanupMonster -Force -Verbose
 ```
 
+Use **PowerShell 7** for cloud-device cleanup and AD cleanup that queries Microsoft Graph. Install GraphEssentials separately for those paths:
+
+```powershell
+Install-Module -Name GraphEssentials -Force
+```
+
+Start a fresh PowerShell session after updating these modules. Windows PowerShell 5.1 remains available for AD-only use; the current Microsoft Graph SDK and event-log dependencies have conflicting shared libraries in that runtime.
+
 ## Introduction ✨
 
 CleanupMonster is built for teams that want Active Directory cleanup to feel deliberate, staged, and reviewable instead of risky and opaque. Every cleanup path starts with discovery, can generate HTML output for review, and can be wrapped in limits, pending lists, and `WhatIf` controls before anything destructive happens.
