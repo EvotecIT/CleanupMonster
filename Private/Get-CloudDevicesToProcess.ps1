@@ -210,6 +210,10 @@ function Get-CloudDevicesToProcess {
             continue
         }
 
+        if ($Type -in @('Disable', 'Delete', 'RemoveAutopilotIdentity') -and $device.IntuneMatchAmbiguous) {
+            continue
+        }
+
         if ($ActionIf.IntuneLinkState -and $ActionIf.IntuneLinkState -ne 'Any' -and $device.IntuneLinkState -ne $ActionIf.IntuneLinkState) {
             continue
         }
@@ -248,7 +252,10 @@ function Get-CloudDevicesToProcess {
                 continue
             }
         } elseif ($Type -eq 'RemoveAutopilotIdentity') {
-            if ($device.AutopilotOnboarded -ne $true -or [string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
+            if ([string] $device.OperatingSystem -notlike 'Windows*' -or
+                $device.AutopilotMatchAmbiguous -eq $true -or
+                $device.AutopilotOnboarded -ne $true -or
+                [string]::IsNullOrWhiteSpace([string] $device.AutopilotDeviceId)) {
                 continue
             }
         }

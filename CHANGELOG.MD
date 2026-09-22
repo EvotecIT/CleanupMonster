@@ -6,6 +6,7 @@
 - Keep ambiguous Windows Autopilot associations out of final deletion when GraphEssentials reports multiple matches.
 - Add a staged Entra and Intune cleanup example for Windows, Android, iOS, iPadOS, and macOS.
 - Require GraphEssentials 0.0.63 for cloud cleanup so Autopilot match ambiguity is available.
+- Skip destructive cloud actions when multiple Intune records link to one Entra device, and limit standalone Autopilot removal to Windows.
 
 ### 3.1.13 - 2026.09.17
 

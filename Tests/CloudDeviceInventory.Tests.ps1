@@ -19,6 +19,41 @@ BeforeAll {
 }
 
 Describe 'Cloud device inventory and selection helpers' {
+    It 'blocks Entra actions when two Intune records link to the same device' {
+        Mock Get-MyDevice {
+            [PSCustomObject] @{
+                Name = 'iPhone-01'; EntraDeviceObjectId = 'entra-1'; DeviceId = 'device-1'
+                Enabled = $true; OperatingSystem = 'iOS'; TrustType = 'AzureAD registered'
+                LastSeenDays = 200; FirstSeen = (Get-Date).AddDays(-300)
+            }
+        }
+        Mock Get-MyDeviceIntune {
+            [PSCustomObject] @{ Name = 'iPhone-01'; ManagedDeviceId = 'managed-old'; AzureAdDeviceId = 'device-1'; OperatingSystem = 'iOS'; DeviceRegistrationState = 'registered'; LastSeenDays = 200 }
+            [PSCustomObject] @{ Name = 'iPhone-01'; ManagedDeviceId = 'managed-new'; AzureAdDeviceId = 'device-1'; OperatingSystem = 'iOS'; DeviceRegistrationState = 'registered'; LastSeenDays = 1 }
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered' -IncludeOperatingSystem @('iOS*') -ExcludeOperatingSystem @() -Exclusions @())
+        $devices | Should -HaveCount 2
+        @($devices | Where-Object { $_.IntuneMatchAmbiguous }).Count | Should -Be 2
+
+        $actionIf = [ordered] @{ LastSeenEntraMoreThan = 90; IntuneStaleWhenPresentMoreThan = 90; IncludeEntraOnly = $true }
+        @(Get-CloudDevicesToProcess -Type Disable -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})) | Should -BeNullOrEmpty
+        ($devices | Where-Object { $_.RecordState -eq 'Matched' }).Enabled = $false
+        @(Get-CloudDevicesToProcess -Type Delete -Devices $devices -ActionIf $actionIf -ProcessedDevices ([ordered] @{})) | Should -BeNullOrEmpty
+    }
+
+    It 'excludes non-Windows devices from standalone Autopilot removal' {
+        $devices = @(
+            [PSCustomObject] @{ Name = 'Mac-01'; ManagedDeviceId = 'managed-mac'; OperatingSystem = 'macOS'; AutopilotOnboarded = $true; AutopilotDeviceId = 'autopilot-1' }
+            [PSCustomObject] @{ Name = 'Windows-01'; ManagedDeviceId = 'managed-win'; OperatingSystem = 'Windows'; AutopilotOnboarded = $true; AutopilotDeviceId = 'autopilot-2' }
+        )
+
+        $candidates = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $devices -ActionIf ([ordered] @{}) -ProcessedDevices ([ordered] @{}))
+
+        $candidates | Should -HaveCount 1
+        $candidates[0].Name | Should -Be 'Windows-01'
+    }
+
     It 'keeps an ambiguous Autopilot match when another inventory source has an identity ID' {
         Mock Get-MyDevice {
             @([PSCustomObject] @{
@@ -959,6 +994,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices = @(
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-Orphan'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-ap-orphan'
                 DeviceId                      = 'device-ap-orphan'
                 HasEntraRecord                = $true
@@ -976,6 +1012,7 @@ Describe 'Cloud device inventory and selection helpers' {
             }
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-Managed'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-ap-managed'
                 DeviceId                      = 'device-ap-managed'
                 HasEntraRecord                = $true
@@ -1014,6 +1051,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $devices = @(
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-MissingEntra'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-missing-entra'
                 DeviceId                      = 'device-missing-entra'
                 HasEntraRecord                = $true
@@ -1031,6 +1069,7 @@ Describe 'Cloud device inventory and selection helpers' {
             }
             [PSCustomObject] @{
                 Name                          = 'Windows-Autopilot-AssociatedEntra'
+                OperatingSystem               = 'Windows'
                 EntraDeviceObjectId           = 'entra-associated-entra'
                 DeviceId                      = 'device-associated-entra'
                 HasEntraRecord                = $true

@@ -170,10 +170,15 @@ function Get-InitialCloudDevices {
     Write-Color -Text '[i] ', 'Cloud devices found in Intune: ', $intuneDevices.Count -Color Yellow, Cyan, Green
 
     $intuneByAzureDeviceId = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $ambiguousIntuneAzureDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $matchedIntuneManagedDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($intuneDevice in $intuneDevices) {
-        if ($intuneDevice.AzureAdDeviceId -and -not $intuneByAzureDeviceId.ContainsKey($intuneDevice.AzureAdDeviceId)) {
-            $intuneByAzureDeviceId[$intuneDevice.AzureAdDeviceId] = $intuneDevice
+        if ($intuneDevice.AzureAdDeviceId) {
+            if ($intuneByAzureDeviceId.ContainsKey($intuneDevice.AzureAdDeviceId)) {
+                $null = $ambiguousIntuneAzureDeviceIds.Add($intuneDevice.AzureAdDeviceId)
+            } else {
+                $intuneByAzureDeviceId[$intuneDevice.AzureAdDeviceId] = $intuneDevice
+            }
         }
     }
 
@@ -237,6 +242,7 @@ function Get-InitialCloudDevices {
                 ManagedDeviceId            = if ($intuneDevice) { $intuneDevice.ManagedDeviceId } else { $null }
                 HasEntraRecord             = $true
                 HasIntuneRecord            = [bool] $intuneDevice
+                IntuneMatchAmbiguous       = [bool] ($entraDevice.DeviceId -and $ambiguousIntuneAzureDeviceIds.Contains($entraDevice.DeviceId))
                 RecordState                = if ($intuneDevice) { 'Matched' } else { 'EntraOnly' }
                 RecordSource               = if ($intuneDevice) { 'Microsoft Entra ID + Intune' } else { 'Microsoft Entra ID only' }
                 IntuneLinkState            = $intuneLinkState
@@ -314,6 +320,7 @@ function Get-InitialCloudDevices {
                 ManagedDeviceId            = $intuneDevice.ManagedDeviceId
                 HasEntraRecord             = [bool] $intuneDevice.EntraDeviceObjectId
                 HasIntuneRecord            = $true
+                IntuneMatchAmbiguous       = [bool] ($intuneDevice.AzureAdDeviceId -and $ambiguousIntuneAzureDeviceIds.Contains($intuneDevice.AzureAdDeviceId))
                 RecordState                = 'IntuneOnly'
                 RecordSource               = 'Intune only'
                 IntuneLinkState            = 'IntuneOnly'

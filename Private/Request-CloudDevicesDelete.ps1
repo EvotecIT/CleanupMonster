@@ -36,7 +36,13 @@ function Request-CloudDevicesDelete {
         $autopilotIdentityRemoved = $false
 
         if (-not $ReportOnly) {
-            if ($DeleteAutopilotIdentity) {
+            if ($device.IntuneMatchAmbiguous -eq $true) {
+                $subActionExecuted = $true
+                $subActionSuccess = $false
+                $continueRecordDelete = $false
+                $subActionMessages.Add('Intune: Multiple records link to this Entra device; record delete was skipped.')
+            }
+            if ($continueRecordDelete -and $DeleteAutopilotIdentity) {
                 $operatingSystem = [string] $device.OperatingSystem
                 $autopilotMayApply = [string]::IsNullOrWhiteSpace($operatingSystem) -or $operatingSystem -eq 'Unknown' -or $operatingSystem -like 'Windows*'
                 if ($autopilotMayApply -and $device.AutopilotMatchAmbiguous -eq $true) {

@@ -517,6 +517,22 @@ Describe 'Request-CloudDevicesDelete' {
         $processedDevices.Contains('entra:entra-ambiguous') | Should -BeTrue
     }
 
+    It 'does not delete records when multiple Intune records link to one Entra device' {
+        $processedDevices = [ordered] @{}
+        $devices = @([PSCustomObject] @{
+                Name = 'iPhone-DuplicateLink'; EntraDeviceObjectId = 'entra-duplicate'; ManagedDeviceId = 'managed-old'
+                HasEntraRecord = $true; HasIntuneRecord = $true; RecordState = 'Matched'; IntuneMatchAmbiguous = $true
+            })
+
+        $results = @(Request-CloudDevicesDelete -Devices $devices -ProcessedDevices $processedDevices -Today (Get-Date))
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'False'
+        $results[0].ActionNotes | Should -Match 'Multiple records link'
+        Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 0 -Exactly
+        Assert-MockCalled Remove-MyDevice -Times 0 -Exactly
+    }
+
     It 'does not remove Entra objects for Intune-only delete candidates' {
         Mock Remove-MyDeviceIntuneRecord { [PSCustomObject] @{ Success = $true; Message = 'Removed Intune record' } }
 
@@ -588,6 +604,7 @@ Describe 'Request-CloudDevicesRemoveAutopilotIdentity' {
         $devices = @(
             [PSCustomObject] @{
                 Name                = 'Windows-Autopilot-Orphan'
+                OperatingSystem     = 'Windows'
                 AutopilotDeviceId   = 'autopilot-orphan'
                 ProcessedDeviceKeys = @('autopilot:autopilot-orphan')
             }
@@ -604,12 +621,24 @@ Describe 'Request-CloudDevicesRemoveAutopilotIdentity' {
         Assert-MockCalled Remove-MyDeviceIntuneRecord -Times 0 -Exactly
     }
 
+    It 'does not remove an Autopilot identity for a non-Windows device passed directly' {
+        $devices = @([PSCustomObject] @{ Name = 'Mac-01'; OperatingSystem = 'macOS'; AutopilotDeviceId = 'autopilot-1' })
+
+        $results = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devices -Today (Get-Date))
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'False'
+        $results[0].ActionNotes | Should -Match 'only supported for Windows'
+        Assert-MockCalled Remove-MyAutopilotDevice -Times 0 -Exactly
+    }
+
     It 'previews Autopilot identity removal without treating it as a real action' {
         Mock Remove-MyAutopilotDevice { [PSCustomObject] @{ Success = $false; Message = 'Operation skipped by ShouldProcess.' } }
 
         $devices = @(
             [PSCustomObject] @{
                 Name                = 'Windows-Autopilot-Preview'
+                OperatingSystem     = 'Windows'
                 AutopilotDeviceId   = 'autopilot-preview'
                 ProcessedDeviceKeys = @('autopilot:autopilot-preview')
             }
