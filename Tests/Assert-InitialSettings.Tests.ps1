@@ -13,14 +13,14 @@ BeforeAll {
 Describe 'Assert-InitialSettings GraphEssentials contract' {
     BeforeEach {
         Mock Get-Module {
-            [PSCustomObject] @{ Name = 'GraphEssentials'; Version = [version] '0.0.62' }
+            [PSCustomObject] @{ Name = 'GraphEssentials'; Version = [version] '0.0.63' }
         }
         Mock Get-Command {
             param($Name)
             [PSCustomObject] @{
                 Name = $Name
                 ModuleName = 'GraphEssentials'
-                Module = [PSCustomObject] @{ Version = [version] '0.0.62' }
+                Module = [PSCustomObject] @{ Version = [version] '0.0.63' }
             }
         }
     }

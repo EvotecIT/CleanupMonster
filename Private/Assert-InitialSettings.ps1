@@ -50,7 +50,7 @@
             Write-Color -Text "[e] ", "'GraphEssentials' module is required but not available. Terminating." -Color Yellow, Red
             return $false
         }
-        $ModuleVersion = [version]'0.0.62'
+        $ModuleVersion = [version]'0.0.63'
         if ($ModuleAvailable.Version -lt $ModuleVersion) {
             Write-Color -Text "[e] ", "'GraphEssentials' module is outdated. Please update to the latest version minimum '$ModuleVersion'. Terminating." -Color Yellow, Red
             return $false
