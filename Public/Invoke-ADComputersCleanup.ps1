@@ -948,6 +948,9 @@
             RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportDisabled = Request-ADComputersDisable @requestADComputersDisableSplat
+        if (-not $EffectiveReportOnly) {
+            Write-ADComputerActionLog -Action $(if ($DisableAndMove) { 'DisableAndMove' } else { 'Disable' }) -Results $ReportDisabled -LogPath $LogPath
+        }
     }
 
     if ($Move) {
@@ -966,6 +969,9 @@
             RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportMoved = Request-ADComputersMove @requestADComputersMoveSplat
+        if (-not $EffectiveReportOnly) {
+            Write-ADComputerActionLog -Action Move -Results $ReportMoved -LogPath $LogPath
+        }
     }
 
     if ($Delete) {
@@ -981,6 +987,9 @@
             RemoveProtectedFromAccidentalDeletionFlag = $RemoveProtectedFromAccidentalDeletionFlag.IsPresent
         }
         [Array] $ReportDeleted = Request-ADComputersDelete @requestADComputersDeleteSplat
+        if (-not $EffectiveReportOnly) {
+            Write-ADComputerActionLog -Action Delete -Results $ReportDeleted -LogPath $LogPath
+        }
     }
 
     if ($InventoryWritesSuppressed) {

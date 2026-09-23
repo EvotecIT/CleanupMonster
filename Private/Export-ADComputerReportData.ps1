@@ -17,7 +17,7 @@ function Export-ADComputerReportData {
         [string] $FilePath,
         [ValidateRange(1, 10000)]
         [int] $ChunkSize = 2000,
-        [string[]] $ExcludeProperty = @('TimeOnPendingList', 'TimeToLeavePendingList', 'DistinguishedNameAfterMove'),
+        [string[]] $ExcludeProperty = @('TimeOnPendingList', 'TimeToLeavePendingList', 'DistinguishedNameAfterMove', 'SelectionReason', 'ActionAttempted', 'DisableActionResult', 'MoveActionResult'),
         [AllowEmptyString()]
         [string] $DateTimeFormat = '',
         [System.Collections.IDictionary] $NewLineFormat = @{

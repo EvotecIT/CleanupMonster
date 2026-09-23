@@ -49,6 +49,20 @@ Describe 'Write-CloudDeviceActionLog' {
         $script:actionLogLines[0] | Should -Match 'Delete results: 0 completed.*0 of 0 candidate'
     }
 
+    It 'summarizes report-only candidates without a per-device action line' {
+        $result = [pscustomobject] @{
+            Name            = 'NotAttempted'
+            ActionStatus    = 'ReportOnly'
+            SelectionReason = 'EntraLastSeenDays=200 > 90'
+        }
+
+        Write-CloudDeviceActionLog -Action Disable -CandidateCount 1 -Limit 5 -Results @($result)
+
+        $script:actionLogLines.Count | Should -Be 1
+        $script:actionLogLines[0] | Should -Match '0 completed, 0 WhatIf, 1 ReportOnly'
+        $script:actionLogLines[0] | Should -Not -Match 'NotAttempted'
+    }
+
     It 'logs a staged-delete WhatIf as a preview without claiming a pending record was written' {
         $device = [pscustomobject] @{
             Name                = 'Windows-StagePreview'

@@ -35,6 +35,8 @@ Describe 'Disable-WinADComputer' {
         $global:FlagRemoved | Should -Be $false
         $global:DisableCalled | Should -Be $true
         $global:DisabledIdentity | Should -Be $computer.DistinguishedName
+        $computer.ActionAttempted | Should -BeTrue
+        $computer.DisableActionResult | Should -Be 'True'
     }
 
     It 'uses the post-move distinguished name for disabling and event data' {

@@ -74,6 +74,7 @@
                             $Success = $false
                             Write-Color -Text "[i] Moving computer ", $Computer.SamAccountName, ' DN: ', $Computer.DistinguishedName, ' Enabled: ', $Computer.Enabled, ' Operating System: ', $Computer.OperatingSystem, ' LastLogon: ', $Computer.LastLogonDate, " / " , $Computer.LastLogonDays , ' days, PasswordLastSet: ', $Computer.PasswordLastSet, " / ", $Computer.PasswordLastChangedDays, " days" -Color Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green, Yellow, Green
                             try {
+                                Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'ActionAttempted' -Value $true -Force
                                 $MovedObject = Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfMove -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $OrganizationalUnit[$Domain] -PassThru
                                 $Computer.DistinguishedNameAfterMove = $MovedObject.DistinguishedName
                                 Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfMove.IsPresent)) successful." -Color Yellow, Green, Yellow

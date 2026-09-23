@@ -2,7 +2,9 @@ BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Save-ADComputerPendingStateEntry.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-ADComputersToProcess.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-ADComputerSelectionReason.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersMove.ps1')
+    . (Get-CleanupMonsterPath 'Private/Move-WinADComputer.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
     function Write-EVXEvent { param([Parameter(ValueFromRemainingArguments = $true)] $Args) }
@@ -28,6 +30,22 @@ BeforeAll {
 }
 
 Describe 'Move workflow helpers' {
+    It 'marks a composite WhatIf move as attempted for the action audit' {
+        $computer = [pscustomobject] @{
+            SamAccountName                  = 'PC1$'
+            DistinguishedName               = 'CN=PC1,OU=Workstations,DC=contoso,DC=com'
+            DistinguishedNameAfterMove      = $null
+            OrganizationalUnit              = 'OU=Workstations,DC=contoso,DC=com'
+            ProtectedFromAccidentalDeletion = $false
+        }
+
+        $success = Move-WinADComputer -Success $true -DisableAndMove $true -OrganizationalUnit @{ 'contoso.com' = 'OU=Disabled,DC=contoso,DC=com' } -Computer $computer -WhatIfDisable -DontWriteToEventLog -Server 'dc1.contoso.com' -Domain 'contoso.com'
+
+        $success | Should -BeTrue
+        $computer.ActionAttempted | Should -BeTrue
+        $computer.MoveActionResult | Should -Be 'WhatIf'
+    }
+
     It 'journals only pending entries changed during discovery' {
         $computer = [PSCustomObject] @{
             SamAccountName       = 'PC1$'

@@ -18,13 +18,16 @@ function Write-CloudDeviceActionLog {
 
     foreach ($device in $Results) {
         $status = [string] $device.ActionStatus
+        if ($status -eq 'ReportOnly') {
+            $reported++
+            continue
+        }
         $prefix = '[i] '
         $color = 'Cyan'
         $outcome = 'failed'
         switch ($status) {
             'True' { $completed++; $prefix = '[+] '; $color = 'Green'; $outcome = 'completed' }
             'WhatIf' { $previewed++; $outcome = 'WhatIf preview' }
-            'ReportOnly' { $reported++; $outcome = 'ReportOnly' }
             default { $failed++; $prefix = '[-] '; $color = 'Red' }
         }
 

@@ -49,7 +49,9 @@
                 if ($Success) {
                     $Success = $false
                     try {
+                        Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'ActionAttempted' -Value $true -Force
                         $MovedObject = Move-ADObject -Identity $Computer.DistinguishedName -WhatIf:$WhatIfDisable -Server $Server -ErrorAction Stop -Confirm:$false -TargetPath $OrganizationalUnit[$Domain] -PassThru
+                        Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'MoveActionResult' -Value $(if ($WhatIfDisable) { 'WhatIf' } else { 'True' }) -Force
                         Write-Color -Text "[+] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDisable.IsPresent)) successful." -Color Yellow, Green, Yellow
                         if (-not $DontWriteToEventLog) {
                             Write-EVXEvent -ID 11 -LogName 'Application' -EntryType Warning -Category 1000 -Source 'CleanupComputers' -Message "Moving computer $($Computer.SamAccountName) successful." -AdditionalFields @('Move', $Computer.SamAccountName, $Computer.DistinguishedName, $Computer.Enabled, $Computer.OperatingSystem, $Computer.LastLogonDate, $Computer.PasswordLastSet, $WhatIfDisable) -WarningAction SilentlyContinue -WarningVariable warnings
@@ -60,6 +62,7 @@
                         $Computer.DistinguishedNameAfterMove = $MovedObject.DistinguishedName
                         $Success = $true
                     } catch {
+                        Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'MoveActionResult' -Value 'False' -Force
                         $Success = $false
                         Write-Color -Text "[-] Moving computer ", $Computer.DistinguishedName, " (WhatIf: $($WhatIfDisable.IsPresent)) failed. Error: $($_.Exception.Message)" -Color Yellow, Red, Yellow
                         if (-not $DontWriteToEventLog) {
