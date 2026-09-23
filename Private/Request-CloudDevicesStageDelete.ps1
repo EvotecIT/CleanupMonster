@@ -51,12 +51,17 @@ function Request-CloudDevicesStageDelete {
         } else {
             'True'
         }
+        $actionNotes = if ($actionStatus -eq 'True') {
+            'Device staged for delete after pending grace period.'
+        } else {
+            'Pending delete staging previewed; no pending record was written.'
+        }
 
         $result = $device | Select-Object *
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionDate' -Value $Today -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionStatus' -Value $actionStatus -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'StageDelete' -Force
-        Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value 'Device staged for delete after pending grace period.' -Force
+        Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value $actionNotes -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
         $attemptedCount++

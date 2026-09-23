@@ -160,6 +160,7 @@ Describe 'Request-CloudDevicesStageDelete' {
         $results | Should -HaveCount 1
         $results[0].Action | Should -Be 'StageDelete'
         $results[0].ActionStatus | Should -Be 'True'
+        $results[0].ActionNotes | Should -Be 'Device staged for delete after pending grace period.'
         $processedDevices.Contains('entra:entra-stage') | Should -BeTrue
     }
 
@@ -178,6 +179,24 @@ Describe 'Request-CloudDevicesStageDelete' {
 
         $results | Should -HaveCount 1
         $results[0].ActionStatus | Should -Be 'WhatIf'
+        $results[0].ActionNotes | Should -Be 'Pending delete staging previewed; no pending record was written.'
+        $processedDevices.Count | Should -Be 0
+    }
+
+    It 'does not claim report-only staging wrote a pending record' {
+        $processedDevices = [ordered] @{}
+        $device = [PSCustomObject] @{
+            Name                = 'Windows-StageReport'
+            EntraDeviceObjectId = 'entra-stage-report'
+            ProcessedDeviceKey  = 'entra:entra-stage-report'
+            ProcessedDeviceKeys = @('entra:entra-stage-report')
+        }
+
+        $results = @(Request-CloudDevicesStageDelete -Devices @($device) -ProcessedDevices $processedDevices -Today (Get-Date) -ReportOnly)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'ReportOnly'
+        $results[0].ActionNotes | Should -Be 'Pending delete staging previewed; no pending record was written.'
         $processedDevices.Count | Should -Be 0
     }
 

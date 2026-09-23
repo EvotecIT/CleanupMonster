@@ -1,6 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
+    . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesStageDelete.ps1')
 
     function Write-Color {
         param([string[]] $Text, [object[]] $Color, [string] $LogFile)
@@ -46,5 +47,22 @@ Describe 'Write-CloudDeviceActionLog' {
 
         $script:actionLogLines.Count | Should -Be 1
         $script:actionLogLines[0] | Should -Match 'Delete results: 0 completed.*0 of 0 candidate'
+    }
+
+    It 'logs a staged-delete WhatIf as a preview without claiming a pending record was written' {
+        $device = [pscustomobject] @{
+            Name                = 'Windows-StagePreview'
+            EntraDeviceObjectId = 'entra-stage-preview'
+            ProcessedDeviceKey  = 'entra:entra-stage-preview'
+            ProcessedDeviceKeys = @('entra:entra-stage-preview')
+        }
+        $processedDevices = [ordered] @{}
+        $results = @(Request-CloudDevicesStageDelete -Devices @($device) -ProcessedDevices $processedDevices -Today (Get-Date) -WhatIfStageDelete)
+
+        Write-CloudDeviceActionLog -Action StageDelete -CandidateCount 1 -Limit 5 -Results $results
+
+        $script:actionLogLines[0] | Should -Match 'StageDelete WhatIf preview.*Pending delete staging previewed; no pending record was written'
+        $script:actionLogLines[0] | Should -Not -Match 'Device staged for delete'
+        $processedDevices.Count | Should -Be 0
     }
 }
