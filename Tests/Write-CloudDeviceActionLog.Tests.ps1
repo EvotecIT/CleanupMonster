@@ -65,4 +65,19 @@ Describe 'Write-CloudDeviceActionLog' {
         $script:actionLogLines[0] | Should -Not -Match 'Device staged for delete'
         $processedDevices.Count | Should -Be 0
     }
+
+    It 'includes the candidate age and threshold in the attempted action line' {
+        $result = [pscustomobject] @{
+            Name                = 'Phone'
+            EntraDeviceObjectId = 'entra-4'
+            ActionStatus        = 'WhatIf'
+            SelectionReason     = 'EntraLastSeenDays=230 > 180; IntuneLastSeenDays=205 > 180 (recent Intune activity protection); RegisteredDays=400 > 180; PendingDays=95 >= 90'
+        }
+
+        Write-CloudDeviceActionLog -Action Delete -CandidateCount 1 -Limit 5 -Results @($result)
+
+        $script:actionLogLines[0] | Should -Match 'Delete WhatIf preview.*EntraLastSeenDays=230 > 180'
+        $script:actionLogLines[0] | Should -Match 'IntuneLastSeenDays=205 > 180'
+        $script:actionLogLines[0] | Should -Match 'RegisteredDays=400 > 180.*PendingDays=95 >= 90'
+    }
 }

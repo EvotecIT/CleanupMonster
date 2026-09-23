@@ -38,6 +38,10 @@ function Get-CloudDeviceSelectionReason {
         $reasons.Add("IntuneLastSeenDays=Unknown allowed")
     }
 
+    if ($null -ne $ActionIf.IntuneStaleWhenPresentMoreThan -and $Device.HasIntuneRecord -and $null -ne $Device.IntuneLastSeenDays) {
+        $reasons.Add("IntuneLastSeenDays=$($Device.IntuneLastSeenDays) > $($ActionIf.IntuneStaleWhenPresentMoreThan) (recent Intune activity protection)")
+    }
+
     if ($null -ne $ActionIf.RegisteredMoreThan -and $null -ne $Device.RegisteredDays) {
         $reasons.Add("RegisteredDays=$($Device.RegisteredDays) > $($ActionIf.RegisteredMoreThan)")
     }

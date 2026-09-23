@@ -2053,6 +2053,7 @@ Describe 'Cloud device inventory and selection helpers' {
         $disableCandidates.Count | Should -Be 2
         $disableCandidates.Name | Should -Contain 'iPhone-Old'
         $disableCandidates.Name | Should -Contain 'Windows-EntraOnly'
+        ($disableCandidates | Where-Object Name -EQ 'iPhone-Old').SelectionReason | Should -Match 'IntuneLastSeenDays=200 > 90 \(recent Intune activity protection\)'
 
         foreach ($device in $devices) { $device.Enabled = $false }
         $actionIf.LastSeenEntraMoreThan = 180

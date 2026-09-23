@@ -46,6 +46,10 @@ function Write-CloudDeviceActionLog {
             $notes = ([string] $device.ActionNotes) -replace '[\r\n]+', ' '
             $details += "; $notes"
         }
+        if (-not [string]::IsNullOrWhiteSpace([string] $device.SelectionReason)) {
+            $reason = ([string] $device.SelectionReason) -replace '[\r\n]+', ' '
+            $details += "; SelectionReason: $reason"
+        }
         Write-Color -Text $prefix, $details -Color Yellow, $color -LogFile $LogPath
     }
 
