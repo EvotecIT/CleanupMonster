@@ -60,6 +60,12 @@ function Request-CloudDevicesDelete {
                         $removeAutopilotResult = Remove-MyAutopilotDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                         if ($removeAutopilotResult.Message) {
                             $subActionMessages.Add("Autopilot: $($removeAutopilotResult.Message)")
+                        } elseif ($WhatIf -or $WhatIfDelete) {
+                            $subActionMessages.Add('Autopilot: Identity removal previewed (WhatIf).')
+                        } elseif ($removeAutopilotResult.Success) {
+                            $subActionMessages.Add('Autopilot: Identity removed.')
+                        } else {
+                            $subActionMessages.Add('Autopilot: Identity removal failed.')
                         }
                         if (-not $removeAutopilotResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
                             $subActionSuccess = $false
@@ -81,6 +87,12 @@ function Request-CloudDevicesDelete {
                 $removeIntuneResult = Remove-MyDeviceIntuneRecord -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeIntuneResult.Message) {
                     $subActionMessages.Add("Intune: $($removeIntuneResult.Message)")
+                } elseif ($WhatIf -or $WhatIfDelete) {
+                    $subActionMessages.Add('Intune: Record removal previewed (WhatIf).')
+                } elseif ($removeIntuneResult.Success) {
+                    $subActionMessages.Add('Intune: Record removed.')
+                } else {
+                    $subActionMessages.Add('Intune: Record removal failed.')
                 }
                 if (-not $removeIntuneResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
                     $subActionSuccess = $false
@@ -94,6 +106,12 @@ function Request-CloudDevicesDelete {
                 $removeEntraResult = Remove-MyDevice -InputObject $device -Confirm:$false -WhatIf:$($WhatIf -or $WhatIfDelete)
                 if ($removeEntraResult.Message) {
                     $subActionMessages.Add("Entra: $($removeEntraResult.Message)")
+                } elseif ($WhatIf -or $WhatIfDelete) {
+                    $subActionMessages.Add('Entra: Record removal previewed (WhatIf).')
+                } elseif ($removeEntraResult.Success) {
+                    $subActionMessages.Add('Entra: Record removed.')
+                } else {
+                    $subActionMessages.Add('Entra: Record removal failed.')
                 }
                 if (-not $removeEntraResult.Success -and -not ($WhatIf -or $WhatIfDelete)) {
                     $subActionSuccess = $false
