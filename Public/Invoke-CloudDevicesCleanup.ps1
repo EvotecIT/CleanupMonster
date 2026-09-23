@@ -252,7 +252,8 @@ function Invoke-CloudDevicesCleanup {
     Previews standalone Autopilot identity removal only. Preview results are shown in the current report but are not stored in history.
 
     .PARAMETER LogPath
-    Path to a log file. When omitted, file logging is not enabled.
+    Path to a log file. Action entries include the attempted device IDs and outcome, plus a per-stage count of candidates left without an action result.
+    When omitted, file logging is not enabled.
 
     .PARAMETER LogMaximum
     Maximum number of rotated log files to keep. Default is 5.
@@ -642,6 +643,7 @@ function Invoke-CloudDevicesCleanup {
         if ($processRetire) {
             $reportRetired = @(Request-CloudDevicesRetire -Devices $devicesToRetire -ProcessedDevices $processedDevices -Today $today -RetireLimit $RetireLimit -ReportOnly:$ReportOnly -WhatIfRetire:$WhatIfRetire -WhatIf:$WhatIfPreference)
         }
+        Write-CloudDeviceActionLog -Action Retire -CandidateCount $devicesToRetire.Count -Limit $RetireLimit -Results $reportRetired -LogPath $LogPath -ConfirmationDeclined:($devicesToRetire.Count -gt 0 -and -not $processRetire)
     }
 
     if ($Disable) {
@@ -655,6 +657,7 @@ function Invoke-CloudDevicesCleanup {
         if ($processDisable) {
             $reportDisabled = @(Request-CloudDevicesDisable -Devices $devicesToDisable -ProcessedDevices $processedDevices -Today $today -DisableLimit $DisableLimit -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -WhatIf:$WhatIfPreference)
         }
+        Write-CloudDeviceActionLog -Action Disable -CandidateCount $devicesToDisable.Count -Limit $DisableLimit -Results $reportDisabled -LogPath $LogPath -ConfirmationDeclined:($devicesToDisable.Count -gt 0 -and -not $processDisable)
     }
 
     if ($processStageDisabledForDelete) {
@@ -668,6 +671,7 @@ function Invoke-CloudDevicesCleanup {
         if ($processStageDelete) {
             $reportStagedForDelete = @(Request-CloudDevicesStageDelete -Devices $devicesToStageForDelete -ProcessedDevices $processedDevices -Today $today -StageLimit $StageDisabledForDeleteLimit -ReportOnly:$ReportOnly -WhatIfStageDelete:$WhatIfStageDelete -WhatIf:$WhatIfPreference)
         }
+        Write-CloudDeviceActionLog -Action StageDelete -CandidateCount $devicesToStageForDelete.Count -Limit $StageDisabledForDeleteLimit -Results $reportStagedForDelete -LogPath $LogPath -ConfirmationDeclined:($devicesToStageForDelete.Count -gt 0 -and -not $processStageDelete)
     }
 
     if ($Delete) {
@@ -681,6 +685,7 @@ function Invoke-CloudDevicesCleanup {
         if ($processDelete) {
             $reportDeleted = @(Request-CloudDevicesDelete -Devices $devicesToDelete -ProcessedDevices $processedDevices -Today $today -DeleteLimit $DeleteLimit -DeleteRemoveIntuneRecord:$DeleteRemoveIntuneRecord -DeleteAutopilotIdentity:$DeleteAutopilotIdentity -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -WhatIf:$WhatIfPreference)
         }
+        Write-CloudDeviceActionLog -Action Delete -CandidateCount $devicesToDelete.Count -Limit $DeleteLimit -Results $reportDeleted -LogPath $LogPath -ConfirmationDeclined:($devicesToDelete.Count -gt 0 -and -not $processDelete)
     }
 
     if ($RemoveAutopilotIdentity) {
@@ -705,6 +710,7 @@ function Invoke-CloudDevicesCleanup {
         if ($processRemoveAutopilotIdentity) {
             $reportAutopilotIdentityRemoved = @(Request-CloudDevicesRemoveAutopilotIdentity -Devices $devicesToRemoveAutopilotIdentity -Today $today -RemoveAutopilotIdentityLimit $RemoveAutopilotIdentityLimit -ReportOnly:$ReportOnly -WhatIfRemoveAutopilotIdentity:$WhatIfRemoveAutopilotIdentity -GlobalWhatIf:$WhatIfPreference)
         }
+        Write-CloudDeviceActionLog -Action RemoveAutopilotIdentity -CandidateCount $devicesToRemoveAutopilotIdentity.Count -Limit $RemoveAutopilotIdentityLimit -Results $reportAutopilotIdentityRemoved -LogPath $LogPath -ConfirmationDeclined:($devicesToRemoveAutopilotIdentity.Count -gt 0 -and -not $processRemoveAutopilotIdentity)
     }
 
     $export.PendingActions = $processedDevices

@@ -1,9 +1,10 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
+    . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
     . (Get-CleanupMonsterPath 'Public/Invoke-CloudDevicesCleanup.ps1')
 
-    function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
+    function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color, [string] $LogFile) }
     function Set-LoggingCapabilities {}
     function Set-ReportingCapabilities {}
     function Get-GitHubVersion { param($Cmdlet, $RepositoryOwner, $RepositoryName) '0.0.0' }
@@ -21,6 +22,27 @@ BeforeAll {
 }
 
 Describe 'Invoke-CloudDevicesCleanup' {
+    It 'logs the attempted WhatIf devices rather than every candidate' {
+        $logPath = Join-Path $TestDrive 'cloud-actions.log'
+        Mock Get-InitialCloudDevices { @() }
+        Mock Get-CloudDevicesToProcess {
+            1..3 | ForEach-Object {
+                [pscustomobject] @{ Name = "iPhone-$_"; EntraDeviceObjectId = "entra-$_" }
+            }
+        }
+        Mock Request-CloudDevicesDisable {
+            @([pscustomobject] @{ Name = 'iPhone-1'; EntraDeviceObjectId = 'entra-1'; ActionStatus = 'WhatIf' })
+        }
+        Mock Write-CloudDeviceActionLog {}
+
+        Invoke-CloudDevicesCleanup -Disable -DisableLimit 1 -WhatIfDisable -LogPath $logPath -Suppress | Out-Null
+
+        Assert-MockCalled Write-CloudDeviceActionLog -Times 1 -Exactly -ParameterFilter {
+            $Action -eq 'Disable' -and $CandidateCount -eq 3 -and $Limit -eq 1 -and $LogPath -eq $logPath -and
+            $Results.Count -eq 1 -and $Results[0].ActionStatus -eq 'WhatIf'
+        }
+    }
+
     It 'uses each Entra age as the optional Intune recency threshold' {
         $script:intuneThresholds = @{}
         Mock Get-InitialCloudDevices { @() }

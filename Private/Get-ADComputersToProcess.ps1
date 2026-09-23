@@ -295,6 +295,9 @@
                 }
             }
         }
+        $processedKey = "$($Computer.SamAccountName)@$($Computer.DomainName)"
+        $reason = Get-ADComputerSelectionReason -Computer $Computer -ActionIf $ActionIf -ProcessedComputer $ProcessedComputers[$processedKey] -IncludeAzureAD:$IncludeAzureAD -IncludeIntune:$IncludeIntune -IncludeJamf:$IncludeJamf -Today $Today
+        Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'SelectionReason' -Value $reason -Force
         $Computer.'Action' = $Type
         $Count++
     }

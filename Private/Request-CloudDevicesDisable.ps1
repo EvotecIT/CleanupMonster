@@ -38,6 +38,7 @@ function Request-CloudDevicesDisable {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionDate' -Value $Today -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionStatus' -Value $actionStatus -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'Disable' -Force
+        Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value $(if (-not $ReportOnly) { $disableResult.Message }) -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)
         $attemptedCount++

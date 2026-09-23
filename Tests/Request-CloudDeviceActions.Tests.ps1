@@ -73,6 +73,7 @@ Describe 'Request-CloudDevicesRetire' {
 
         $results | Should -HaveCount 1
         $results[0].ActionStatus | Should -Be 'False'
+        $results[0].ActionNotes | Should -Be 'Retire failed'
         Assert-MockCalled Invoke-MyDeviceRetire -Times 1 -Exactly
     }
 }
@@ -135,6 +136,7 @@ Describe 'Request-CloudDevicesDisable' {
 
         $results | Should -HaveCount 1
         $results[0].ActionStatus | Should -Be 'False'
+        $results[0].ActionNotes | Should -Be 'Disable failed'
         Assert-MockCalled Disable-MyDevice -Times 1 -Exactly
     }
 }
@@ -158,6 +160,7 @@ Describe 'Request-CloudDevicesStageDelete' {
         $results | Should -HaveCount 1
         $results[0].Action | Should -Be 'StageDelete'
         $results[0].ActionStatus | Should -Be 'True'
+        $results[0].ActionNotes | Should -Be 'Device staged for delete after pending grace period.'
         $processedDevices.Contains('entra:entra-stage') | Should -BeTrue
     }
 
@@ -176,6 +179,24 @@ Describe 'Request-CloudDevicesStageDelete' {
 
         $results | Should -HaveCount 1
         $results[0].ActionStatus | Should -Be 'WhatIf'
+        $results[0].ActionNotes | Should -Be 'Pending delete staging previewed; no pending record was written.'
+        $processedDevices.Count | Should -Be 0
+    }
+
+    It 'does not claim report-only staging wrote a pending record' {
+        $processedDevices = [ordered] @{}
+        $device = [PSCustomObject] @{
+            Name                = 'Windows-StageReport'
+            EntraDeviceObjectId = 'entra-stage-report'
+            ProcessedDeviceKey  = 'entra:entra-stage-report'
+            ProcessedDeviceKeys = @('entra:entra-stage-report')
+        }
+
+        $results = @(Request-CloudDevicesStageDelete -Devices @($device) -ProcessedDevices $processedDevices -Today (Get-Date) -ReportOnly)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'ReportOnly'
+        $results[0].ActionNotes | Should -Be 'Pending delete staging previewed; no pending record was written.'
         $processedDevices.Count | Should -Be 0
     }
 
@@ -209,6 +230,29 @@ Describe 'Request-CloudDevicesDelete' {
         Mock Remove-MyAutopilotDevice {}
         Mock Remove-MyDevice {}
         Mock Remove-MyDeviceIntuneRecord {}
+    }
+
+    It 'names each planned record removal in a WhatIf result when Graph returns no message' {
+        Mock Remove-MyDeviceIntuneRecord { [pscustomobject] @{ Success = $true } }
+        Mock Remove-MyDevice { [pscustomobject] @{ Success = $true } }
+
+        $device = [pscustomobject] @{
+            Name                = 'iPhone-Preview'
+            EntraDeviceObjectId = 'entra-preview'
+            ManagedDeviceId     = 'intune-preview'
+            HasEntraRecord      = $true
+            HasIntuneRecord     = $true
+            RecordState         = 'Matched'
+            ProcessedDeviceKey  = 'entra:entra-preview'
+            ProcessedDeviceKeys = @('entra:entra-preview', 'intune:intune-preview')
+        }
+
+        $results = @(Request-CloudDevicesDelete -Devices @($device) -ProcessedDevices ([ordered] @{}) -Today (Get-Date) -WhatIfDelete)
+
+        $results | Should -HaveCount 1
+        $results[0].ActionStatus | Should -Be 'WhatIf'
+        $results[0].ActionNotes | Should -Match 'Intune: Record removal previewed \(WhatIf\)'
+        $results[0].ActionNotes | Should -Match 'Entra: Record removal previewed \(WhatIf\)'
     }
 
     It 'marks delete as failed when no delete sub-action is applicable' {

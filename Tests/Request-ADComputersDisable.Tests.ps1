@@ -1,6 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Get-ADComputersToProcess.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-ADComputerSelectionReason.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-ADComputerCurrentDistinguishedName.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersDisable.ps1')
 

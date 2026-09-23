@@ -56,6 +56,10 @@ Describe 'AD computer report serialization' {
                 TimeOnPendingList           = 10
                 TimeToLeavePendingList      = 20
                 DistinguishedNameAfterMove = 'OU=Moved,DC=contoso,DC=com'
+                SelectionReason            = 'LastLogonDays=210 (LastLogonDateMoreThan=90)'
+                ActionAttempted            = $true
+                DisableActionResult        = 'True'
+                MoveActionResult           = 'WhatIf'
             }
         }
         $DataPath = Join-Path $TestDrive 'computers.json'
@@ -72,6 +76,10 @@ Describe 'AD computer report serialization' {
         [string] $Parsed[0].WhenCreated | Should -Be $Rows[0].WhenCreated.ToString('')
         $Parsed[2].Description | Should -BeIn @('<retired>', '&lt;retired&gt;')
         $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'TimeOnPendingList'
+        $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'SelectionReason'
+        $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'ActionAttempted'
+        $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'DisableActionResult'
+        $Parsed[0].PSObject.Properties.Name | Should -Not -Contain 'MoveActionResult'
         (Get-Content -LiteralPath $DataPath -Raw) | Should -Not -Match '"Description":"<retired>"'
     }
 

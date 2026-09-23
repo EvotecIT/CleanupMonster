@@ -1,6 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Public/Invoke-ADComputersCleanup.ps1')
+    . (Get-CleanupMonsterPath 'Private/Write-ADComputerActionLog.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
     function Set-LoggingCapabilities {}
@@ -115,6 +116,24 @@ BeforeAll {
 }
 
 Describe 'Invoke-ADComputersCleanup' {
+    It 'logs returned AD action results but no report-only candidate detail' {
+        Mock Request-ADComputersDisable {
+            [pscustomobject] @{
+                SamAccountName   = 'PC1$'
+                ActionDate       = Get-Date
+                ActionStatus     = 'WhatIf'
+                SelectionReason  = 'LastLogonDays=210 (LastLogonDateMoreThan=180)'
+            }
+        }
+        Mock Write-ADComputerActionLog {}
+
+        Invoke-ADComputersCleanup -Disable -WhatIfDisable -Suppress | Out-Null
+        Assert-MockCalled Write-ADComputerActionLog -Times 1 -Exactly -ParameterFilter { $Action -eq 'Disable' -and $Results.Count -eq 1 }
+
+        Invoke-ADComputersCleanup -Disable -ReportOnly -Suppress | Out-Null
+        Assert-MockCalled Write-ADComputerActionLog -Times 1 -Exactly
+    }
+
     It 'passes the bounded AD connection and idle timeouts to inventory discovery' {
         $script:CapturedADQueryConnectionTimeout = $null
         $script:CapturedADQueryIdleTimeout = $null
