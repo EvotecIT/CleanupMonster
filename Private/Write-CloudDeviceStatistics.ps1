@@ -4,7 +4,8 @@ function Write-CloudDeviceStatistics {
         [Parameter(Mandatory)] [string] $Label,
         [Parameter(Mandatory)] [AllowNull()] [AllowEmptyCollection()] [Array] $Devices,
         [Parameter(Mandatory)] [ValidateSet('Entra', 'Intune', 'Scoped', 'Candidates')] [string] $Mode,
-        [string] $LogPath
+        [string] $LogPath,
+        [switch] $PassThru
     )
 
     $families = @('Windows', 'Android', 'iOS', 'iPadOS', 'macOS', 'Other', 'Unknown')
@@ -111,5 +112,36 @@ function Write-CloudDeviceStatistics {
         Write-Color -Text '[i] ', "Intune link: Healthy=$($links.Healthy); Broken=$($links.Broken); NotClaimed=$($links.NotClaimed)." -Color Yellow, Cyan -LogFile $LogPath
         Write-Color -Text '[i] ', "Intune link: IntuneOnly=$($links.IntuneOnly); Other=$($links.Other)." -Color Yellow, Cyan -LogFile $LogPath
         Write-Color -Text '[i] ', "Scoped records without an Entra activity date: NoEntra=$($totals.ALL.NoEntra)." -Color Yellow, Cyan -LogFile $LogPath
+    }
+
+    if ($PassThru) {
+        [pscustomobject] @{
+            Label   = $Label
+            Mode    = $Mode
+            Total   = $totals.ALL.Total
+            Rows    = @(
+                foreach ($family in @('ALL') + $families) {
+                    $row = $totals[$family]
+                    if ($family -ne 'ALL' -and $row.Total -eq 0) { continue }
+                    [pscustomobject] @{
+                        OS              = $family
+                        Total           = $row.Total
+                        Enabled         = $row.On
+                        Disabled        = $row.Off
+                        UnknownState    = $row.UnknownState
+                        AgeWithin90     = $row.Recent
+                        Age91To180      = $row.Middle
+                        AgeOver90       = $row.Old90
+                        AgeOver180      = $row.Old
+                        EnabledOver90   = $row.OnOld90
+                        EnabledOver180  = $row.OnOld180
+                        UnknownActivity = $row.UnknownAge
+                        NoEntraRecord   = $row.NoEntra
+                    }
+                }
+            )
+            Records = [pscustomobject] $records
+            Links   = [pscustomobject] $links
+        }
     }
 }

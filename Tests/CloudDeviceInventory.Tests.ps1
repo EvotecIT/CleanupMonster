@@ -31,10 +31,14 @@ Describe 'Cloud device inventory and selection helpers' {
             [pscustomobject] @{ Name = 'MAC-01'; ManagedDeviceId = 'managed-mac'; AzureAdDeviceId = 'mac-1'; OperatingSystem = 'macOS'; DeviceRegistrationState = 'joined'; LastSeenDays = 250 }
         }
 
-        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -LogPath 'inventory.log')
+        $sourceStatistics = $null
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -LogPath 'inventory.log' -Statistics ([ref] $sourceStatistics))
 
         $devices | Should -HaveCount 1
         $devices[0].Name | Should -Be 'PC-01'
+        $sourceStatistics.Entra.Total | Should -Be 2
+        $sourceStatistics.Intune.Total | Should -Be 1
+        ($sourceStatistics.Entra.Rows | Where-Object OS -EQ macOS).EnabledOver180 | Should -Be 1
         ($script:sourceLines -join "`n") | Should -Match 'Entra seen \(requested join types; before OS filters\): 2 record'
         ($script:sourceLines -join "`n") | Should -Match 'Intune seen \(before OS filters\): 1 record'
         $macRows = @($script:sourceLines | Where-Object { $_ -match '^\[i\] macOS\s' })

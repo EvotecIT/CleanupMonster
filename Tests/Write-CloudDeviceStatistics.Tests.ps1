@@ -68,4 +68,17 @@ Describe 'Write-CloudDeviceStatistics' {
 
         ($script:statisticsLines | ForEach-Object Length | Measure-Object -Maximum).Maximum | Should -BeLessOrEqual 98
     }
+
+    It 'returns the same aggregate data for the HTML report without individual devices' {
+        $summary = Write-CloudDeviceStatistics -Label 'Entra seen' -Mode Entra -Devices @(
+            [pscustomobject] @{ Name = 'MAC-01'; OperatingSystem = 'macOS'; Enabled = $true; LastSeenDays = 210 }
+            [pscustomobject] @{ Name = 'PC-01'; OperatingSystem = 'Windows'; Enabled = $false; LastSeenDays = 10 }
+        ) -PassThru
+
+        $summary.Total | Should -Be 2
+        $mac = $summary.Rows | Where-Object OS -EQ macOS
+        $mac.EnabledOver180 | Should -Be 1
+        $mac.PSObject.Properties.Name | Should -Not -Contain 'Name'
+        $summary.Rows | Should -HaveCount 3
+    }
 }
