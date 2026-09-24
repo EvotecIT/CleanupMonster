@@ -18,13 +18,19 @@ function Get-InitialCloudDevices {
         [ref] $Statistics
     )
 
+    $nowUtc = [DateTimeOffset]::UtcNow
     $getAgeDays = {
         param([AllowNull()] $DateValue)
 
-        if ($DateValue) {
-            [math]::Floor((New-TimeSpan -Start $DateValue -End (Get-Date)).TotalDays)
-        } else {
-            $null
+        if ($null -eq $DateValue -or [string]::IsNullOrWhiteSpace([string] $DateValue)) {
+            return $null
+        }
+
+        try {
+            $registeredAt = [DateTimeOffset] $DateValue
+            [math]::Floor(($nowUtc - $registeredAt.ToUniversalTime()).TotalDays)
+        } catch {
+            throw "Cannot calculate cloud device age from date value '$DateValue': $($_.Exception.Message)"
         }
     }
 

@@ -83,10 +83,31 @@ Describe 'Cloud device inventory and selection helpers' {
         ($script:sourceLines -join "`n") | Should -Match 'Entra seen \(requested join types; before OS filters\): 2 record'
         ($script:sourceLines -join "`n") | Should -Match 'Intune seen \(before OS filters\): 1 record'
         $macRows = @($script:sourceLines | Where-Object { $_ -match '^\[i\] macOS\s' })
-        $macRows | Should -HaveCount 2
-        $macRows[0] | Should -Match '1\s+1\s+0\s+0\s+1\s+1\s+1\s+1\s+0$'
-        $macRows[1] | Should -Match '1\s+0\s+0\s+1\s+0$'
+        $macRows | Should -HaveCount 4
+        $macRows[0] | Should -Match '1\s+1\s+0\s+0$'
+        $macRows[1] | Should -Match '0\s+0\s+1\s+0$'
+        $macRows[2] | Should -Match '1\s+1$'
+        $macRows[3] | Should -Match '0\s+0\s+1\s+0$'
         Assert-MockCalled Write-Color -ParameterFilter { $LogFile -eq 'inventory.log' } -Times 1
+    }
+
+    It 'calculates Entra, Intune, and Autopilot ages from Graph DateTimeOffset values' {
+        $firstSeen = [DateTimeOffset]::UtcNow.AddDays(-201)
+        $lastContacted = [DateTimeOffset]::UtcNow.AddDays(-150)
+        Mock Get-MyDevice {
+            [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-1'; DeviceId = 'device-1'; TrustType = 'AzureAD joined'; OperatingSystem = 'Windows'; FirstSeen = $firstSeen }
+        }
+        Mock Get-MyDeviceIntune {
+            [pscustomobject] @{ Name = 'PC-01'; ManagedDeviceId = 'intune-1'; AzureAdDeviceId = 'device-1'; OperatingSystem = 'Windows'; DeviceRegistrationState = 'joined'; FirstSeen = $firstSeen; AutopilotLastContacted = $lastContacted }
+        }
+
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @())
+
+        $devices | Should -HaveCount 1
+        $devices[0].RegisteredDays | Should -BeIn @(200, 201)
+        $devices[0].EntraRegisteredDays | Should -BeIn @(200, 201)
+        $devices[0].IntuneRegisteredDays | Should -BeIn @(200, 201)
+        $devices[0].AutopilotLastContactedDays | Should -BeIn @(149, 150)
     }
 
     It 'keeps empty-guid Intune orphans independent for deletion' {
