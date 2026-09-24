@@ -13,7 +13,8 @@ function Get-InitialCloudDevices {
         [switch] $IncludeUnknownOperatingSystemVersion,
         [Array] $Exclusions,
         [switch] $IncludeAutopilotInventory,
-        [switch] $IncludeDuplicateNameProtectionInventory
+        [switch] $IncludeDuplicateNameProtectionInventory,
+        [string] $LogPath
     )
 
     $getAgeDays = {
@@ -100,7 +101,7 @@ function Get-InitialCloudDevices {
     $entraDevices = [System.Collections.Generic.List[object]]::new()
     $duplicateNameReferenceDevices = [System.Collections.Generic.List[object]]::new()
     if ($entraJoinType.Count -gt 0) {
-        Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($entraJoinType -join ', ') -Color Yellow, Cyan, Green
+        Write-Color -Text '[i] ', 'Getting cloud devices from Microsoft Entra ID for join types: ', ($entraJoinType -join ', '), ' (page progress follows)' -Color Yellow, Cyan, Green, Cyan -LogFile $LogPath
         $includeHybridReference = $IncludeDuplicateNameProtectionInventory -and $entraJoinType -notcontains 'Hybrid AzureAD'
         $entraQueryJoinType = @($entraJoinType)
         if ($includeHybridReference) {
@@ -116,16 +117,21 @@ function Get-InitialCloudDevices {
             $entraParameters.IncludeAutopilotInventory = $true
         }
         $warningVar = $null
-        Get-MyDevice @entraParameters | ForEach-Object {
-            if ($entraJoinType -contains $_.TrustType) {
-                $entraDevices.Add($_)
-            }
-            if ($includeHybridReference -and $_.TrustType -eq 'Hybrid AzureAD') {
-                $duplicateNameReferenceDevices.Add($_)
+        Get-MyDevice @entraParameters -ReportProgress 6>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.InformationRecord]) {
+                Write-Color -Text '[i] ', ([string] $_.MessageData) -Color Yellow, Cyan -LogFile $LogPath
+            } else {
+                if ($entraJoinType -contains $_.TrustType) {
+                    $entraDevices.Add($_)
+                }
+                if ($includeHybridReference -and $_.TrustType -eq 'Hybrid AzureAD') {
+                    $duplicateNameReferenceDevices.Add($_)
+                }
             }
         }
         if ($warningVar) {
-            Write-Color -Text '[e] ', 'Error getting devices from Microsoft Entra ID: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
+            $warningText = (@($warningVar) | ForEach-Object { [string] $_ }) -join '; '
+            Write-Color -Text '[e] ', 'Error getting devices from Microsoft Entra ID: ', $warningText, ' Terminating!' -Color Yellow, Red, Yellow, Red -LogFile $LogPath
             return $false
         }
 
@@ -146,7 +152,7 @@ function Get-InitialCloudDevices {
     Write-Color -Text '[i] ', 'Cloud devices found in Microsoft Entra ID: ', $entraDevices.Count -Color Yellow, Cyan, Green
 
     $includeIntuneJoinType = @($IncludeJoinType + 'Not available') | Select-Object -Unique
-    Write-Color -Text '[i] ', 'Getting cloud devices from Intune for join types: ', ($includeIntuneJoinType -join ', ') -Color Yellow, Cyan, Green
+    Write-Color -Text '[i] ', 'Getting cloud devices from Intune for join types: ', ($includeIntuneJoinType -join ', '), ' (page progress follows)' -Color Yellow, Cyan, Green, Cyan -LogFile $LogPath
     $intuneParameters = @{
         Type            = $includeIntuneJoinType
         PropertySet     = 'Lifecycle'
@@ -156,9 +162,16 @@ function Get-InitialCloudDevices {
     if ($IncludeAutopilotInventory) {
         $intuneParameters.IncludeAutopilotInventory = $true
     }
-    [Array] $intuneDevices = Get-MyDeviceIntune @intuneParameters
+    [Array] $intuneDevices = @(Get-MyDeviceIntune @intuneParameters -ReportProgress 6>&1 | ForEach-Object {
+        if ($_ -is [System.Management.Automation.InformationRecord]) {
+            Write-Color -Text '[i] ', ([string] $_.MessageData) -Color Yellow, Cyan -LogFile $LogPath
+        } else {
+            $_
+        }
+    })
     if ($warningVar) {
-        Write-Color -Text '[e] ', 'Error getting devices from Intune: ', $warningVar, ' Terminating!' -Color Yellow, Red, Yellow, Red
+        $warningText = (@($warningVar) | ForEach-Object { [string] $_ }) -join '; '
+        Write-Color -Text '[e] ', 'Error getting devices from Intune: ', $warningText, ' Terminating!' -Color Yellow, Red, Yellow, Red -LogFile $LogPath
         return $false
     }
 

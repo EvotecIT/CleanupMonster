@@ -13,12 +13,53 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Test-CloudDevicePendingActivity.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDevicesToProcess.ps1')
 
-    function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
-    function Get-MyDevice { param($Type, $WarningAction, $WarningVariable, $IncludeAutopilotInventory) }
-    function Get-MyDeviceIntune { param($Type, $PropertySet, $WarningAction, $WarningVariable, $IncludeAutopilotInventory) }
+    function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color, [string] $LogFile) }
+    function Get-MyDevice { [CmdletBinding()] param($Type, $IncludeAutopilotInventory, [switch] $ReportProgress) }
+    function Get-MyDeviceIntune { [CmdletBinding()] param($Type, $PropertySet, $IncludeAutopilotInventory, [switch] $ReportProgress) }
 }
 
 Describe 'Cloud device inventory and selection helpers' {
+    It 'records page progress from both cloud inventory sources in the configured log' {
+        $script:progressLog = [System.Collections.Generic.List[object]]::new()
+        Mock Write-Color {
+            $script:progressLog.Add([pscustomobject] @{ Text = $Text -join ''; LogFile = $LogFile })
+        }
+        Mock Get-MyDevice {
+            Write-Information -MessageData 'Graph inventory: 100 records across 1 page(s), 0.1 minute(s) elapsed; complete.' -InformationAction Continue
+        }
+        Mock Get-MyDeviceIntune {
+            Write-Information -MessageData 'Graph inventory: 20 records across 1 page(s), 0.1 minute(s) elapsed; complete.' -InformationAction Continue
+        }
+        $logPath = Join-Path $TestDrive 'cloud-inventory.log'
+
+        Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -LogPath $logPath | Out-Null
+
+        @($script:progressLog | Where-Object { $_.Text -match 'Graph inventory: .*records across' -and $_.LogFile -eq $logPath }) | Should -HaveCount 2
+        Assert-MockCalled Get-MyDevice -Times 1 -Exactly -ParameterFilter { $ReportProgress }
+        Assert-MockCalled Get-MyDeviceIntune -Times 1 -Exactly -ParameterFilter { $ReportProgress }
+    }
+
+    It 'stops before Intune inventory when Entra page retrieval warns of an incomplete inventory' {
+        Mock Get-MyDevice { Write-Warning 'Graph inventory page 2 failed after 3 attempt(s)' }
+        Mock Get-MyDeviceIntune { throw 'Intune should not be queried' }
+
+        $result = Get-InitialCloudDevices -IncludeJoinType 'AzureAD registered' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @()
+
+        $result | Should -BeFalse
+        Assert-MockCalled Get-MyDeviceIntune -Times 0 -Exactly
+    }
+
+    It 'does not return Entra devices after Intune page retrieval warns of an incomplete inventory' {
+        Mock Get-MyDevice {
+            [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-1'; DeviceId = 'device-1'; TrustType = 'AzureAD joined'; OperatingSystem = 'Windows' }
+        }
+        Mock Get-MyDeviceIntune { Write-Warning 'Graph inventory page 2 failed after 3 attempt(s)' }
+
+        $result = Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @()
+
+        $result | Should -BeFalse
+    }
+
     It 'keeps empty-guid Intune orphans independent for deletion' {
         Mock Get-MyDevice { @() }
         Mock Get-MyDeviceIntune {

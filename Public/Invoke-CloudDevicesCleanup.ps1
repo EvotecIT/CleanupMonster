@@ -606,6 +606,7 @@ function Invoke-CloudDevicesCleanup {
         IncludeUnknownOperatingSystem       = $IncludeUnknownOperatingSystem
         IncludeUnknownOperatingSystemVersion = $IncludeUnknownOperatingSystemVersion
         Exclusions                          = $Exclusions
+        LogPath                             = $LogPath
     }
     if ($includeAutopilotInventory) {
         $initialCloudDeviceParameters.IncludeAutopilotInventory = $true
@@ -619,7 +620,7 @@ function Invoke-CloudDevicesCleanup {
     }
     $autopilotRemovalDevices = $allDevices
     if ($useSeparateAutopilotRemovalInventory) {
-        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory -IncludeDuplicateNameProtectionInventory:$PreserveDuplicateDeviceNames
+        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory -IncludeDuplicateNameProtectionInventory:$PreserveDuplicateDeviceNames -LogPath $LogPath
         if ($autopilotRemovalDevices -eq $false) {
             return
         }
