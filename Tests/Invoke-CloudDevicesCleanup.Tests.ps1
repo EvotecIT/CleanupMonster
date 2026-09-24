@@ -41,10 +41,11 @@ Describe 'Invoke-CloudDevicesCleanup' {
 
         Invoke-CloudDevicesCleanup -Disable -Delete -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem 'Windows*','Android*','iOS*' -ExcludeOperatingSystem 'macOS*' -WhatIfDisable -WhatIfDelete -Suppress | Out-Null
 
-        ($script:inventoryLogLines -join "`n") | Should -Match 'Cloud inventory scope: JoinType=AzureAD joined,AzureAD registered; IncludeOS=Windows\*,Android\*,iOS\*; ExcludeOS=macOS\*'
-        ($script:inventoryLogLines -join "`n") | Should -Match 'Cloud inventory summary: 3 record\(s\); OS Windows=1, Android=1, iOS=1, iPadOS=0, macOS=0'
-        ($script:inventoryLogLines -join "`n") | Should -Match 'Disable candidates summary: 1 record\(s\); OS Windows=0, Android=1'
-        ($script:inventoryLogLines -join "`n") | Should -Not -Match 'Delete candidates summary'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope join types: AzureAD joined, AzureAD registered'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope OS include: Windows\*,Android\*,iOS\*; exclude: macOS\*'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope \(after filters and correlation\): 3 record\(s\)'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Disable candidates \(after rules\): 1 record\(s\)'
+        ($script:inventoryLogLines -join "`n") | Should -Not -Match 'Delete candidates \(after rules\)'
         Assert-MockCalled Get-InitialCloudDevices -Times 1 -Exactly
     }
 

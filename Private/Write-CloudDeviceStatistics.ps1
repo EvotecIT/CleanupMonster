@@ -1,27 +1,23 @@
 function Write-CloudDeviceStatistics {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [string] $Label,
-
-        [Parameter(Mandatory)]
-        [AllowNull()]
-        [AllowEmptyCollection()]
-        [Array] $Devices,
-
-        [switch] $IncludeActivityAge,
+        [Parameter(Mandatory)] [string] $Label,
+        [Parameter(Mandatory)] [AllowNull()] [AllowEmptyCollection()] [Array] $Devices,
+        [Parameter(Mandatory)] [ValidateSet('Entra', 'Intune', 'Scoped', 'Candidates')] [string] $Mode,
         [string] $LogPath
     )
 
-    $os = @{ Windows = 0; Android = 0; iOS = 0; iPadOS = 0; macOS = 0; Other = 0; Unknown = 0 }
+    $families = @('Windows', 'Android', 'iOS', 'iPadOS', 'macOS', 'Other', 'Unknown')
+    $totals = @{}
+    foreach ($family in @('ALL') + $families) {
+        $totals[$family] = @{ Total = 0; On = 0; Off = 0; UnknownState = 0; Recent = 0; Middle = 0; Old = 0; UnknownAge = 0; NoEntra = 0; Old90 = 0; OnOld90 = 0; OnOld180 = 0 }
+    }
     $records = @{ Matched = 0; EntraOnly = 0; IntuneOnly = 0; Other = 0 }
     $links = @{ Healthy = 0; Broken = 0; NotClaimed = 0; IntuneOnly = 0; Other = 0 }
-    $enabled = @{ Enabled = 0; Disabled = 0; Unknown = 0 }
-    $activity = @{ Recent = 0; Middle = 0; Old = 0; Unknown = 0; NoEntraRecord = 0 }
 
     foreach ($device in $Devices) {
         $operatingSystem = [string] $device.OperatingSystem
-        $osFamily = if ([string]::IsNullOrWhiteSpace($operatingSystem) -or $operatingSystem -eq 'Unknown') {
+        $family = if ([string]::IsNullOrWhiteSpace($operatingSystem) -or $operatingSystem -eq 'Unknown') {
             'Unknown'
         } elseif ($operatingSystem -like 'Windows*') {
             'Windows'
@@ -36,42 +32,84 @@ function Write-CloudDeviceStatistics {
         } else {
             'Other'
         }
-        $os[$osFamily]++
 
-        $recordState = [string] $device.RecordState
-        if (-not $records.ContainsKey($recordState)) { $recordState = 'Other' }
-        $records[$recordState]++
+        foreach ($row in @($totals.ALL, $totals[$family])) {
+            $row.Total++
+            if ($Mode -ne 'Intune') {
+                if ($null -ne $device.Enabled -and $device.Enabled -eq $true) {
+                    $row.On++
+                } elseif ($null -ne $device.Enabled -and $device.Enabled -eq $false) {
+                    $row.Off++
+                } else {
+                    $row.UnknownState++
+                }
+            }
 
-        $linkState = [string] $device.IntuneLinkState
-        if (-not $links.ContainsKey($linkState)) { $linkState = 'Other' }
-        $links[$linkState]++
-
-        if ($device.Enabled -eq $true -and $null -ne $device.Enabled) {
-            $enabled.Enabled++
-        } elseif ($device.Enabled -eq $false -and $null -ne $device.Enabled) {
-            $enabled.Disabled++
-        } else {
-            $enabled.Unknown++
+            if ($Mode -eq 'Entra' -or $Mode -eq 'Intune' -or $Mode -eq 'Scoped') {
+                $noEntra = $Mode -eq 'Scoped' -and -not $device.HasEntraRecord
+                $age = if ($Mode -eq 'Scoped') { $device.EntraLastSeenDays } else { $device.LastSeenDays }
+                if ($noEntra) {
+                    $row.NoEntra++
+                } elseif ($null -eq $age) {
+                    $row.UnknownAge++
+                } elseif ($age -le 90) {
+                    $row.Recent++
+                } elseif ($age -le 180) {
+                    $row.Middle++
+                    $row.Old90++
+                    if ($null -ne $device.Enabled -and $device.Enabled -eq $true) { $row.OnOld90++ }
+                } else {
+                    $row.Old++
+                    $row.Old90++
+                    if ($null -ne $device.Enabled -and $device.Enabled -eq $true) {
+                        $row.OnOld90++
+                        $row.OnOld180++
+                    }
+                }
+            }
         }
 
-        if ($IncludeActivityAge) {
-            if (-not $device.HasEntraRecord) {
-                $activity.NoEntraRecord++
-            } elseif ($null -eq $device.EntraLastSeenDays) {
-                $activity.Unknown++
-            } elseif ($device.EntraLastSeenDays -le 90) {
-                $activity.Recent++
-            } elseif ($device.EntraLastSeenDays -le 180) {
-                $activity.Middle++
-            } else {
-                $activity.Old++
-            }
+        if ($Mode -eq 'Scoped') {
+            $recordState = [string] $device.RecordState
+            if (-not $records.ContainsKey($recordState)) { $recordState = 'Other' }
+            $records[$recordState]++
+            $linkState = [string] $device.IntuneLinkState
+            if (-not $links.ContainsKey($linkState)) { $linkState = 'Other' }
+            $links[$linkState]++
         }
     }
 
-    Write-Color -Text '[i] ', "$Label summary: $($Devices.Count) record(s); OS Windows=$($os.Windows), Android=$($os.Android), iOS=$($os.iOS), iPadOS=$($os.iPadOS), macOS=$($os.macOS), Other=$($os.Other), Unknown=$($os.Unknown)." -Color Yellow, Cyan -LogFile $LogPath
-    Write-Color -Text '[i] ', "$Label states: Matched=$($records.Matched), EntraOnly=$($records.EntraOnly), IntuneOnly=$($records.IntuneOnly), Other=$($records.Other); IntuneLink Healthy=$($links.Healthy), Broken=$($links.Broken), NotClaimed=$($links.NotClaimed), IntuneOnly=$($links.IntuneOnly), Other=$($links.Other); Enabled=$($enabled.Enabled), Disabled=$($enabled.Disabled), Unknown=$($enabled.Unknown)." -Color Yellow, Cyan -LogFile $LogPath
-    if ($IncludeActivityAge) {
-        Write-Color -Text '[i] ', "$Label Entra activity age: <=90d=$($activity.Recent), 91-180d=$($activity.Middle), >180d=$($activity.Old), Unknown=$($activity.Unknown), NoEntraRecord=$($activity.NoEntraRecord). These are activity bands within this job's scope, not portal stale-device totals." -Color Yellow, Cyan -LogFile $LogPath
+    Write-Color -Text '[i] ', "$Label`: $($totals.ALL.Total) record(s)." -Color Yellow, Cyan -LogFile $LogPath
+    if ($Mode -eq 'Intune') {
+        Write-Color -Text '[i] ', 'Age = days since Intune sync; bands do not overlap.' -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', 'OS             Total    <=90d  91-180d    >180d    ?Age' -Color Yellow, Cyan -LogFile $LogPath
+    } elseif ($Mode -eq 'Candidates') {
+        Write-Color -Text '[i] ', 'Selected by stage rules; counts are candidates, not action attempts.' -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', 'OS             Total       On      Off   ?State' -Color Yellow, Cyan -LogFile $LogPath
+    } else {
+        Write-Color -Text '[i] ', 'Age = Entra activity; >90d and >180d are cumulative.' -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', 'On = enabled; Off = disabled; ?State/?Age = unknown.' -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', 'On>90/On>180 = enabled with old activity; candidates apply all rules.' -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', 'OS           Total     On    Off ?State    >90d   >180d  On>90 On>180 ?Age' -Color Yellow, Cyan -LogFile $LogPath
+    }
+
+    foreach ($family in @('ALL') + $families) {
+        $row = $totals[$family]
+        if ($family -ne 'ALL' -and $row.Total -eq 0) { continue }
+        $line = if ($Mode -eq 'Intune') {
+            '{0,-12} {1,7} {2,8} {3,8} {4,8} {5,7}' -f $family, $row.Total, $row.Recent, $row.Middle, $row.Old, $row.UnknownAge
+        } elseif ($Mode -eq 'Candidates') {
+            '{0,-12} {1,7} {2,8} {3,8} {4,8}' -f $family, $row.Total, $row.On, $row.Off, $row.UnknownState
+        } else {
+            '{0,-12} {1,7} {2,6} {3,6} {4,6} {5,7} {6,7} {7,6} {8,6} {9,5}' -f $family, $row.Total, $row.On, $row.Off, $row.UnknownState, $row.Old90, $row.Old, $row.OnOld90, $row.OnOld180, $row.UnknownAge
+        }
+        Write-Color -Text '[i] ', $line -Color Yellow, Cyan -LogFile $LogPath
+    }
+
+    if ($Mode -eq 'Scoped') {
+        Write-Color -Text '[i] ', "Scoped source: Matched=$($records.Matched); EntraOnly=$($records.EntraOnly); IntuneOnly=$($records.IntuneOnly); Other=$($records.Other)." -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', "Intune link: Healthy=$($links.Healthy); Broken=$($links.Broken); NotClaimed=$($links.NotClaimed)." -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', "Intune link: IntuneOnly=$($links.IntuneOnly); Other=$($links.Other)." -Color Yellow, Cyan -LogFile $LogPath
+        Write-Color -Text '[i] ', "Scoped records without an Entra activity date: NoEntra=$($totals.ALL.NoEntra)." -Color Yellow, Cyan -LogFile $LogPath
     }
 }

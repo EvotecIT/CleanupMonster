@@ -607,6 +607,7 @@ function Invoke-CloudDevicesCleanup {
         IncludeUnknownOperatingSystem       = $IncludeUnknownOperatingSystem
         IncludeUnknownOperatingSystemVersion = $IncludeUnknownOperatingSystemVersion
         Exclusions                          = $Exclusions
+        LogPath                             = $LogPath
     }
     if ($includeAutopilotInventory) {
         $initialCloudDeviceParameters.IncludeAutopilotInventory = $true
@@ -622,27 +623,21 @@ function Invoke-CloudDevicesCleanup {
     $excludedOs = if ($ExcludeOperatingSystem.Count) { $ExcludeOperatingSystem -join ',' } else { 'None' }
     $includedOsVersion = if ($IncludeOperatingSystemVersion.Count) { $IncludeOperatingSystemVersion -join ',' } else { 'Any' }
     $excludedOsVersion = if ($ExcludeOperatingSystemVersion.Count) { $ExcludeOperatingSystemVersion -join ',' } else { 'None' }
-    $scopeSummary = @(
-        "JoinType=$($primaryIncludeJoinType -join ',')"
-        "IncludeOS=$includedOs"
-        "ExcludeOS=$excludedOs"
-        "IncludeUnknownOS=$([bool] $IncludeUnknownOperatingSystem)"
-        "IncludeOSVersion=$includedOsVersion"
-        "ExcludeOSVersion=$excludedOsVersion"
-        "IncludeUnknownOSVersion=$([bool] $IncludeUnknownOperatingSystemVersion)"
-        "Exclusions=$($Exclusions.Count)"
-    ) -join '; '
-    Write-Color -Text '[i] ', "Cloud inventory scope: $scopeSummary." -Color Yellow, Cyan -LogFile $LogPath
-    Write-CloudDeviceStatistics -Label 'Cloud inventory' -Devices $allDevices -IncludeActivityAge -LogPath $LogPath
+    Write-Color -Text '[i] ', "Cleanup scope join types: $($primaryIncludeJoinType -join ', ')." -Color Yellow, Cyan -LogFile $LogPath
+    Write-Color -Text '[i] ', "Cleanup scope OS include: $includedOs; exclude: $excludedOs." -Color Yellow, Cyan -LogFile $LogPath
+    Write-Color -Text '[i] ', "Cleanup scope OS unknown: $([bool] $IncludeUnknownOperatingSystem)." -Color Yellow, Cyan -LogFile $LogPath
+    Write-Color -Text '[i] ', "Cleanup scope OS versions include: $includedOsVersion; exclude: $excludedOsVersion." -Color Yellow, Cyan -LogFile $LogPath
+    Write-Color -Text '[i] ', "Cleanup scope version unknown: $([bool] $IncludeUnknownOperatingSystemVersion); explicit exclusions: $($Exclusions.Count)." -Color Yellow, Cyan -LogFile $LogPath
+    Write-CloudDeviceStatistics -Label 'Cleanup scope (after filters and correlation)' -Devices $allDevices -Mode Scoped -LogPath $LogPath
     $autopilotRemovalDevices = $allDevices
     if ($useSeparateAutopilotRemovalInventory) {
-        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory -IncludeDuplicateNameProtectionInventory:$PreserveDuplicateDeviceNames
+        $autopilotRemovalDevices = Get-InitialCloudDevices -SafetyEntraLimit $SafetyEntraLimit -SafetyIntuneLimit $SafetyIntuneLimit -IncludeJoinType $autopilotRemovalIncludeJoinType -IncludeOperatingSystem $autopilotRemovalIncludeOperatingSystem -ExcludeOperatingSystem $ExcludeOperatingSystem -IncludeOperatingSystemVersion $IncludeOperatingSystemVersion -ExcludeOperatingSystemVersion $ExcludeOperatingSystemVersion -IncludeUnknownOperatingSystem:$IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion:$IncludeUnknownOperatingSystemVersion -Exclusions $Exclusions -IncludeAutopilotInventory -IncludeDuplicateNameProtectionInventory:$PreserveDuplicateDeviceNames -LogPath $LogPath
         if ($autopilotRemovalDevices -eq $false) {
             return
         }
         $autopilotOsScope = if ($autopilotRemovalIncludeOperatingSystem.Count) { $autopilotRemovalIncludeOperatingSystem -join ',' } else { 'Any' }
         Write-Color -Text '[i] ', "Separate Autopilot removal scope: JoinType=$($autopilotRemovalIncludeJoinType -join ','); IncludeOS=$autopilotOsScope." -Color Yellow, Cyan -LogFile $LogPath
-        Write-CloudDeviceStatistics -Label 'Autopilot removal inventory' -Devices $autopilotRemovalDevices -LogPath $LogPath
+        Write-CloudDeviceStatistics -Label 'Autopilot removal scope' -Devices $autopilotRemovalDevices -Mode Scoped -LogPath $LogPath
     }
 
     $today = Get-Date
@@ -656,7 +651,7 @@ function Invoke-CloudDevicesCleanup {
         $devicesToRetire = @(Get-CloudDevicesToProcess -Type Retire -Devices $allDevices -ActionIf $retireOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be retired: ', $devicesToRetire.Count, '. Current retire limit: ', $(if ($RetireLimit -eq 0) { 'Unlimited' } else { $RetireLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         if ($devicesToRetire.Count -gt 0) {
-            Write-CloudDeviceStatistics -Label 'Retire candidates' -Devices $devicesToRetire -LogPath $LogPath
+            Write-CloudDeviceStatistics -Label 'Retire candidates (after rules)' -Devices $devicesToRetire -Mode Candidates -LogPath $LogPath
         }
 
         $processRetire = $devicesToRetire.Count -gt 0
@@ -673,7 +668,7 @@ function Invoke-CloudDevicesCleanup {
         $devicesToDisable = @(Get-CloudDevicesToProcess -Type Disable -Devices $allDevices -ActionIf $disableOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be disabled: ', $devicesToDisable.Count, '. Current disable limit: ', $(if ($DisableLimit -eq 0) { 'Unlimited' } else { $DisableLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         if ($devicesToDisable.Count -gt 0) {
-            Write-CloudDeviceStatistics -Label 'Disable candidates' -Devices $devicesToDisable -LogPath $LogPath
+            Write-CloudDeviceStatistics -Label 'Disable candidates (after rules)' -Devices $devicesToDisable -Mode Candidates -LogPath $LogPath
         }
 
         $processDisable = $devicesToDisable.Count -gt 0
@@ -690,7 +685,7 @@ function Invoke-CloudDevicesCleanup {
         $devicesToStageForDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $stageDeleteOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be staged for delete: ', $devicesToStageForDelete.Count, '. Current stage limit: ', $(if ($StageDisabledForDeleteLimit -eq 0) { 'Unlimited' } else { $StageDisabledForDeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         if ($devicesToStageForDelete.Count -gt 0) {
-            Write-CloudDeviceStatistics -Label 'StageDelete candidates' -Devices $devicesToStageForDelete -LogPath $LogPath
+            Write-CloudDeviceStatistics -Label 'StageDelete candidates (after rules)' -Devices $devicesToStageForDelete -Mode Candidates -LogPath $LogPath
         }
 
         $processStageDelete = $devicesToStageForDelete.Count -gt 0
@@ -707,7 +702,7 @@ function Invoke-CloudDevicesCleanup {
         $devicesToDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $deleteOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be deleted: ', $devicesToDelete.Count, '. Current delete limit: ', $(if ($DeleteLimit -eq 0) { 'Unlimited' } else { $DeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         if ($devicesToDelete.Count -gt 0) {
-            Write-CloudDeviceStatistics -Label 'Delete candidates' -Devices $devicesToDelete -LogPath $LogPath
+            Write-CloudDeviceStatistics -Label 'Delete candidates (after rules)' -Devices $devicesToDelete -Mode Candidates -LogPath $LogPath
         }
 
         $processDelete = $devicesToDelete.Count -gt 0
@@ -735,7 +730,7 @@ function Invoke-CloudDevicesCleanup {
         }
         Write-Color -Text '[i] ', 'Autopilot identities to be removed: ', $devicesToRemoveAutopilotIdentity.Count, '. Current remove limit: ', $(if ($RemoveAutopilotIdentityLimit -eq 0) { 'Unlimited' } else { $RemoveAutopilotIdentityLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         if ($devicesToRemoveAutopilotIdentity.Count -gt 0) {
-            Write-CloudDeviceStatistics -Label 'Autopilot removal candidates' -Devices $devicesToRemoveAutopilotIdentity -LogPath $LogPath
+            Write-CloudDeviceStatistics -Label 'Autopilot removal candidates (after rules)' -Devices $devicesToRemoveAutopilotIdentity -Mode Candidates -LogPath $LogPath
         }
 
         $processRemoveAutopilotIdentity = $devicesToRemoveAutopilotIdentity.Count -gt 0
