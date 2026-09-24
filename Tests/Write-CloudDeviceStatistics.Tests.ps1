@@ -99,6 +99,29 @@ Describe 'Write-CloudDeviceStatistics' {
         ($script:statisticsLines -join "`n") | Should -Match 'Chrome OS\s+1'
     }
 
+    It 'groups iPhone and iPad labels with mobile OS families in source and candidate counts' {
+        $devices = @(
+            [pscustomobject] @{ OperatingSystem = 'IPhone'; Enabled = $true; LastSeenDays = 200 }
+            [pscustomobject] @{ OperatingSystem = 'iOS'; Enabled = $true; LastSeenDays = 20 }
+            [pscustomobject] @{ OperatingSystem = 'IPad'; Enabled = $true; LastSeenDays = 200 }
+            [pscustomobject] @{ OperatingSystem = 'iPadOS'; Enabled = $true; LastSeenDays = 20 }
+            [pscustomobject] @{ OperatingSystem = 'MacMDM'; Enabled = $true; LastSeenDays = 200 }
+        )
+
+        $source = Write-CloudDeviceStatistics -Label 'Entra seen' -Devices $devices -Mode Entra -PassThru
+        ($source.Rows | Where-Object OS -EQ iOS).Total | Should -Be 2
+        ($source.Rows | Where-Object OS -EQ iPadOS).Total | Should -Be 2
+        ($source.Rows | Where-Object OS -EQ Other).Total | Should -Be 1
+        ($script:statisticsLines -join "`n") | Should -Match 'MacMDM\s+1'
+        ($script:statisticsLines -join "`n") | Should -Not -Match 'IPhone\s+1|IPad\s+1'
+
+        $script:statisticsLines.Clear()
+        $candidates = Write-CloudDeviceStatistics -Label 'Disable candidates' -Devices $devices[0..3] -Mode Candidates -PassThru
+        ($candidates.Rows | Where-Object OS -EQ iOS).Total | Should -Be 2
+        ($candidates.Rows | Where-Object OS -EQ iPadOS).Total | Should -Be 2
+        ($candidates.Rows | Where-Object OS -EQ Other) | Should -BeNullOrEmpty
+    }
+
     It 'returns the same aggregate data for the HTML report without individual devices' {
         $summary = Write-CloudDeviceStatistics -Label 'Entra seen' -Mode Entra -Devices @(
             [pscustomobject] @{ Name = 'MAC-01'; OperatingSystem = 'macOS'; Enabled = $true; LastSeenDays = 210 }
