@@ -13,7 +13,9 @@ function Get-InitialCloudDevices {
         [switch] $IncludeUnknownOperatingSystemVersion,
         [Array] $Exclusions,
         [switch] $IncludeAutopilotInventory,
-        [switch] $IncludeDuplicateNameProtectionInventory
+        [switch] $IncludeDuplicateNameProtectionInventory,
+        [string] $LogPath,
+        [ref] $Statistics
     )
 
     $getAgeDays = {
@@ -168,6 +170,15 @@ function Get-InitialCloudDevices {
     }
 
     Write-Color -Text '[i] ', 'Cloud devices found in Intune: ', $intuneDevices.Count -Color Yellow, Cyan, Green
+
+    # These are source records before OS, version, and explicit exclusion filters.
+    # The two source totals can overlap and must not be added together.
+    Write-Color -Text '[i] ', 'Source totals may overlap; do not add Entra and Intune counts.' -Color Yellow, Cyan -LogFile $LogPath
+    $entraStatistics = Write-CloudDeviceStatistics -Label 'Entra seen (requested join types; before OS filters)' -Devices $entraDevices -Mode Entra -LogPath $LogPath -PassThru
+    $intuneStatistics = Write-CloudDeviceStatistics -Label 'Intune seen (before OS filters)' -Devices $intuneDevices -Mode Intune -LogPath $LogPath -PassThru
+    if ($Statistics) {
+        $Statistics.Value = [pscustomobject] @{ Entra = $entraStatistics; Intune = $intuneStatistics }
+    }
 
     $intuneByAzureDeviceId = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $ambiguousIntuneAzureDeviceIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
