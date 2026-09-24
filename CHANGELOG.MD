@@ -1,4 +1,9 @@
-﻿### 3.1.18 - 2026.09.24
+﻿### 3.1.19 - 2026.09.24
+
+- Group Entra IPhone and IPad operating-system labels under iOS and iPadOS in cloud inventory logs and report statistics.
+- Clarify that cloud cleanup prepares an optional email body for callers but does not send mail.
+
+### 3.1.18 - 2026.09.24
 
 - Calculate cloud-device registration and Autopilot contact ages from Microsoft Graph date values without repeated conversion errors.
 - Present cloud inventory statistics in shorter log sections for enabled state and activity age, with a breakdown of the most common operating-system labels grouped as Other.
