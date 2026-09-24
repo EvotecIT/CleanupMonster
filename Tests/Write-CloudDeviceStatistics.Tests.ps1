@@ -22,8 +22,19 @@ Describe 'Write-CloudDeviceStatistics' {
         Write-CloudDeviceStatistics -Label 'Entra seen' -Devices $devices -Mode Entra -LogPath 'inventory.log'
 
         $script:statisticsLines[0] | Should -Match 'Entra seen: 5 record'
-        ($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' }) | Should -Match '5\s+3\s+2\s+0\s+3\s+2\s+2\s+1\s+1$'
-        ($script:statisticsLines | Where-Object { $_ -match '^\[i\] macOS\s' }) | Should -Match '2\s+1\s+1\s+0\s+1\s+1\s+1\s+1\s+1$'
+        ($script:statisticsLines -join "`n") | Should -Match 'Enabled state by OS:'
+        ($script:statisticsLines -join "`n") | Should -Match 'Entra activity age by OS'
+        ($script:statisticsLines -join "`n") | Should -Match 'Enabled with old Entra activity'
+        $allRows = @($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' })
+        $allRows | Should -HaveCount 3
+        $allRows[0] | Should -Match '5\s+3\s+2\s+0$'
+        $allRows[1] | Should -Match '1\s+1\s+2\s+1$'
+        $allRows[2] | Should -Match '2\s+1$'
+        $macRows = @($script:statisticsLines | Where-Object { $_ -match '^\[i\] macOS\s' })
+        $macRows | Should -HaveCount 3
+        $macRows[0] | Should -Match '2\s+1\s+1\s+0$'
+        $macRows[1] | Should -Match '0\s+0\s+1\s+1$'
+        $macRows[2] | Should -Match '1\s+1$'
         Assert-MockCalled Write-Color -ParameterFilter { $LogFile -eq 'inventory.log' } -Times $script:statisticsLines.Count -Exactly
     }
 
@@ -34,8 +45,9 @@ Describe 'Write-CloudDeviceStatistics' {
             [pscustomobject] @{ OperatingSystem = 'macOS'; LastSeenDays = $null }
         ) -Mode Intune
 
-        ($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' }) | Should -Match '3\s+1\s+0\s+1\s+1$'
-        ($script:statisticsLines -join "`n") | Should -Not -Match 'On>90'
+        ($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' }) | Should -Match '1\s+0\s+1\s+1$'
+        ($script:statisticsLines -join "`n") | Should -Match 'Intune sync age by OS'
+        ($script:statisticsLines -join "`n") | Should -Not -Match 'Enabled state by OS'
     }
 
     It 'shows correlated scope separately from Entra and Intune source totals' {
@@ -44,7 +56,11 @@ Describe 'Write-CloudDeviceStatistics' {
             [pscustomobject] @{ OperatingSystem = 'iOS'; Enabled = $null; EntraLastSeenDays = $null; HasEntraRecord = $false; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
         ) -Mode Scoped
 
-        ($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' }) | Should -Match '2\s+1\s+0\s+1\s+1\s+1\s+1\s+1\s+0$'
+        $allRows = @($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' })
+        $allRows | Should -HaveCount 3
+        $allRows[0] | Should -Match '2\s+1\s+0\s+1$'
+        $allRows[1] | Should -Match '0\s+0\s+1\s+0\s+1$'
+        $allRows[2] | Should -Match '1\s+1$'
         ($script:statisticsLines -join "`n") | Should -Match 'NoEntra=1'
         ($script:statisticsLines -join "`n") | Should -Match 'Matched=1; EntraOnly=0; IntuneOnly=1'
         ($script:statisticsLines -join "`n") | Should -Not -Match '^\[i\] macOS\s'
@@ -57,6 +73,7 @@ Describe 'Write-CloudDeviceStatistics' {
         ) -Mode Candidates
 
         ($script:statisticsLines | Where-Object { $_ -match '^\[i\] ALL\s' }) | Should -Match '2\s+1\s+1\s+0$'
+        ($script:statisticsLines -join "`n") | Should -Not -Match 'activity age by OS'
         ($script:statisticsLines -join "`n") | Should -Not -Match 'macOS'
         $script:statisticsLines[0] | Should -Match 'after rules'
     }
@@ -66,7 +83,20 @@ Describe 'Write-CloudDeviceStatistics' {
             [pscustomobject] @{ OperatingSystem = 'Windows'; Enabled = $true; LastSeenDays = 200 }
         ) -Mode Entra
 
-        ($script:statisticsLines | ForEach-Object Length | Measure-Object -Maximum).Maximum | Should -BeLessOrEqual 98
+        ($script:statisticsLines | ForEach-Object Length | Measure-Object -Maximum).Maximum | Should -BeLessOrEqual 80
+    }
+
+    It 'explains the Other OS bucket without printing every raw label' {
+        $devices = @(
+            [pscustomobject] @{ OperatingSystem = 'Linux'; Enabled = $true; LastSeenDays = 10 }
+            [pscustomobject] @{ OperatingSystem = 'Linux'; Enabled = $true; LastSeenDays = 20 }
+            [pscustomobject] @{ OperatingSystem = 'Chrome OS'; Enabled = $true; LastSeenDays = 30 }
+        )
+        Write-CloudDeviceStatistics -Label 'Entra seen' -Devices $devices -Mode Entra
+
+        ($script:statisticsLines -join "`n") | Should -Match 'Other OS labels in this source'
+        ($script:statisticsLines -join "`n") | Should -Match 'Linux\s+2'
+        ($script:statisticsLines -join "`n") | Should -Match 'Chrome OS\s+1'
     }
 
     It 'returns the same aggregate data for the HTML report without individual devices' {
