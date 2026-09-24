@@ -2,7 +2,7 @@
 Module Name: CleanupMonster
 Module Guid: cd1f9987-6242-452c-a7db-6337d4a6b639
 Download Help Link: https://github.com/EvotecIT/CleanupMonster
-Help Version: 3.1.14
+Help Version: 3.1.16
 Locale: en-US
 ---
 # CleanupMonster Module

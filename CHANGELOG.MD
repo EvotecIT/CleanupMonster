@@ -1,4 +1,9 @@
-﻿### 3.1.15
+﻿### 3.1.16 - 2026.09.23
+
+- Log each attempted cloud-device cleanup action, including WhatIf previews, with the device ID, outcome, and the activity age or state that matched the configured rule.
+- Log attempted Active Directory computer actions with selection reasons and the result of each disable or move step. Protected skips and candidates beyond action limits remain out of per-device action logs.
+
+### 3.1.15
 
 - Stop Entra deletion when Intune record removal fails during cloud-device cleanup.
 - Apply Autopilot identity deletion only to Windows or unknown-OS records.

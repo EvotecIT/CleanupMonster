@@ -11,7 +11,7 @@ Cleans up stale Microsoft Entra registered cloud devices.
 ## SYNTAX
 ### __AllParameterSets
 ```powershell
-Invoke-CloudDevicesCleanup [[-RetireLastSeenIntuneMoreThan] <Int32>] [[-RetireLastSeenEntraMoreThan] <Int32>] [[-RetireRegisteredMoreThan] <Int32>] [[-RetireLimit] <int>] [[-DisableLastSeenEntraMoreThan] <Int32>] [[-DisableLastSeenIntuneMoreThan] <Int32>] [[-DisableRegisteredMoreThan] <Int32>] [[-DisableListProcessedMoreThan] <Int32>] [[-DisableLimit] <int>] [[-StageDisabledForDeleteLimit] <int>] [[-DeleteLastSeenEntraMoreThan] <Int32>] [[-DeleteLastSeenIntuneMoreThan] <Int32>] [[-DeleteRegisteredMoreThan] <Int32>] [[-DeleteListProcessedMoreThan] <Int32>] [[-DeleteLimit] <int>] [[-DeleteRemoveIntuneRecord] <bool>] [[-RemoveAutopilotIdentityLastContactMoreThan] <Int32>] [[-RemoveAutopilotIdentityIntuneAssociationState] <string>] [[-RemoveAutopilotIdentityEntraAssociationState] <string>] [[-RemoveAutopilotIdentityLimit] <int>] [[-IncludeJoinType] <string[]>] [[-IncludeOperatingSystem] <array>] [[-ExcludeOperatingSystem] <array>] [[-IncludeOperatingSystemVersion] <array>] [[-ExcludeOperatingSystemVersion] <array>] [[-IntuneLinkState] <string>] [[-AutopilotState] <string>] [[-OwnerState] <string>] [[-ManagementState] <string>] [[-ComplianceState] <string>] [[-EnabledState] <string>] [[-IncludeManagementAgent] <array>] [[-ExcludeManagementAgent] <array>] [[-IncludeEnrollmentType] <array>] [[-ExcludeEnrollmentType] <array>] [[-IncludeDeviceRegistrationState] <array>] [[-ExcludeDeviceRegistrationState] <array>] [[-IncludeAutopilotGroupTag] <array>] [[-ExcludeAutopilotGroupTag] <array>] [[-Exclusions] <array>] [[-PreserveDuplicateDeviceNames] <bool>] [[-DataStorePath] <string>] [[-LogPath] <string>] [[-LogMaximum] <int>] [[-LogTimeFormat] <string>] [[-ReportPath] <string>] [[-SafetyEntraLimit] <Int32>] [[-SafetyIntuneLimit] <Int32>] [-Retire] [-RetireIncludeIntuneOnly] [-Disable] [-DisableIncludeEntraOnly] [-StageDisabledForDelete] [-Delete] [-DeleteIncludeEntraOnly] [-DeleteIncludeIntuneOnly] [-DeleteAutopilotIdentity] [-RemoveAutopilotIdentity] [-IncludeUnknownOperatingSystem] [-IncludeUnknownOperatingSystemVersion] [-IncludeUnknownActivity] [-IncludeCompanyOwned] [-ReportOnly] [-WhatIfRetire] [-WhatIfDisable] [-WhatIfStageDelete] [-WhatIfDelete] [-WhatIfRemoveAutopilotIdentity] [-LogShowTime] [-Suppress] [-ShowHTML] [-Online] [-WhatIf] [-Confirm] [<CommonParameters>]
+Invoke-CloudDevicesCleanup [[-RetireLastSeenIntuneMoreThan] <Int32>] [[-RetireLastSeenEntraMoreThan] <Int32>] [[-RetireRegisteredMoreThan] <Int32>] [[-RetireLimit] <int>] [[-DisableLastSeenEntraMoreThan] <Int32>] [[-DisableLastSeenIntuneMoreThan] <Int32>] [[-DisableRegisteredMoreThan] <Int32>] [[-DisableListProcessedMoreThan] <Int32>] [[-DisableLimit] <int>] [[-StageDisabledForDeleteLimit] <int>] [[-DeleteLastSeenEntraMoreThan] <Int32>] [[-DeleteLastSeenIntuneMoreThan] <Int32>] [[-DeleteRegisteredMoreThan] <Int32>] [[-DeleteListProcessedMoreThan] <Int32>] [[-DeleteLimit] <int>] [[-DeleteRemoveIntuneRecord] <bool>] [[-RemoveAutopilotIdentityLastContactMoreThan] <Int32>] [[-RemoveAutopilotIdentityIntuneAssociationState] <string>] [[-RemoveAutopilotIdentityEntraAssociationState] <string>] [[-RemoveAutopilotIdentityLimit] <int>] [[-IncludeJoinType] <string[]>] [[-IncludeOperatingSystem] <array>] [[-ExcludeOperatingSystem] <array>] [[-IncludeOperatingSystemVersion] <array>] [[-ExcludeOperatingSystemVersion] <array>] [[-IntuneLinkState] <string>] [[-AutopilotState] <string>] [[-OwnerState] <string>] [[-ManagementState] <string>] [[-ComplianceState] <string>] [[-EnabledState] <string>] [[-IncludeManagementAgent] <array>] [[-ExcludeManagementAgent] <array>] [[-IncludeEnrollmentType] <array>] [[-ExcludeEnrollmentType] <array>] [[-IncludeDeviceRegistrationState] <array>] [[-ExcludeDeviceRegistrationState] <array>] [[-IncludeAutopilotGroupTag] <array>] [[-ExcludeAutopilotGroupTag] <array>] [[-Exclusions] <array>] [[-PreserveDuplicateDeviceNames] <bool>] [[-DataStorePath] <string>] [[-LogPath] <string>] [[-LogMaximum] <int>] [[-LogTimeFormat] <string>] [[-ReportPath] <string>] [[-SafetyEntraLimit] <Int32>] [[-SafetyIntuneLimit] <Int32>] [-Retire] [-RetireIncludeIntuneOnly] [-Disable] [-DisableIncludeEntraOnly] [-StageDisabledForDelete] [-Delete] [-DeleteIncludeEntraOnly] [-DeleteIncludeIntuneOnly] [-DeleteAutopilotIdentity] [-RemoveAutopilotIdentity] [-IncludeUnknownOperatingSystem] [-IncludeUnknownOperatingSystemVersion] [-IncludeUnknownActivity] [-ProtectRecentIntuneActivity] [-IncludeCompanyOwned] [-ReportOnly] [-WhatIfRetire] [-WhatIfDisable] [-WhatIfStageDelete] [-WhatIfDelete] [-WhatIfRemoveAutopilotIdentity] [-LogShowTime] [-Suppress] [-ShowHTML] [-Online] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -770,7 +770,8 @@ Accept wildcard characters: False
 ```
 
 ### -LogPath
-Path to a log file. When omitted, file logging is not enabled.
+Path to a log file. Action entries include the attempted device IDs and outcome, plus a per-stage count of candidates left without an action result.
+When omitted, file logging is not enabled.
 
 ```yaml
 Type: String
@@ -878,6 +879,24 @@ Possible values:
 Required: False
 Position: 40
 Default value: True
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ProtectRecentIntuneActivity
+For disable and delete stages with an Entra last-seen threshold, also require any matching
+Intune record to have a known last sync older than that stage's threshold. Entra-only
+records remain eligible using the Entra threshold.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: __AllParameterSets
+Aliases: None
+Possible values:
+
+Required: False
+Position: named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
