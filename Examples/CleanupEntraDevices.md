@@ -14,7 +14,7 @@ Check the existing app's Microsoft Graph **application permissions** and tenant 
 | `DeviceManagementManagedDevices.ReadWrite.All` | Intune managed-device inventory and final record removal |
 | `DeviceManagementServiceConfig.ReadWrite.All` | Autopilot identity inventory and final removal |
 
-Release GraphEssentials **0.0.63** first, then CleanupMonster **3.1.15**. Install both on the scheduled host before running this example. The example requires these versions because they stop ambiguous Autopilot matches, stop Entra deletion after an Intune deletion failure, and protect recently synced Intune devices. Earlier releases do not contain these changes.
+Release GraphEssentials **0.0.65** first, then a CleanupMonster release **3.1.17 or newer** containing this change. Install both on the scheduled host before running this example. These versions provide fail-closed cloud inventory paging, stop ambiguous Autopilot matches, stop Entra deletion after an Intune deletion failure, and protect recently synced Intune devices. Earlier releases do not contain all of these changes.
 
 ## Run it like the old job
 
