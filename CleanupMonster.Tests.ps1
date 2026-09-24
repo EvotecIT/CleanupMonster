@@ -12,6 +12,11 @@ if (-not (Get-Module -ListAvailable -Name Pester | Where-Object Version -EQ $Pes
 
 Import-Module Pester -RequiredVersion $PesterVersion -Force -ErrorAction Stop
 
+$PSWriteHTMLRequirement = @($ModuleInfo.RequiredModules | Where-Object { $_.ModuleName -eq 'PSWriteHTML' })[0]
+if (-not (Get-Module -ListAvailable -Name PSWriteHTML | Where-Object { $_.Version -ge [version] $PSWriteHTMLRequirement.ModuleVersion })) {
+    Install-Module -Name PSWriteHTML -RequiredVersion $PSWriteHTMLRequirement.ModuleVersion -Repository PSGallery -Force -Scope CurrentUser -ErrorAction Stop
+}
+
 Write-Host "ModuleName: $($ModuleManifest.BaseName) Version: $($ModuleInfo.ModuleVersion)"
 Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
 Write-Host "PowerShell Edition: $($PSVersionTable.PSEdition)"

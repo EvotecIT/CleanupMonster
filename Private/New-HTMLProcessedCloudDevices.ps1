@@ -7,6 +7,8 @@ function New-HTMLProcessedCloudDevices {
         [Parameter(Mandatory)]
         [Array] $Devices,
 
+        [System.Collections.IDictionary] $Statistics,
+
         [Parameter(Mandatory)]
         [System.Collections.IDictionary] $RetireOnlyIf,
 
@@ -37,6 +39,10 @@ function New-HTMLProcessedCloudDevices {
                 New-HTMLSection { New-HTMLText -Text "Report generated on $(Get-Date)" -Color Blue } -JustifyContent flex-start -Invisible
                 New-HTMLSection { New-HTMLText -Text "Cleanup Monster - $($Export.Version)" -Color Blue } -JustifyContent flex-end -Invisible
             }
+        }
+
+        if ($Statistics) {
+            New-HTMLCloudDeviceInventoryOverview -Statistics $Statistics
         }
 
         New-HTMLTab -Name 'Current Run' {

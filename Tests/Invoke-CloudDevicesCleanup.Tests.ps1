@@ -2,6 +2,7 @@ BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
+    . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceStatistics.ps1')
     . (Get-CleanupMonsterPath 'Public/Invoke-CloudDevicesCleanup.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color, [string] $LogFile) }
@@ -17,7 +18,7 @@ BeforeAll {
     function Request-CloudDevicesStageDelete { @() }
     function Request-CloudDevicesDelete { @() }
     function Request-CloudDevicesRemoveAutopilotIdentity { @() }
-    function New-HTMLProcessedCloudDevices {}
+    function New-HTMLProcessedCloudDevices { param($Statistics) }
     function New-EmailBodyCloudDevices { param($CurrentRun) '' }
 }
 
@@ -33,6 +34,37 @@ Describe 'Invoke-CloudDevicesCleanup' {
         Assert-MockCalled Get-CloudDevicesToProcess -Times 0 -Exactly
         Assert-MockCalled Request-CloudDevicesDisable -Times 0 -Exactly
         Assert-MockCalled Request-CloudDevicesDelete -Times 0 -Exactly
+    }
+
+    It 'logs the configured scope and candidate mix without listing unattempted devices' {
+        $script:inventoryLogLines = [System.Collections.Generic.List[string]]::new()
+        $script:reportStatistics = $null
+        Mock Write-Color { $script:inventoryLogLines.Add(($Text -join '')) }
+        Mock New-HTMLProcessedCloudDevices { $script:reportStatistics = $Statistics }
+        Mock Get-InitialCloudDevices {
+            @(
+                [pscustomobject] @{ Name = 'PC-01'; OperatingSystem = 'Windows 11'; RecordState = 'Matched'; IntuneLinkState = 'Healthy'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 20 }
+                [pscustomobject] @{ Name = 'Phone-01'; OperatingSystem = 'Android'; RecordState = 'EntraOnly'; IntuneLinkState = 'Broken'; Enabled = $false; HasEntraRecord = $true; EntraLastSeenDays = 220 }
+                [pscustomobject] @{ Name = 'Phone-02'; OperatingSystem = 'iOS'; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 120 }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            param($Type, $Devices, $ActionIf, $ProcessedDevices)
+            if ($Type -eq 'Disable') { $Devices[1] }
+        }
+        Mock Request-CloudDevicesDisable { @() }
+
+        Invoke-CloudDevicesCleanup -Disable -Delete -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem 'Windows*','Android*','iOS*' -ExcludeOperatingSystem 'macOS*' -WhatIfDisable -WhatIfDelete -Suppress | Out-Null
+
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope join types: AzureAD joined, AzureAD registered'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope OS include: Windows\*,Android\*,iOS\*; exclude: macOS\*'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope \(after filters and correlation\): 3 record\(s\)'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Disable candidates \(after rules\): 1 record\(s\)'
+        ($script:inventoryLogLines -join "`n") | Should -Not -Match 'Delete candidates \(after rules\)'
+        $script:reportStatistics.Scope.Total | Should -Be 3
+        $script:reportStatistics.CandidateTotals.Disable | Should -Be 1
+        $script:reportStatistics.CandidateTotals.Delete | Should -Be 0
+        Assert-MockCalled Get-InitialCloudDevices -Times 1 -Exactly
     }
 
     It 'logs the attempted WhatIf devices rather than every candidate' {
@@ -569,10 +601,13 @@ Describe 'Invoke-CloudDevicesCleanup' {
     It 'includes separate Autopilot removal inventory in report devices' {
         $script:inventoryCallCount = 0
         $script:capturedReportDeviceNames = @()
+        $script:capturedSeparateSourceStatistics = $null
 
         Mock Get-InitialCloudDevices {
+            param([ref] $Statistics)
             $script:inventoryCallCount++
             if ($script:inventoryCallCount -eq 1) {
+                $Statistics.Value = [pscustomobject] @{ Entra = [pscustomobject] @{ Total = 1 }; Intune = [pscustomobject] @{ Total = 1 } }
                 return @(
                     [PSCustomObject] @{
                         Name                = 'iPhone-Primary'
@@ -583,6 +618,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
                 )
             }
 
+            $Statistics.Value = [pscustomobject] @{ Entra = [pscustomobject] @{ Total = 2 }; Intune = [pscustomobject] @{ Total = 2 } }
             @(
                 [PSCustomObject] @{
                     Name                          = 'Windows-Autopilot-Orphan'
@@ -600,16 +636,21 @@ Describe 'Invoke-CloudDevicesCleanup' {
         Mock Get-CloudDevicesToProcess { @() }
         Mock New-HTMLProcessedCloudDevices {
             param(
-                $Devices
+                $Devices,
+                $Statistics
             )
 
             $script:capturedReportDeviceNames = @($Devices.Name)
+            $script:capturedSeparateSourceStatistics = $Statistics
         }
 
         Invoke-CloudDevicesCleanup -Disable -RemoveAutopilotIdentity -ReportOnly -Suppress | Out-Null
 
         $script:capturedReportDeviceNames | Should -Contain 'iPhone-Primary'
         $script:capturedReportDeviceNames | Should -Contain 'Windows-Autopilot-Orphan'
+        $script:capturedSeparateSourceStatistics.Entra.Total | Should -Be 1
+        $script:capturedSeparateSourceStatistics.AutopilotEntra.Total | Should -Be 2
+        $script:capturedSeparateSourceStatistics.AutopilotIntune.Total | Should -Be 2
     }
 
     It 'does not remove the same Autopilot identity after delete handled it in the same run' {

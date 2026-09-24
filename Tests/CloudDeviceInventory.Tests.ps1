@@ -7,6 +7,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Get-CloudDevicePropertyValue.ps1')
     . (Get-CleanupMonsterPath 'Private/Find-ProcessedCloudDeviceRecord.ps1')
     . (Get-CleanupMonsterPath 'Private/Set-CloudDeviceDuplicateNameMetadata.ps1')
+    . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceStatistics.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-InitialCloudDevices.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceRecordKey.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceSelectionReason.ps1')
@@ -58,6 +59,34 @@ Describe 'Cloud device inventory and selection helpers' {
         $result = Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @()
 
         $result | Should -BeFalse
+    }
+
+    It 'logs macOS in the read-only source inventory while leaving it outside Windows cleanup scope' {
+        $script:sourceLines = [System.Collections.Generic.List[string]]::new()
+        Mock Write-Color { $script:sourceLines.Add(($Text -join '')) }
+        Mock Get-MyDevice {
+            [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-win'; DeviceId = 'win-1'; OperatingSystem = 'Windows 11'; Enabled = $true; TrustType = 'AzureAD joined'; LastSeenDays = 200 }
+            [pscustomobject] @{ Name = 'MAC-01'; EntraDeviceObjectId = 'entra-mac'; DeviceId = 'mac-1'; OperatingSystem = 'macOS'; Enabled = $true; TrustType = 'AzureAD joined'; LastSeenDays = 220 }
+        }
+        Mock Get-MyDeviceIntune {
+            [pscustomobject] @{ Name = 'MAC-01'; ManagedDeviceId = 'managed-mac'; AzureAdDeviceId = 'mac-1'; OperatingSystem = 'macOS'; DeviceRegistrationState = 'joined'; LastSeenDays = 250 }
+        }
+
+        $sourceStatistics = $null
+        $devices = @(Get-InitialCloudDevices -IncludeJoinType 'AzureAD joined' -IncludeOperatingSystem @('Windows*') -ExcludeOperatingSystem @() -Exclusions @() -LogPath 'inventory.log' -Statistics ([ref] $sourceStatistics))
+
+        $devices | Should -HaveCount 1
+        $devices[0].Name | Should -Be 'PC-01'
+        $sourceStatistics.Entra.Total | Should -Be 2
+        $sourceStatistics.Intune.Total | Should -Be 1
+        ($sourceStatistics.Entra.Rows | Where-Object OS -EQ macOS).EnabledOver180 | Should -Be 1
+        ($script:sourceLines -join "`n") | Should -Match 'Entra seen \(requested join types; before OS filters\): 2 record'
+        ($script:sourceLines -join "`n") | Should -Match 'Intune seen \(before OS filters\): 1 record'
+        $macRows = @($script:sourceLines | Where-Object { $_ -match '^\[i\] macOS\s' })
+        $macRows | Should -HaveCount 2
+        $macRows[0] | Should -Match '1\s+1\s+0\s+0\s+1\s+1\s+1\s+1\s+0$'
+        $macRows[1] | Should -Match '1\s+0\s+0\s+1\s+0$'
+        Assert-MockCalled Write-Color -ParameterFilter { $LogFile -eq 'inventory.log' } -Times 1
     }
 
     It 'keeps empty-guid Intune orphans independent for deletion' {
