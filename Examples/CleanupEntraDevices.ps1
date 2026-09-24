@@ -4,8 +4,8 @@
 $TenantId = '<tenant-guid>' # Use the tenant ID from the existing computer cleanup job.
 $Today = Get-Date -Format 'yyyy-MM-dd_HH_mm_ss'
 
-Import-Module GraphEssentials -MinimumVersion '0.0.63' -ErrorAction Stop
-Import-Module CleanupMonster -MinimumVersion '3.1.15' -ErrorAction Stop
+Import-Module GraphEssentials -MinimumVersion '0.0.65' -ErrorAction Stop
+Import-Module CleanupMonster -MinimumVersion '3.1.17' -ErrorAction Stop
 
 if ([string] (Get-MgContext).TenantId -ne $TenantId) {
     throw "Connect-MgGraph to tenant $TenantId before running cloud cleanup."

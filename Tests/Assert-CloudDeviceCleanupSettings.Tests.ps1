@@ -16,7 +16,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
         Mock Get-Module {
             [PSCustomObject] @{
                 Name    = 'GraphEssentials'
-                Version = [version] '0.0.63'
+                Version = [version] '0.0.65'
             }
         }
         Mock Get-Command {
@@ -25,21 +25,21 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = [version] '0.0.63'
+                    Version = [version] '0.0.65'
                 }
             }
         }
     }
 
-    It 'accepts the GraphEssentials release that provides unambiguous Autopilot matching' {
+    It 'accepts the GraphEssentials release that provides fail-closed cloud paging' {
         Assert-CloudDeviceCleanupSettings | Should -BeTrue
     }
 
-    It 'rejects the preceding installed GraphEssentials version' {
+    It 'rejects the preceding installed GraphEssentials version without cloud paging' {
         Mock Get-Module {
             [PSCustomObject] @{
                 Name    = 'GraphEssentials'
-                Version = [version] '0.0.62'
+                Version = [version] '0.0.64'
             }
         }
 
@@ -53,7 +53,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = [version] '0.0.62'
+                    Version = [version] '0.0.64'
                 }
             }
         }
@@ -68,7 +68,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = if ($Name -eq 'Get-MyDevice') { [version] '0.0.62' } else { [version] '0.0.63' }
+                    Version = if ($Name -eq 'Get-MyDevice') { [version] '0.0.64' } else { [version] '0.0.65' }
                 }
             }
         }

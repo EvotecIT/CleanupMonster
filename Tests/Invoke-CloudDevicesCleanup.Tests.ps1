@@ -23,6 +23,19 @@ BeforeAll {
 }
 
 Describe 'Invoke-CloudDevicesCleanup' {
+    It 'runs no cleanup action when cloud inventory is incomplete' {
+        Mock Get-InitialCloudDevices { $false }
+        Mock Get-CloudDevicesToProcess { throw 'Selection must not run' }
+        Mock Request-CloudDevicesDisable { throw 'Disable must not run' }
+        Mock Request-CloudDevicesDelete { throw 'Delete must not run' }
+
+        Invoke-CloudDevicesCleanup -Disable -Delete -Suppress | Out-Null
+
+        Assert-MockCalled Get-CloudDevicesToProcess -Times 0 -Exactly
+        Assert-MockCalled Request-CloudDevicesDisable -Times 0 -Exactly
+        Assert-MockCalled Request-CloudDevicesDelete -Times 0 -Exactly
+    }
+
     It 'logs the configured scope and candidate mix without listing unattempted devices' {
         $script:inventoryLogLines = [System.Collections.Generic.List[string]]::new()
         $script:reportStatistics = $null
