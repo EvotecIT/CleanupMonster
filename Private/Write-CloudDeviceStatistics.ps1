@@ -25,9 +25,9 @@ function Write-CloudDeviceStatistics {
             'Windows'
         } elseif ($operatingSystem -like 'Android*') {
             'Android'
-        } elseif ($operatingSystem -like 'iPadOS*') {
+        } elseif ($operatingSystem -like 'iPadOS*' -or $operatingSystem -like 'iPad*') {
             'iPadOS'
-        } elseif ($operatingSystem -like 'iOS*') {
+        } elseif ($operatingSystem -like 'iOS*' -or $operatingSystem -like 'iPhone*') {
             'iOS'
         } elseif ($operatingSystem -like 'macOS*' -or $operatingSystem -like 'Mac OS*') {
             'macOS'

@@ -4,7 +4,7 @@ function New-EmailBodyCloudDevices {
         [Array] $CurrentRun
     )
 
-    Write-Color -Text '[i] ', 'Generating email body for cloud devices' -Color Yellow, White
+    Write-Color -Text '[i] ', 'Preparing optional email body; this command does not send.' -Color Yellow, White
 
     [Array] $retiredDevices = $CurrentRun | Where-Object { $_.Action -eq 'Retire' }
     [Array] $disabledDevices = $CurrentRun | Where-Object { $_.Action -eq 'Disable' }
