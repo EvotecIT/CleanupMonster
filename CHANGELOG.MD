@@ -1,4 +1,10 @@
-﻿### 3.1.16 - 2026.09.23
+﻿### 3.1.17 - 2026.09.24
+
+- Summarize every operating system seen in cloud inventory and show which devices entered cleanup scope and matched disable or delete rules, in logs and the HTML report.
+- Log Entra, Intune, and Windows Autopilot inventory page progress and retries; stop cloud cleanup before actions if a required page remains incomplete.
+- Require GraphEssentials 0.0.65 for cloud cleanup so incomplete inventory cannot proceed through an older paging implementation.
+
+### 3.1.16 - 2026.09.23
 
 - Log each attempted cloud-device cleanup action, including WhatIf previews, with the device ID, outcome, and the activity age or state that matched the configured rule.
 - Log attempted Active Directory computer actions with selection reasons and the result of each disable or move step. Protected skips and candidates beyond action limits remain out of per-device action logs.

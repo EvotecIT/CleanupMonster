@@ -770,7 +770,8 @@ Accept wildcard characters: False
 ```
 
 ### -LogPath
-Path to a log file. Action entries include the attempted device IDs and outcome, plus a per-stage count of candidates left without an action result.
+Path to a log file. Summary lines show the configured inventory scope, OS and correlation counts, Entra activity age bands, and the mix of selected candidates for each enabled action.
+Action entries include only attempted device IDs and outcomes, plus a per-stage count of candidates left without an action result.
 When omitted, file logging is not enabled.
 
 ```yaml
