@@ -1,4 +1,9 @@
-﻿### 3.1.17 - 2026.09.24
+﻿### 3.1.18 - 2026.09.24
+
+- Calculate cloud-device registration and Autopilot contact ages from Microsoft Graph date values without repeated conversion errors.
+- Present cloud inventory statistics in shorter log sections for enabled state and activity age, with a breakdown of the most common operating-system labels grouped as Other.
+
+### 3.1.17 - 2026.09.24
 
 - Summarize every operating system seen in cloud inventory and show which devices entered cleanup scope and matched disable or delete rules, in logs and the HTML report.
 - Log Entra, Intune, and Windows Autopilot inventory page progress and retries; stop cloud cleanup before actions if a required page remains incomplete.
