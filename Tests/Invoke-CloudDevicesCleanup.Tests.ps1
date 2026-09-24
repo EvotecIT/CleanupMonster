@@ -2,6 +2,7 @@ BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
+    . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceStatistics.ps1')
     . (Get-CleanupMonsterPath 'Public/Invoke-CloudDevicesCleanup.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color, [string] $LogFile) }
@@ -22,6 +23,31 @@ BeforeAll {
 }
 
 Describe 'Invoke-CloudDevicesCleanup' {
+    It 'logs the configured scope and candidate mix without listing unattempted devices' {
+        $script:inventoryLogLines = [System.Collections.Generic.List[string]]::new()
+        Mock Write-Color { $script:inventoryLogLines.Add(($Text -join '')) }
+        Mock Get-InitialCloudDevices {
+            @(
+                [pscustomobject] @{ Name = 'PC-01'; OperatingSystem = 'Windows 11'; RecordState = 'Matched'; IntuneLinkState = 'Healthy'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 20 }
+                [pscustomobject] @{ Name = 'Phone-01'; OperatingSystem = 'Android'; RecordState = 'EntraOnly'; IntuneLinkState = 'Broken'; Enabled = $false; HasEntraRecord = $true; EntraLastSeenDays = 220 }
+                [pscustomobject] @{ Name = 'Phone-02'; OperatingSystem = 'iOS'; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 120 }
+            )
+        }
+        Mock Get-CloudDevicesToProcess {
+            param($Type, $Devices, $ActionIf, $ProcessedDevices)
+            if ($Type -eq 'Disable') { $Devices[1] }
+        }
+        Mock Request-CloudDevicesDisable { @() }
+
+        Invoke-CloudDevicesCleanup -Disable -Delete -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem 'Windows*','Android*','iOS*' -ExcludeOperatingSystem 'macOS*' -WhatIfDisable -WhatIfDelete -Suppress | Out-Null
+
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cloud inventory scope: JoinType=AzureAD joined,AzureAD registered; IncludeOS=Windows\*,Android\*,iOS\*; ExcludeOS=macOS\*'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Cloud inventory summary: 3 record\(s\); OS Windows=1, Android=1, iOS=1, iPadOS=0, macOS=0'
+        ($script:inventoryLogLines -join "`n") | Should -Match 'Disable candidates summary: 1 record\(s\); OS Windows=0, Android=1'
+        ($script:inventoryLogLines -join "`n") | Should -Not -Match 'Delete candidates summary'
+        Assert-MockCalled Get-InitialCloudDevices -Times 1 -Exactly
+    }
+
     It 'logs the attempted WhatIf devices rather than every candidate' {
         $logPath = Join-Path $TestDrive 'cloud-actions.log'
         Mock Get-InitialCloudDevices { @() }
