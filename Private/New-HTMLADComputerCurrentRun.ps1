@@ -13,17 +13,21 @@ function New-HTMLADComputerCurrentRun {
     $ActionCounts = [ordered] @{ Disable = 0; Move = 0; Delete = 0 }
     $ResultCounts = [ordered] @{ Completed = 0; WhatIf = 0; NeedsReview = 0 }
     $AttemptedCount = 0
+    $renderRows = [System.Collections.Generic.List[object]]::new()
     $allColumns = [System.Collections.Generic.List[string]]::new()
     $seenColumns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($Computer in $Actions) {
-        foreach ($property in $Computer.PSObject.Properties) {
-            if ($seenColumns.Add($property.Name)) { $allColumns.Add($property.Name) }
-        }
         $Action = [string] $Computer.Action
         if ($ActionCounts.Contains($Action)) { $ActionCounts[$Action]++ }
         if ([string] $Computer.ActionAttempted -eq 'True') { $AttemptedCount++ }
         $Outcome = Get-ADComputerReportOutcome -Computer $Computer -DisableAndMove:$DisableAndMove.IsPresent
         $ResultCounts[$Outcome.Group]++
+        $renderRow = $Computer | Select-Object -Property *
+        Add-Member -InputObject $renderRow -MemberType NoteProperty -Name 'Result' -Value $Outcome.Label
+        $renderRows.Add($renderRow)
+        foreach ($property in $renderRow.PSObject.Properties) {
+            if ($seenColumns.Add($property.Name)) { $allColumns.Add($property.Name) }
+        }
     }
 
     New-HTMLSection -HeaderText 'Current run at a glance' -Direction column {
@@ -52,21 +56,23 @@ function New-HTMLADComputerCurrentRun {
         }
     }
 
-    $primaryColumns = @('SamAccountName', 'Action', 'ActionStatus', 'LastLogonDays' | Where-Object { $allColumns -contains $_ })
+    $primaryColumns = @('SamAccountName', 'Action', 'Result', 'LastLogonDays' | Where-Object { $allColumns -contains $_ })
     $secondaryColumns = @('DNSHostName', 'OperatingSystem' | Where-Object { $allColumns -contains $_ })
     $detailColumns = @($allColumns | Where-Object { $_ -notin ($primaryColumns + $secondaryColumns) })
     New-HTMLSection -HeaderText 'Actions this run' -Direction column {
         New-HTMLText -Text 'One row per selected computer. Expand a row for the complete selection reason, action notes, and remaining audit fields.'
-        New-HTMLTable -DataTable $Actions -AllProperties -Filtering -PagingLength 25 {
+        New-HTMLTable -DataTable $renderRows.ToArray() -AllProperties -Filtering -PagingLength 25 {
             if ($primaryColumns.Count) { New-HTMLTableHeader -Names $primaryColumns -ResponsiveOperations all }
             if ($secondaryColumns.Count) { New-HTMLTableHeader -Names $secondaryColumns -ResponsiveOperations not-mobile }
             if ($detailColumns.Count) { New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none }
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
-            New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-            New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-            New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
+            New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value 'Completed' -BackgroundColor LightGreen
+            New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value 'WhatIf preview' -BackgroundColor LightBlue
+            foreach ($reviewResult in @('Skipped', 'Completed with issue', 'Partially completed', 'Failed', 'WhatIf error', 'Incomplete WhatIf', 'Incomplete action', 'Unknown result')) {
+                New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value $reviewResult -BackgroundColor Salmon
+            }
             New-HTMLTableCondition -Name 'ProtectedFromAccidentalDeletion' -ComparisonType string -Value $false -BackgroundColor LightBlue -FailBackgroundColor Salmon
         } -WarningAction SilentlyContinue
     }

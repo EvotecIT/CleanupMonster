@@ -52,7 +52,7 @@ Describe 'AD current-run report layout' {
             . (Join-Path $RepositoryRoot 'Private/Get-ADComputerReportOutcome.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLADComputerCurrentRun.ps1')
             $actions = @(
-                [pscustomobject] @{ SamAccountName = 'LAB-PC-01$'; DNSHostName = 'LAB-PC-01.example.test'; Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'True'; LastLogonDays = 130; OperatingSystem = 'Windows'; SelectionReason = 'Last logon 130 days ago'; ActionComment = '' }
+                [pscustomobject] @{ SamAccountName = 'LAB-PC-01$'; DNSHostName = 'LAB-PC-01.example.test'; Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'True'; LastLogonDays = 130; OperatingSystem = 'Windows'; SelectionReason = 'Last logon 130 days ago'; ActionComment = 'Description update failed' }
                 [pscustomobject] @{ SamAccountName = 'LAB-PC-02$'; DNSHostName = 'LAB-PC-02.example.test'; Action = 'Delete'; ActionAttempted = $true; ActionStatus = 'WhatIf'; LastLogonDays = 240; OperatingSystem = 'Windows'; SelectionReason = 'Last logon 240 days ago'; ActionComment = ''; DisableActionResult = 'Later row only'; MoveActionResult = 'WhatIf' }
             )
             New-HTML {
@@ -76,6 +76,8 @@ Describe 'AD current-run report layout' {
         $html | Should -Match 'DisableActionResult'
         $html | Should -Match 'Later row only'
         $html | Should -Match 'MoveActionResult'
+        $html | Should -Match 'Completed with issue'
+        $html | Should -Match 'Result'
         $html | Should -Not -Match 'Quick view'
     }
 }
