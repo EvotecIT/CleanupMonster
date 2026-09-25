@@ -1,4 +1,10 @@
-﻿### 3.1.19 - 2026.09.24
+﻿### 3.1.20 - 2026.09.25
+
+- Reorganize the cloud device report: Overview shows inventory, cleanup scope, and enabled rules; Current Run shows this run's selections and attempts; History retains completed, failed, and WhatIf attempts; Pending Actions contains completed actions only.
+- Replace duplicate large report tables with a compact cloud overview and one expandable action table in the AD Current Run report, alongside outcome cards and a selected-action chart.
+- Classify already-satisfied AD steps, metadata update failures, and composite WhatIf errors consistently in the report and per-computer action log.
+
+### 3.1.19 - 2026.09.24
 
 - Group Entra IPhone and IPad operating-system labels under iOS and iPadOS in cloud inventory logs and report statistics.
 - Clarify that cloud cleanup prepares an optional email body for callers but does not send mail.
