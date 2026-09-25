@@ -4,6 +4,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Get-ADComputerSelectionReason.ps1')
     . (Get-CleanupMonsterPath 'Private/Get-ADComputerCurrentDistinguishedName.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersDisable.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-ADComputerReportOutcome.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
     function Disable-WinADComputer {}
@@ -170,6 +171,48 @@ Describe 'Request-ADComputersDisable pending state' {
         Request-ADComputersDisable -Report $report -ProcessedComputers $processedComputers -DisableOnlyIf @{} -DisableModifyAdminDescription -DisableLimit 1 -Today (Get-Date) | Out-Null
 
         $computer.ActionComment | Should -Match 'Directory update failed'
+    }
+
+    It 'classifies a failed description update on an already disabled computer as an attempted issue' {
+        Mock Disable-WinADComputer {
+            param($Computer)
+            $Computer | Add-Member -MemberType NoteProperty -Name 'DisableActionResult' -Value 'AlreadySatisfied' -Force
+            $true
+        }
+        Mock Set-ADComputer { throw 'Description update denied' }
+
+        $computer = [pscustomobject] @{
+            SamAccountName = 'PC6$'; DistinguishedName = 'CN=PC6,DC=contoso,DC=com'
+            Action = 'Disable'; ActionStatus = $null; ActionDate = $null; ActionComment = $null
+        }
+        $report = [ordered] @{ 'contoso.com' = [ordered] @{ Server = 'dc1.contoso.com'; Computers = @($computer) } }
+
+        Request-ADComputersDisable -Report $report -ProcessedComputers ([ordered] @{}) -DisableOnlyIf @{} -DisableModifyDescription -DisableLimit 1 -Today (Get-Date) | Out-Null
+
+        $computer.ActionAttempted | Should -BeTrue
+        $computer.ActionComment | Should -Match 'Description update denied'
+        (Get-ADComputerReportOutcome -Computer $computer).Label | Should -Be 'Completed with issue'
+    }
+
+    It 'classifies a failed admin-description update on an already disabled computer as an attempted issue' {
+        Mock Disable-WinADComputer {
+            param($Computer)
+            $Computer | Add-Member -MemberType NoteProperty -Name 'DisableActionResult' -Value 'AlreadySatisfied' -Force
+            $true
+        }
+        Mock Set-ADObject { throw 'Admin description update denied' }
+
+        $computer = [pscustomobject] @{
+            SamAccountName = 'PC7$'; DistinguishedName = 'CN=PC7,DC=contoso,DC=com'
+            Action = 'Disable'; ActionStatus = $null; ActionDate = $null; ActionComment = $null
+        }
+        $report = [ordered] @{ 'contoso.com' = [ordered] @{ Server = 'dc1.contoso.com'; Computers = @($computer) } }
+
+        Request-ADComputersDisable -Report $report -ProcessedComputers ([ordered] @{}) -DisableOnlyIf @{} -DisableModifyAdminDescription -DisableLimit 1 -Today (Get-Date) | Out-Null
+
+        $computer.ActionAttempted | Should -BeTrue
+        $computer.ActionComment | Should -Match 'Admin description update denied'
+        (Get-ADComputerReportOutcome -Computer $computer).Label | Should -Be 'Completed with issue'
     }
 
     It 'does not promote pending records that were not successful real actions' {

@@ -39,6 +39,18 @@ Describe 'Disable-WinADComputer' {
         $computer.DisableActionResult | Should -Be 'True'
     }
 
+    It 'records an already-disabled computer as satisfied without an AD call' {
+        $computer = [pscustomobject] @{ SamAccountName = 'TEST$'; Enabled = $false }
+        function Write-Color { param([Parameter(ValueFromRemainingArguments)][object[]]$Args) }
+        function Disable-ADAccount { throw 'Disable should not be called' }
+
+        $success = Disable-WinADComputer -Success $true -Computer $computer -DontWriteToEventLog
+
+        $success | Should -BeTrue
+        $computer.DisableActionResult | Should -Be 'AlreadySatisfied'
+        $computer.ActionAttempted | Should -Not -BeTrue
+    }
+
     It 'uses the post-move distinguished name for disabling and event data' {
         $movedDistinguishedName = 'CN=Test,OU=Disabled,DC=example,DC=com'
         $computer = [pscustomobject]@{

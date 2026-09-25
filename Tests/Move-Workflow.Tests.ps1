@@ -46,6 +46,35 @@ Describe 'Move workflow helpers' {
         $computer.MoveActionResult | Should -Be 'WhatIf'
     }
 
+    It 'records an already-correct target OU as satisfied without an AD call' {
+        $computer = [pscustomobject] @{
+            SamAccountName = 'PC1$'; DistinguishedName = 'CN=PC1,OU=Disabled,DC=contoso,DC=com'
+            OrganizationalUnit = 'OU=Disabled,DC=contoso,DC=com'; ProtectedFromAccidentalDeletion = $false
+        }
+
+        $success = Move-WinADComputer -Success $true -DisableAndMove $true -OrganizationalUnit @{ 'contoso.com' = 'OU=Disabled,DC=contoso,DC=com' } -Computer $computer -DontWriteToEventLog -Domain 'contoso.com'
+
+        $success | Should -BeTrue
+        $computer.MoveActionResult | Should -Be 'AlreadySatisfied'
+        $computer.ActionAttempted | Should -Not -BeTrue
+    }
+
+    It 'marks failed protection removal during disable-and-move as an attempted failed move' {
+        Mock Set-ADObject { throw 'Protection update denied' }
+        $computer = [pscustomobject] @{
+            SamAccountName = 'PC1$'; DistinguishedName = 'CN=PC1,OU=Workstations,DC=contoso,DC=com'
+            OrganizationalUnit = 'OU=Workstations,DC=contoso,DC=com'; ProtectedFromAccidentalDeletion = $true
+            ActionComment = $null; DisableActionResult = 'True'
+        }
+
+        $success = Move-WinADComputer -Success $true -DisableAndMove $true -OrganizationalUnit @{ 'contoso.com' = 'OU=Disabled,DC=contoso,DC=com' } -Computer $computer -DontWriteToEventLog -Server 'dc1.contoso.com' -Domain 'contoso.com' -RemoveProtectedFromAccidentalDeletionFlag
+
+        $success | Should -BeFalse
+        $computer.ActionAttempted | Should -BeTrue
+        $computer.MoveActionResult | Should -Be 'False'
+        $computer.ActionComment | Should -Match 'Protection update denied'
+    }
+
     It 'journals only pending entries changed during discovery' {
         $computer = [PSCustomObject] @{
             SamAccountName       = 'PC1$'

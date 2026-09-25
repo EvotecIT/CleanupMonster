@@ -62,6 +62,7 @@
                     if ($DisableModifyDescription -eq $true) {
                         $DisableModifyDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
                         try {
+                            Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'ActionAttempted' -Value $true -Force
                             Set-ADComputer -Identity $CurrentDistinguishedName -Description $DisableModifyDescriptionText -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
                             Write-Color -Text "[+] ", "Setting description on disabled computer ", $CurrentDistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
                         } catch {
@@ -72,6 +73,7 @@
                     if ($DisableModifyAdminDescription) {
                         $DisableModifyAdminDescriptionText = "Disabled by a script, LastLogon $($Computer.LastLogonDate) ($($DisableOnlyIf.LastLogonDateMoreThan)), PasswordLastSet $($Computer.PasswordLastSet) ($($DisableOnlyIf.PasswordLastSetMoreThan))"
                         try {
+                            Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'ActionAttempted' -Value $true -Force
                             Set-ADObject -Identity $CurrentDistinguishedName -Replace @{ AdminDescription = $DisableModifyAdminDescriptionText } -WhatIf:$WhatIfDisable -ErrorAction Stop -Server $Server
                             Write-Color -Text "[+] ", "Setting admin description on disabled computer ", $CurrentDistinguishedName, " (WhatIf: $WhatIfDisable) successful. Set to: ", $DisableModifyAdminDescriptionText -Color Yellow, Green, Yellow, Green, Yellow
                         } catch {
