@@ -35,10 +35,14 @@ function Write-ADComputerActionLog {
                 $outcome = if ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') { 'WhatIf attempted with error' } else { 'failed or skipped' }
                 $prefix = '[-] '
                 $color = 'Red'
-            } elseif ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') {
+            } elseif ($disableResult -eq 'WhatIf' -and $moveResult -eq 'WhatIf') {
                 $outcome = 'WhatIf preview'
                 $prefix = '[i] '
                 $color = 'Cyan'
+            } elseif ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') {
+                $outcome = 'incomplete WhatIf preview'
+                $prefix = '[w] '
+                $color = 'Yellow'
             } else {
                 $outcome = 'failed or skipped'
                 $prefix = '[-] '

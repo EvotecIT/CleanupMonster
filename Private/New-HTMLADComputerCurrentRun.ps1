@@ -6,28 +6,27 @@ function New-HTMLADComputerCurrentRun {
     [CmdletBinding()]
     param(
         [AllowEmptyCollection()]
-        [Array] $Actions
+        [Array] $Actions,
+        [switch] $DisableAndMove
     )
 
     $ActionCounts = [ordered] @{ Disable = 0; Move = 0; Delete = 0 }
-    $ResultCounts = [ordered] @{ Succeeded = 0; WhatIf = 0; Failed = 0; Other = 0 }
+    $ResultCounts = [ordered] @{ Completed = 0; WhatIf = 0; NeedsReview = 0 }
+    $AttemptedCount = 0
     [Array] $QuickActions = @(
         foreach ($Computer in $Actions) {
             $Action = [string] $Computer.Action
             if ($ActionCounts.Contains($Action)) { $ActionCounts[$Action]++ }
-
-            $Result = [string] $Computer.ActionStatus
-            if ($Result -eq 'True') { $ResultCounts.Succeeded++ }
-            elseif ($Result -eq 'WhatIf') { $ResultCounts.WhatIf++ }
-            elseif ($Result -eq 'False') { $ResultCounts.Failed++ }
-            else { $ResultCounts.Other++ }
+            if ([string] $Computer.ActionAttempted -eq 'True') { $AttemptedCount++ }
+            $Outcome = Get-ADComputerReportOutcome -Computer $Computer -DisableAndMove:$DisableAndMove.IsPresent
+            $ResultCounts[$Outcome.Group]++
 
             $Reason = [string] $Computer.SelectionReason
             if ($Reason.Length -gt 80) { $Reason = $Reason.Substring(0, 77) + '...' }
             [pscustomobject] @{
                 Computer      = if ($Computer.DNSHostName) { $Computer.DNSHostName } else { $Computer.SamAccountName }
                 Action        = $Action
-                Result        = $Result
+                Result        = $Outcome.Label
                 'Logon days'  = if ($null -ne $Computer.LastLogonDays) { $Computer.LastLogonDays } else { 'Unknown' }
                 OS            = $Computer.OperatingSystem
                 'Why preview' = $Reason
@@ -37,13 +36,10 @@ function New-HTMLADComputerCurrentRun {
 
     New-HTMLSection -HeaderText 'Current run at a glance' -Direction column {
         New-HTMLSection -Invisible -Density Compact {
-            New-HTMLInfoCard -Title 'Actions this run' -Number ('{0:N0}' -f $Actions.Count) -Subtitle 'Attempts, including WhatIf' -NumberColor '#2878bd' -Style NoIcon
-            New-HTMLInfoCard -Title 'Succeeded' -Number ('{0:N0}' -f $ResultCounts.Succeeded) -Subtitle 'Completed actions' -NumberColor '#00a978' -Style NoIcon
-            New-HTMLInfoCard -Title 'WhatIf' -Number ('{0:N0}' -f $ResultCounts.WhatIf) -Subtitle 'Previewed actions' -NumberColor '#e39a22' -Style NoIcon
-            New-HTMLInfoCard -Title 'Failed' -Number ('{0:N0}' -f $ResultCounts.Failed) -Subtitle 'Review result details' -NumberColor '#d56748' -Style NoIcon
-        }
-        if ($ResultCounts.Other -gt 0) {
-            New-HTMLText -Text "$($ResultCounts.Other) action result(s) have another or missing status. Review full action details."
+            New-HTMLInfoCard -Title 'Selected this run' -Number ('{0:N0}' -f $Actions.Count) -Subtitle "$AttemptedCount reached an AD call" -NumberColor '#2878bd' -Style NoIcon
+            New-HTMLInfoCard -Title 'Completed' -Number ('{0:N0}' -f $ResultCounts.Completed) -Subtitle 'AD actions completed' -NumberColor '#00a978' -Style NoIcon
+            New-HTMLInfoCard -Title 'WhatIf previews' -Number ('{0:N0}' -f $ResultCounts.WhatIf) -Subtitle 'AD calls previewed' -NumberColor '#e39a22' -Style NoIcon
+            New-HTMLInfoCard -Title 'Needs review' -Number ('{0:N0}' -f $ResultCounts.NeedsReview) -Subtitle 'Skipped, partial or errored' -NumberColor '#d56748' -Style NoIcon
         }
     }
 
@@ -60,7 +56,7 @@ function New-HTMLADComputerCurrentRun {
                 foreach ($Action in $ActionCounts.Keys) {
                     if ($ActionCounts[$Action] -gt 0) { New-ChartBar -Name $Action -Value $ActionCounts[$Action] }
                 }
-            } -Title 'Attempts this run' -SubTitle 'Includes WhatIf previews' -Height 210
+            } -Title 'Selected by action' -SubTitle 'Includes WhatIf and skipped rows' -Height 210
         }
     }
 

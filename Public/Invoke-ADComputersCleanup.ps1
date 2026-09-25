@@ -1114,6 +1114,7 @@
                 MoveOnlyIf         = $MoveOnlyIf
                 Delete             = $Delete
                 Disable            = $Disable
+                DisableAndMove     = $DisableAndMove
                 Move               = $Move
                 ReportOnly         = $ReportOnly.IsPresent
             }

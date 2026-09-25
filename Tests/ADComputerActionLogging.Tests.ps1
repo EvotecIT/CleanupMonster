@@ -164,4 +164,19 @@ Describe 'AD computer action reasons' {
 
         $script:actionLogLines[0].Text | Should -Match 'Disable WhatIf attempted with error.*Access denied'
     }
+
+    It 'does not log one previewed step as a complete disable-and-move preview' {
+        $result = [pscustomobject] @{
+            SamAccountName      = 'PC4$'
+            DistinguishedName   = 'CN=PC4,DC=contoso,DC=com'
+            ActionAttempted     = $true
+            ActionStatus        = 'WhatIf'
+            DisableActionResult = 'WhatIf'
+            MoveActionResult    = $null
+        }
+
+        Write-ADComputerActionLog -Action DisableAndMove -Results @($result)
+
+        $script:actionLogLines[0].Text | Should -Match 'DisableAndMove incomplete WhatIf preview.*Disable=WhatIf; Move=NotAttempted'
+    }
 }

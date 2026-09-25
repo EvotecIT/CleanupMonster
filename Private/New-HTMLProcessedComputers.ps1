@@ -11,6 +11,7 @@
         [switch] $ShowHTML,
         [string] $LogFile,
         [switch] $Disable,
+        [switch] $DisableAndMove,
         [switch] $Delete,
         [switch] $Move,
         [switch] $ReportOnly
@@ -53,7 +54,7 @@
         }
         if (-not $ReportOnly) {
             New-HTMLTab -Name 'Devices Current Run' {
-                New-HTMLADComputerCurrentRun -Actions @($Export.CurrentRun | Where-Object { $null -ne $_ })
+                New-HTMLADComputerCurrentRun -Actions @($Export.CurrentRun | Where-Object { $null -ne $_ }) -DisableAndMove:$DisableAndMove.IsPresent
             }
             New-HTMLTab -Name 'Devices History' {
                 New-HTMLSection {
