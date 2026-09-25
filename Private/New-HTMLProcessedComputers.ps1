@@ -53,36 +53,7 @@
         }
         if (-not $ReportOnly) {
             New-HTMLTab -Name 'Devices Current Run' {
-                New-HTMLSection {
-                    [Array] $ListAll = $($Export.CurrentRun)
-                    New-HTMLPanel {
-                        New-HTMLToast -TextHeader 'Total in this run' -Text "Actions (disable & delete): $($ListAll.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen
-                    } -Invisible
-
-                    [Array] $ListDisabled = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Disable' }))
-                    New-HTMLPanel {
-                        New-HTMLToast -TextHeader 'Disable' -Text "Computers disabled: $($ListDisabled.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
-                    } -Invisible
-
-                    [Array] $ListMoved = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Move' }))
-                    New-HTMLPanel {
-                        New-HTMLToast -TextHeader 'Move' -Text "Computers moved: $($ListMoved.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel
-                    } -Invisible
-
-                    [Array] $ListDeleted = $($($Export.CurrentRun | Where-Object { $_.Action -eq 'Delete' }))
-                    New-HTMLPanel {
-                        New-HTMLToast -TextHeader 'Delete' -Text "Computers deleted: $($ListDeleted.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed
-                    } -Invisible
-                } -Invisible
-                New-HTMLTable -DataTable $Export.CurrentRun -Filtering -ScrollX {
-                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
-                    New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
-                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-                    New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'Whatif' -BackgroundColor LightBlue
-                    New-HTMLTableCondition -Name 'ProtectedFromAccidentalDeletion' -ComparisonType string -Value $false -BackgroundColor LightBlue -FailBackgroundColor Salmon
-                } -WarningAction SilentlyContinue
+                New-HTMLADComputerCurrentRun -Actions @($Export.CurrentRun | Where-Object { $null -ne $_ })
             }
             New-HTMLTab -Name 'Devices History' {
                 New-HTMLSection {
