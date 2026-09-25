@@ -13,26 +13,18 @@ function New-HTMLADComputerCurrentRun {
     $ActionCounts = [ordered] @{ Disable = 0; Move = 0; Delete = 0 }
     $ResultCounts = [ordered] @{ Completed = 0; WhatIf = 0; NeedsReview = 0 }
     $AttemptedCount = 0
-    [Array] $QuickActions = @(
-        foreach ($Computer in $Actions) {
-            $Action = [string] $Computer.Action
-            if ($ActionCounts.Contains($Action)) { $ActionCounts[$Action]++ }
-            if ([string] $Computer.ActionAttempted -eq 'True') { $AttemptedCount++ }
-            $Outcome = Get-ADComputerReportOutcome -Computer $Computer -DisableAndMove:$DisableAndMove.IsPresent
-            $ResultCounts[$Outcome.Group]++
-
-            $Reason = [string] $Computer.SelectionReason
-            if ($Reason.Length -gt 80) { $Reason = $Reason.Substring(0, 77) + '...' }
-            [pscustomobject] @{
-                Computer      = if ($Computer.DNSHostName) { $Computer.DNSHostName } else { $Computer.SamAccountName }
-                Action        = $Action
-                Result        = $Outcome.Label
-                'Logon days'  = if ($null -ne $Computer.LastLogonDays) { $Computer.LastLogonDays } else { 'Unknown' }
-                OS            = $Computer.OperatingSystem
-                'Why preview' = $Reason
-            }
+    $allColumns = [System.Collections.Generic.List[string]]::new()
+    $seenColumns = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($Computer in $Actions) {
+        foreach ($property in $Computer.PSObject.Properties) {
+            if ($seenColumns.Add($property.Name)) { $allColumns.Add($property.Name) }
         }
-    )
+        $Action = [string] $Computer.Action
+        if ($ActionCounts.Contains($Action)) { $ActionCounts[$Action]++ }
+        if ([string] $Computer.ActionAttempted -eq 'True') { $AttemptedCount++ }
+        $Outcome = Get-ADComputerReportOutcome -Computer $Computer -DisableAndMove:$DisableAndMove.IsPresent
+        $ResultCounts[$Outcome.Group]++
+    }
 
     New-HTMLSection -HeaderText 'Current run at a glance' -Direction column {
         New-HTMLSection -Invisible -Density Compact {
@@ -60,16 +52,15 @@ function New-HTMLADComputerCurrentRun {
         }
     }
 
-    New-HTMLSection -HeaderText 'Quick view' -Direction column {
-        New-HTMLText -Text 'The reason column is abbreviated. Expand full action details for every field and the complete selection reason.'
-        New-HTMLTable -DataTable $QuickActions -HideButtons {
-            New-HTMLTableHeader -Names 'Computer', 'Action', 'Result', 'Logon days' -ResponsiveOperations all
-            New-HTMLTableHeader -Names 'OS', 'Why preview' -ResponsiveOperations not-mobile
-        }
-    }
-
-    New-HTMLSection -HeaderText 'Full action details' -CanCollapse -Collapsed {
-        New-HTMLTable -DataTable $Actions -Filtering -ScrollX {
+    $primaryColumns = @('SamAccountName', 'Action', 'ActionStatus', 'LastLogonDays' | Where-Object { $allColumns -contains $_ })
+    $secondaryColumns = @('DNSHostName', 'OperatingSystem' | Where-Object { $allColumns -contains $_ })
+    $detailColumns = @($allColumns | Where-Object { $_ -notin ($primaryColumns + $secondaryColumns) })
+    New-HTMLSection -HeaderText 'Actions this run' -Direction column {
+        New-HTMLText -Text 'One row per selected computer. Expand a row for the complete selection reason, action notes, and remaining audit fields.'
+        New-HTMLTable -DataTable $Actions -AllProperties -Filtering -PagingLength 25 {
+            if ($primaryColumns.Count) { New-HTMLTableHeader -Names $primaryColumns -ResponsiveOperations all }
+            if ($secondaryColumns.Count) { New-HTMLTableHeader -Names $secondaryColumns -ResponsiveOperations not-mobile }
+            if ($detailColumns.Count) { New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none }
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
