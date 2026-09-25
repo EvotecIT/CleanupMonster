@@ -33,7 +33,7 @@ function New-HTMLADComputerCurrentRun {
     New-HTMLSection -HeaderText 'Current run at a glance' -Direction column {
         New-HTMLSection -Invisible -Density Compact {
             New-HTMLInfoCard -Title 'Selected this run' -Number ('{0:N0}' -f $Actions.Count) -Subtitle "$AttemptedCount reached an AD call" -NumberColor '#2878bd' -Style NoIcon
-            New-HTMLInfoCard -Title 'Completed' -Number ('{0:N0}' -f $ResultCounts.Completed) -Subtitle 'AD actions completed' -NumberColor '#00a978' -Style NoIcon
+            New-HTMLInfoCard -Title 'Completed' -Number ('{0:N0}' -f $ResultCounts.Completed) -Subtitle 'Desired state reached' -NumberColor '#00a978' -Style NoIcon
             New-HTMLInfoCard -Title 'WhatIf previews' -Number ('{0:N0}' -f $ResultCounts.WhatIf) -Subtitle 'AD calls previewed' -NumberColor '#e39a22' -Style NoIcon
             New-HTMLInfoCard -Title 'Needs review' -Number ('{0:N0}' -f $ResultCounts.NeedsReview) -Subtitle 'Skipped, partial or errored' -NumberColor '#d56748' -Style NoIcon
         }
@@ -69,6 +69,7 @@ function New-HTMLADComputerCurrentRun {
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Move' -BackgroundColor Yellow
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow
             New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value 'Completed' -BackgroundColor LightGreen
+            New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value 'Already satisfied' -BackgroundColor LightGreen
             New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value 'WhatIf preview' -BackgroundColor LightBlue
             foreach ($reviewResult in @('Skipped', 'Completed with issue', 'Partially completed', 'Failed', 'WhatIf error', 'Incomplete WhatIf', 'Incomplete action', 'Unknown result')) {
                 New-HTMLTableCondition -Name 'Result' -ComparisonType string -Value $reviewResult -BackgroundColor Salmon

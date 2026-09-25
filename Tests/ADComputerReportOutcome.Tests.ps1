@@ -24,6 +24,26 @@ Describe 'AD current-run report outcomes' {
         (Get-ADComputerReportOutcome -Computer $complete -DisableAndMove).Group | Should -Be 'Completed'
     }
 
+    It 'counts a successful move or disable with the other step already satisfied as completed' {
+        $moved = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = $true; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'True' }
+        $disabled = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = $true; DisableActionResult = 'True'; MoveActionResult = 'AlreadySatisfied' }
+        $unchanged = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $false; ActionStatus = $true; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'AlreadySatisfied' }
+        $disableOnly = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $false; ActionStatus = $true; DisableActionResult = 'AlreadySatisfied' }
+
+        (Get-ADComputerReportOutcome -Computer $moved -DisableAndMove).Group | Should -Be 'Completed'
+        (Get-ADComputerReportOutcome -Computer $disabled -DisableAndMove).Group | Should -Be 'Completed'
+        (Get-ADComputerReportOutcome -Computer $unchanged -DisableAndMove).Label | Should -Be 'Already satisfied'
+        (Get-ADComputerReportOutcome -Computer $disableOnly).Label | Should -Be 'Already satisfied'
+    }
+
+    It 'counts a WhatIf call with the other step already satisfied as a complete preview' {
+        $preview = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'WhatIf' }
+        $error = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'WhatIf'; ActionComment = 'Metadata failed' }
+
+        (Get-ADComputerReportOutcome -Computer $preview -DisableAndMove).Group | Should -Be 'WhatIf'
+        (Get-ADComputerReportOutcome -Computer $error -DisableAndMove).Label | Should -Be 'WhatIf error'
+    }
+
     It 'does not call a missing move step a complete WhatIf preview' {
         $incomplete = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'WhatIf'; MoveActionResult = $null }
         $completePreview = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'WhatIf'; MoveActionResult = 'WhatIf' }
@@ -54,6 +74,7 @@ Describe 'AD current-run report layout' {
             $actions = @(
                 [pscustomobject] @{ SamAccountName = 'LAB-PC-01$'; DNSHostName = 'LAB-PC-01.example.test'; Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'True'; LastLogonDays = 130; OperatingSystem = 'Windows'; SelectionReason = 'Last logon 130 days ago'; ActionComment = 'Description update failed' }
                 [pscustomobject] @{ SamAccountName = 'LAB-PC-02$'; DNSHostName = 'LAB-PC-02.example.test'; Action = 'Delete'; ActionAttempted = $true; ActionStatus = 'WhatIf'; LastLogonDays = 240; OperatingSystem = 'Windows'; SelectionReason = 'Last logon 240 days ago'; ActionComment = ''; DisableActionResult = 'Later row only'; MoveActionResult = 'WhatIf' }
+                [pscustomobject] @{ SamAccountName = 'LAB-PC-03$'; DNSHostName = 'LAB-PC-03.example.test'; Action = 'Disable'; ActionAttempted = $false; ActionStatus = 'True'; LastLogonDays = 180; OperatingSystem = 'Windows'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'AlreadySatisfied' }
             )
             New-HTML {
                 New-HTMLTab -Name 'Devices Current Run' {
@@ -77,6 +98,7 @@ Describe 'AD current-run report layout' {
         $html | Should -Match 'Later row only'
         $html | Should -Match 'MoveActionResult'
         $html | Should -Match 'Completed with issue'
+        $html | Should -Match 'Already satisfied'
         $html | Should -Match 'Result'
         $html | Should -Not -Match 'Quick view'
     }

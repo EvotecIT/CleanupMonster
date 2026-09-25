@@ -16,6 +16,11 @@ function Write-ADComputerActionLog {
         $outcome = if ($status -eq 'WhatIf') { 'WhatIf preview' } elseif ($status -eq 'True') { 'completed' } else { 'failed' }
         $prefix = if ($status -eq 'True') { '[+] ' } elseif ($status -eq 'WhatIf') { '[i] ' } else { '[-] ' }
         $color = if ($status -eq 'True') { 'Green' } elseif ($status -eq 'WhatIf') { 'Cyan' } else { 'Red' }
+        if ($status -eq 'True' -and -not [string]::IsNullOrWhiteSpace([string] $computer.ActionComment)) {
+            $outcome = 'completed with issue'
+            $prefix = '[w] '
+            $color = 'Yellow'
+        }
         if ($status -eq 'WhatIf' -and -not [string]::IsNullOrWhiteSpace([string] $computer.ActionComment)) {
             $outcome = 'WhatIf attempted with error'
             $prefix = '[-] '
@@ -25,8 +30,14 @@ function Write-ADComputerActionLog {
             $disableResult = if ($computer.DisableActionResult) { [string] $computer.DisableActionResult } else { 'NotAttempted' }
             $moveResult = if ($computer.MoveActionResult) { [string] $computer.MoveActionResult } else { 'NotAttempted' }
             $completedSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -eq 'True' }).Count
-            if ($completedSteps -eq 2) {
-                $outcome = 'completed'
+            $satisfiedSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -in 'True', 'AlreadySatisfied' }).Count
+            $previewSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -in 'WhatIf', 'AlreadySatisfied' }).Count
+            if ($satisfiedSteps -eq 2) {
+                $outcome = if ([string]::IsNullOrWhiteSpace([string] $computer.ActionComment)) { 'completed' } else { 'completed with issue' }
+                if ($outcome -eq 'completed with issue') {
+                    $prefix = '[w] '
+                    $color = 'Yellow'
+                }
             } elseif ($completedSteps -eq 1) {
                 $outcome = 'partially completed'
                 $prefix = '[w] '
@@ -35,10 +46,16 @@ function Write-ADComputerActionLog {
                 $outcome = if ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') { 'WhatIf attempted with error' } else { 'failed' }
                 $prefix = '[-] '
                 $color = 'Red'
-            } elseif ($disableResult -eq 'WhatIf' -and $moveResult -eq 'WhatIf') {
-                $outcome = 'WhatIf preview'
-                $prefix = '[i] '
-                $color = 'Cyan'
+            } elseif ($previewSteps -eq 2 -and ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf')) {
+                if ([string]::IsNullOrWhiteSpace([string] $computer.ActionComment)) {
+                    $outcome = 'WhatIf preview'
+                    $prefix = '[i] '
+                    $color = 'Cyan'
+                } else {
+                    $outcome = 'WhatIf attempted with error'
+                    $prefix = '[-] '
+                    $color = 'Red'
+                }
             } elseif ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') {
                 $outcome = 'incomplete WhatIf preview'
                 $prefix = '[w] '

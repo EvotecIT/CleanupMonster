@@ -189,6 +189,26 @@ Describe 'AD computer action reasons' {
         $script:actionLogLines[1].Text | Should -Match 'DisableAndMove partially completed.*Disable=NotAttempted; Move=True'
     }
 
+    It 'logs composite actions with an already-satisfied step as complete' {
+        $results = @(
+            [pscustomobject] @{ SamAccountName = 'PC1$'; DistinguishedName = 'CN=PC1,DC=contoso,DC=com'; ActionAttempted = $true; ActionStatus = $true; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'True' },
+            [pscustomobject] @{ SamAccountName = 'PC2$'; DistinguishedName = 'CN=PC2,DC=contoso,DC=com'; ActionAttempted = $true; ActionStatus = $true; DisableActionResult = 'True'; MoveActionResult = 'AlreadySatisfied'; ActionComment = 'Metadata failed' }
+        )
+
+        Write-ADComputerActionLog -Action DisableAndMove -Results $results
+
+        $script:actionLogLines[0].Text | Should -Match 'DisableAndMove completed.*Disable=AlreadySatisfied; Move=True'
+        $script:actionLogLines[1].Text | Should -Match 'DisableAndMove completed with issue.*Metadata failed'
+    }
+
+    It 'logs a WhatIf composite with one already-satisfied step as a preview' {
+        $result = [pscustomobject] @{ SamAccountName = 'PC3$'; DistinguishedName = 'CN=PC3,DC=contoso,DC=com'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'WhatIf' }
+
+        Write-ADComputerActionLog -Action DisableAndMove -Results @($result)
+
+        $script:actionLogLines[0].Text | Should -Match 'DisableAndMove WhatIf preview.*Disable=AlreadySatisfied; Move=WhatIf'
+    }
+
     It 'labels a failed WhatIf attempt as an error' {
         $result = [pscustomobject] @{
             SamAccountName       = 'PC3$'
@@ -202,6 +222,14 @@ Describe 'AD computer action reasons' {
         Write-ADComputerActionLog -Action Disable -Results @($result)
 
         $script:actionLogLines[0].Text | Should -Match 'Disable WhatIf attempted with error.*Access denied'
+    }
+
+    It 'labels a completed AD action with a later metadata error for review' {
+        $result = [pscustomobject] @{ SamAccountName = 'PC5$'; DistinguishedName = 'CN=PC5,DC=contoso,DC=com'; ActionAttempted = $true; ActionStatus = $true; ActionComment = 'Description update failed' }
+
+        Write-ADComputerActionLog -Action Disable -Results @($result)
+
+        $script:actionLogLines[0].Text | Should -Match 'Disable completed with issue.*Description update failed'
     }
 
     It 'does not log one previewed step as a complete disable-and-move preview' {

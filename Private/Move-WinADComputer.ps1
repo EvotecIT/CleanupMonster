@@ -15,6 +15,7 @@
         # we only move if we successfully disabled the computer
         if ($OrganizationalUnit[$Domain]) {
             if ($Computer.OrganizationalUnit -eq $OrganizationalUnit[$Domain]) {
+                Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'MoveActionResult' -Value 'AlreadySatisfied' -Force
                 Write-Color -Text "[i] Computer ", $Computer.DistinguishedName, " is already in the correct OU." -Color Yellow, Green, Yellow
             } else {
                 if ($Computer.ProtectedFromAccidentalDeletion) {

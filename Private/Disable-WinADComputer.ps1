@@ -36,6 +36,7 @@
                 }
             }
         } else {
+            Add-Member -InputObject $Computer -MemberType NoteProperty -Name 'DisableActionResult' -Value 'AlreadySatisfied' -Force
             Write-Color -Text "[i] Computer ", $Computer.SamAccountName, " is already disabled." -Color Yellow, Green, Yellow
         }
     }
