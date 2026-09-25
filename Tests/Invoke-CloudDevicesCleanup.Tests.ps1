@@ -18,7 +18,7 @@ BeforeAll {
     function Request-CloudDevicesStageDelete { @() }
     function Request-CloudDevicesDelete { @() }
     function Request-CloudDevicesRemoveAutopilotIdentity { @() }
-    function New-HTMLProcessedCloudDevices { param($Statistics) }
+    function New-HTMLProcessedCloudDevices { param($Statistics, $ActionConfiguration, $ScopeConfiguration) }
     function New-EmailBodyCloudDevices { param($CurrentRun) '' }
 }
 
@@ -39,8 +39,14 @@ Describe 'Invoke-CloudDevicesCleanup' {
     It 'logs the configured scope and candidate mix without listing unattempted devices' {
         $script:inventoryLogLines = [System.Collections.Generic.List[string]]::new()
         $script:reportStatistics = $null
+        $script:reportActions = $null
+        $script:reportScope = $null
         Mock Write-Color { $script:inventoryLogLines.Add(($Text -join '')) }
-        Mock New-HTMLProcessedCloudDevices { $script:reportStatistics = $Statistics }
+        Mock New-HTMLProcessedCloudDevices {
+            $script:reportStatistics = $Statistics
+            $script:reportActions = $ActionConfiguration
+            $script:reportScope = $ScopeConfiguration
+        }
         Mock Get-InitialCloudDevices {
             @(
                 [pscustomobject] @{ Name = 'PC-01'; OperatingSystem = 'Windows 11'; RecordState = 'Matched'; IntuneLinkState = 'Healthy'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 20 }
@@ -54,7 +60,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
         }
         Mock Request-CloudDevicesDisable { @() }
 
-        Invoke-CloudDevicesCleanup -Disable -Delete -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem 'Windows*','Android*','iOS*' -ExcludeOperatingSystem 'macOS*' -WhatIfDisable -WhatIfDelete -Suppress | Out-Null
+        Invoke-CloudDevicesCleanup -Disable -Delete -IncludeJoinType 'AzureAD joined','AzureAD registered' -IncludeOperatingSystem 'Windows*','Android*','iOS*' -ExcludeOperatingSystem 'macOS*' -IncludeUnknownOperatingSystem -IncludeUnknownOperatingSystemVersion -Exclusions 'LAB-*' -WhatIfDisable -WhatIfDelete -Suppress | Out-Null
 
         ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope join types: AzureAD joined, AzureAD registered'
         ($script:inventoryLogLines -join "`n") | Should -Match 'Cleanup scope OS include: Windows\*,Android\*,iOS\*; exclude: macOS\*'
@@ -64,6 +70,13 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:reportStatistics.Scope.Total | Should -Be 3
         $script:reportStatistics.CandidateTotals.Disable | Should -Be 1
         $script:reportStatistics.CandidateTotals.Delete | Should -Be 0
+        @($script:reportActions | Where-Object Enabled).Name | Should -Be @('Disable', 'Delete')
+        @($script:reportActions | Where-Object Name -eq 'Disable')[0].Mode | Should -Be 'WhatIf'
+        @($script:reportActions | Where-Object Name -eq 'Delete')[0].Mode | Should -Be 'WhatIf'
+        $script:reportScope['Included OS'] | Should -Be 'Windows*, Android*, iOS*'
+        $script:reportScope['Include unknown OS'] | Should -Be 'True'
+        $script:reportScope['Include unknown OS version'] | Should -Be 'True'
+        $script:reportScope['Explicit exclusions'] | Should -Be '1 pattern(s) applied'
         Assert-MockCalled Get-InitialCloudDevices -Times 1 -Exactly
     }
 
@@ -567,6 +580,8 @@ Describe 'Invoke-CloudDevicesCleanup' {
 
     It 'keeps widened Autopilot inventory scope separate from other actions' {
         $script:capturedInventoryScopes = [System.Collections.Generic.List[object]]::new()
+        $script:reportScope = $null
+        Mock New-HTMLProcessedCloudDevices { $script:reportScope = $ScopeConfiguration }
 
         Mock Get-InitialCloudDevices {
             param(
@@ -596,6 +611,8 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedInventoryScopes[1].IncludeOperatingSystem | Should -Contain 'Windows*'
         $script:capturedInventoryScopes[1].IncludeJoinType | Should -Contain 'AzureAD joined'
         $script:capturedInventoryScopes[1].IncludeAutopilotInventory | Should -BeTrue
+        $script:reportScope['Separate Autopilot join types'] | Should -Match 'AzureAD joined'
+        $script:reportScope['Separate Autopilot included OS'] | Should -Match 'Windows\*'
     }
 
     It 'includes separate Autopilot removal inventory in report devices' {

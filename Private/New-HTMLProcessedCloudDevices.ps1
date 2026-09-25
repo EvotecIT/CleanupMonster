@@ -5,10 +5,8 @@ function New-HTMLProcessedCloudDevices {
         [Parameter(Mandatory)] [Array] $Devices,
         [int] $PrimaryDeviceCount = -1,
         [System.Collections.IDictionary] $Statistics,
-        [Parameter(Mandatory)] [System.Collections.IDictionary] $RetireOnlyIf,
-        [Parameter(Mandatory)] [System.Collections.IDictionary] $DisableOnlyIf,
-        [Parameter(Mandatory)] [System.Collections.IDictionary] $DeleteOnlyIf,
-        [System.Collections.IDictionary] $RemoveAutopilotIdentityOnlyIf,
+        [Parameter(Mandatory)] [Array] $ActionConfiguration,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $ScopeConfiguration,
         [Parameter(Mandatory)] [string] $FilePath,
         [switch] $Online,
         [switch] $ShowHTML,
@@ -83,17 +81,59 @@ function New-HTMLProcessedCloudDevices {
             }
         }
     )
+    $enabledActions = @($ActionConfiguration | Where-Object { $_.Enabled })
+    $ageRuleNames = [ordered] @{
+        LastSeenEntraMoreThan = 'Entra activity'
+        LastSeenIntuneMoreThan = 'Intune sync'
+        IntuneStaleWhenPresentMoreThan = 'Matching Intune sync'
+        RegisteredMoreThan = 'Registration'
+        ListProcessedMoreThan = 'Pending'
+        AutopilotLastContactMoreThan = 'Autopilot contact'
+    }
+    $actionOverview = @(
+        foreach ($action in $enabledActions) {
+            $ageGates = @(
+                foreach ($ruleName in $ageRuleNames.Keys) {
+                    if ($action.Rules.Contains($ruleName) -and $null -ne $action.Rules[$ruleName]) {
+                        if ($ruleName -eq 'ListProcessedMoreThan') {
+                            'Pending at least {0} days' -f $action.Rules[$ruleName]
+                        } else {
+                            '{0} >{1} days' -f $ageRuleNames[$ruleName], $action.Rules[$ruleName]
+                        }
+                    }
+                }
+            )
+            [pscustomobject] [ordered] @{
+                Action = $action.Name
+                Mode = $action.Mode
+                Limit = if ($action.Limit -eq 0) { 'Unlimited' } else { [string] $action.Limit }
+                'Age gates' = if ($ageGates.Count) { $ageGates -join '; ' } else { 'See full rules' }
+                Notes = [string] $action.Additional
+            }
+        }
+    )
     $ruleRows = @(
-        foreach ($ruleSet in @(
-                [pscustomobject] @{ Action = 'Retire'; Rules = $RetireOnlyIf }
-                [pscustomobject] @{ Action = 'Disable'; Rules = $DisableOnlyIf }
-                [pscustomobject] @{ Action = 'Delete'; Rules = $DeleteOnlyIf }
-                [pscustomobject] @{ Action = 'Remove Autopilot identity'; Rules = $RemoveAutopilotIdentityOnlyIf }
-            )) {
-            if (-not $ruleSet.Rules) { continue }
-            foreach ($rule in $ruleSet.Rules.GetEnumerator()) {
+        foreach ($action in $enabledActions) {
+            foreach ($rule in $action.Rules.GetEnumerator()) {
                 $value = if ($null -eq $rule.Value) { 'Not set' } elseif ($rule.Value -is [Array]) { $rule.Value -join ', ' } else { [string] $rule.Value }
-                [pscustomobject] @{ Action = $ruleSet.Action; Rule = [string] $rule.Key; Value = $value }
+                [pscustomobject] @{ Action = [string] $action.Name; Rule = [string] $rule.Key; Value = $value }
+            }
+        }
+    )
+    $candidateTotals = @(
+        if ($Statistics.CandidateTotals) {
+            foreach ($candidate in $Statistics.CandidateTotals.GetEnumerator()) {
+                [pscustomobject] @{ Action = [string] $candidate.Key; Selected = '{0:N0}' -f $candidate.Value }
+            }
+        }
+    )
+    $candidateRows = @(
+        if ($Statistics.Candidates) {
+            foreach ($candidate in $Statistics.Candidates) {
+                foreach ($row in $candidate.Rows) {
+                    if ($row.OS -eq 'ALL') { continue }
+                    [pscustomobject] @{ Action = $candidate.Label -replace ' candidates.*$', ''; OS = $row.OS; Selected = '{0:N0}' -f $row.Total }
+                }
             }
         }
     )
@@ -115,9 +155,22 @@ function New-HTMLProcessedCloudDevices {
             }
         }
 
-        if ($Statistics) { New-HTMLCloudDeviceInventoryOverview -Statistics $Statistics }
+        if ($Statistics) { New-HTMLCloudDeviceInventoryOverview -Statistics $Statistics -ActionOverview $actionOverview -ScopeConfiguration $ScopeConfiguration }
 
         New-HTMLTab -Name 'Current Run' {
+            New-HTMLSection -HeaderText 'Selected by rules this run' -Direction column {
+                New-HTMLText -Text 'These counts are before action limits or confirmation. The action table below shows what the job attempted or previewed.'
+                if ($candidateTotals.Count -gt 0) {
+                    New-HTMLTable -DataTable $candidateTotals -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering
+                } else {
+                    New-HTMLText -Text 'No cleanup action was selected for this run.'
+                }
+                if ($candidateRows.Count -gt 0) {
+                    New-HTMLSection -HeaderText 'Selected by OS' -CanCollapse -Collapsed {
+                        New-HTMLTable -DataTable $candidateRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering
+                    }
+                }
+            }
             New-HTMLSection -HeaderText 'Actions attempted this run' -Direction column {
                 New-HTMLText -Text "$previewCount WhatIf preview(s), $reportOnlyCount report-only result(s), $completedCount completed, $failedCount failed. WhatIf previews enter History but never start pending actions."
                 if ($currentRows.Count -gt 0) {
@@ -176,8 +229,8 @@ function New-HTMLProcessedCloudDevices {
         }
 
         New-HTMLTab -Name 'Rules' {
-            New-HTMLSection -HeaderText 'Configured action rules' -Direction column {
-                New-HTMLText -Text 'These are the settings used to select action candidates in this run.'
+            New-HTMLSection -HeaderText 'Enabled action rules' -Direction column {
+                New-HTMLText -Text 'Only enabled action stages appear here. These are the complete selection settings used in this run.'
                 New-HTMLTable -DataTable $ruleRows -HideButtons -HideFooter -PagingLength 25 -ResponsivePriorityOrder 'Action', 'Rule', 'Value'
             }
         }

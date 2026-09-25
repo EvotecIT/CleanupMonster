@@ -2,7 +2,11 @@ function New-HTMLCloudDeviceInventoryOverview {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $Statistics
+        [System.Collections.IDictionary] $Statistics,
+        [Parameter(Mandatory)]
+        [Array] $ActionOverview,
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary] $ScopeConfiguration
     )
 
     $entraRows = @(
@@ -57,42 +61,6 @@ function New-HTMLCloudDeviceInventoryOverview {
             [pscustomobject] @{ State = 'Broken Intune link'; Records = '{0:N0}' -f $Statistics.Scope.Links.Broken }
         }
     )
-    $candidateTotals = @(
-        if ($Statistics.CandidateTotals) {
-            foreach ($candidate in $Statistics.CandidateTotals.GetEnumerator()) {
-                [pscustomobject] @{ Action = [string] $candidate.Key; Selected = '{0:N0}' -f $candidate.Value }
-            }
-        }
-    )
-    $candidateRows = @(
-        if ($Statistics.Candidates) {
-            foreach ($candidate in $Statistics.Candidates) {
-                foreach ($row in $candidate.Rows) {
-                    if ($row.OS -eq 'ALL') { continue }
-                    [pscustomobject] @{
-                        Action = $candidate.Label -replace ' candidates.*$', ''
-                        OS = $row.OS
-                        Selected = '{0:N0}' -f $row.Total
-                    }
-                }
-            }
-        }
-    )
-    $summaryRows = @(
-        foreach ($family in @('ALL', 'Windows', 'Android', 'iOS', 'iPadOS', 'macOS', 'Other', 'Unknown')) {
-            $entra = @($Statistics.Entra.Rows | Where-Object { $_.OS -eq $family } | Select-Object -First 1)
-            $intune = @($Statistics.Intune.Rows | Where-Object { $_.OS -eq $family } | Select-Object -First 1)
-            $scope = @($Statistics.Scope.Rows | Where-Object { $_.OS -eq $family } | Select-Object -First 1)
-            if ($family -ne 'ALL' -and -not ($entra.Count -or $intune.Count -or $scope.Count)) { continue }
-            [pscustomobject] [ordered] @{
-                OS = $family
-                Entra = '{0:N0}' -f $(if ($entra.Count) { $entra[0].Total } else { 0 })
-                Intune = '{0:N0}' -f $(if ($intune.Count) { $intune[0].Total } else { 0 })
-                Scope = '{0:N0}' -f $(if ($scope.Count) { $scope[0].Total } else { 0 })
-                'Enabled 90d+' = '{0:N0}' -f $(if ($scope.Count) { $scope[0].EnabledOver90 } else { 0 })
-            }
-        }
-    )
     $staleChartRows = @($Statistics.Scope.Rows | Where-Object { $_.OS -ne 'ALL' -and $_.EnabledOver90 -gt 0 })
 
     New-HTMLTab -Name 'Overview' {
@@ -106,6 +74,23 @@ function New-HTMLCloudDeviceInventoryOverview {
             New-HTMLText -Text 'Read-only source counts are before OS filters. Entra and Intune may describe the same device, so their totals must not be added.'
         }
 
+        New-HTMLSection -HeaderText 'Scope and enabled actions' -Direction column {
+            New-HTMLText -Text 'Inventory scope used in this run' -FontWeight bold
+            New-HTMLList {
+                foreach ($setting in $ScopeConfiguration.GetEnumerator()) {
+                    New-HTMLListItem -Text "$(($setting.Key)): $($setting.Value)"
+                }
+            }
+            New-HTMLText -Text 'Only enabled action stages are shown below. Age gates are the main thresholds; the Rules tab contains every configured filter.'
+            if ($ActionOverview.Count -gt 0) {
+                New-HTMLTable -DataTable $ActionOverview -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                    New-HTMLTableHeader -Names 'Action', 'Mode', 'Limit' -ResponsiveOperations all
+                    New-HTMLTableHeader -Names 'Age gates' -ResponsiveOperations not-mobile
+                    New-HTMLTableHeader -Names 'Notes' -ResponsiveOperations none
+                }
+            }
+        }
+
         New-HTMLSection -HeaderText 'Enabled with old Entra activity' {
             if ($staleChartRows.Count -gt 0) {
                 New-HTMLPanel {
@@ -117,13 +102,6 @@ function New-HTMLCloudDeviceInventoryOverview {
                 }
             } else {
                 New-HTMLText -Text 'No enabled in-scope device has Entra activity older than 90 days.'
-            }
-        }
-
-        New-HTMLSection -HeaderText 'OS quick view' -Direction column {
-            New-HTMLText -Text 'One row per OS. Enabled with old Entra activity is a signal to review, not an action count. Use the detailed counts below for age and link breakdowns.'
-            New-HTMLTable -DataTable $summaryRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                New-HTMLTableHeader -Names 'OS', 'Entra', 'Intune', 'Scope', 'Enabled 90d+' -ResponsiveOperations all
             }
         }
 
@@ -175,21 +153,5 @@ function New-HTMLCloudDeviceInventoryOverview {
             }
         }
 
-        New-HTMLSection -HeaderText 'What the rules selected' -Direction column {
-            New-HTMLText -Text 'Selected counts are before action limits or confirmation. The Current Run tab shows attempted actions and WhatIf previews.'
-            if ($candidateTotals.Count -gt 0) {
-                New-HTMLTable -DataTable $candidateTotals -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                    New-HTMLTableHeader -Names 'Action', 'Selected' -ResponsiveOperations all
-                }
-            } else {
-                New-HTMLText -Text 'No cleanup action was selected for this run.'
-            }
-            if ($candidateRows.Count -gt 0) {
-                New-HTMLText -Text 'Selected devices by action and OS' -FontWeight bold
-                New-HTMLTable -DataTable $candidateRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                    New-HTMLTableHeader -Names 'Action', 'OS', 'Selected' -ResponsiveOperations all
-                }
-            }
-        }
     }
 }

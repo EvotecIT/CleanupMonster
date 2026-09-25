@@ -36,7 +36,13 @@ Describe 'Cloud device HTML inventory overview' {
             $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1' }
             $autopilotPreview = [pscustomobject] @{ Name = 'AP-03'; Action = 'RemoveAutopilotIdentity'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Autopilot contact 210 days'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
             $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{} }
-            New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -Statistics $statistics -RetireOnlyIf ([ordered] @{ LastSeenEntraMoreThan = 90 }) -DisableOnlyIf ([ordered] @{ LastSeenEntraMoreThan = 90 }) -DeleteOnlyIf ([ordered] @{ LastSeenEntraMoreThan = 180 }) -FilePath $FilePath
+            $actionConfiguration = @(
+                [pscustomobject] @{ Name = 'Retire'; Enabled = $false; Mode = 'Live'; Limit = 10; Rules = [ordered] @{ LastSeenEntraMoreThan = 90 } }
+                [pscustomobject] @{ Name = 'Disable'; Enabled = $true; Mode = 'WhatIf'; Limit = 10; Rules = [ordered] @{ LastSeenEntraMoreThan = 90; IntuneStaleWhenPresentMoreThan = 90 } }
+                [pscustomobject] @{ Name = 'Delete'; Enabled = $true; Mode = 'WhatIf'; Limit = 5; Rules = [ordered] @{ LastSeenEntraMoreThan = 180 } }
+            )
+            $scopeConfiguration = [ordered] @{ 'Join types' = 'AzureAD registered'; 'Included OS' = 'Windows, Android'; 'Excluded OS' = 'macOS' }
+            New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath $FilePath
         } -ArgumentList $root, $reportPath
 
         try {
@@ -54,12 +60,14 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'Entra inventory by OS'
         $html | Should -Match 'Intune inventory by OS'
         $html | Should -Match 'What entered cleanup scope'
-        $html | Should -Match 'OS quick view'
+        $html | Should -Match 'Scope and enabled actions'
+        ($html.Contains('Entra activity') -and $html.Contains('Matching Intune sync')) | Should -BeTrue
+        $html | Should -Match 'Selected by rules this run'
         $html | Should -Match 'Detailed inventory counts'
         $html | Should -Match 'In cleanup scope, by OS'
         $html | Should -Match 'Enabled, Entra old 90d'
         $html | Should -Match 'macOS'
-        $html | Should -Match 'What the rules selected'
+        $html | Should -Not -Match 'OS quick view'
         $html | Should -Match 'Entra seen'
         $html | Should -Match 'Separate Autopilot removal query'
         $html | Should -Match 'Source and link state within this scope'

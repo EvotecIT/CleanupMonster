@@ -792,7 +792,28 @@ function Invoke-CloudDevicesCleanup {
         $reportDevices = @(Merge-CloudDeviceReportInventory -PrimaryDevices $allDevices -AdditionalDevices $autopilotRemovalDevices)
     }
 
-    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -Statistics $reportStatistics -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    $reportActionConfiguration = @(
+        [pscustomobject] @{ Name = 'Retire'; Enabled = $Retire.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfRetire) { 'WhatIf' } else { 'Live' }; Limit = $RetireLimit; Rules = $retireOnlyIf }
+        [pscustomobject] @{ Name = 'Disable'; Enabled = $Disable.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfDisable) { 'WhatIf' } else { 'Live' }; Limit = $DisableLimit; Rules = $disableOnlyIf }
+        [pscustomobject] @{ Name = 'Stage for delete'; Enabled = $processStageDisabledForDelete; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfStageDelete) { 'WhatIf' } else { 'Live' }; Limit = $StageDisabledForDeleteLimit; Rules = $stageDeleteOnlyIf }
+        [pscustomobject] @{ Name = 'Delete'; Enabled = $Delete.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfDelete) { 'WhatIf' } else { 'Live' }; Limit = $DeleteLimit; Rules = $deleteOnlyIf; Additional = "Remove Intune record: $DeleteRemoveIntuneRecord; remove Autopilot identity: $($DeleteAutopilotIdentity.IsPresent)" }
+        [pscustomobject] @{ Name = 'Remove Autopilot identity'; Enabled = $RemoveAutopilotIdentity.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfRemoveAutopilotIdentity) { 'WhatIf' } else { 'Live' }; Limit = $RemoveAutopilotIdentityLimit; Rules = $removeAutopilotIdentityOnlyIf }
+    )
+    $reportScopeConfiguration = [ordered] @{
+        'Join types' = @($primaryIncludeJoinType) -join ', '
+        'Included OS' = @($primaryIncludeOperatingSystem) -join ', '
+        'Excluded OS' = if ($ExcludeOperatingSystem.Count) { @($ExcludeOperatingSystem) -join ', ' } else { 'None' }
+        'Include unknown OS' = [string] [bool] $IncludeUnknownOperatingSystem
+        'Included OS versions' = if ($IncludeOperatingSystemVersion.Count) { @($IncludeOperatingSystemVersion) -join ', ' } else { 'Any' }
+        'Excluded OS versions' = if ($ExcludeOperatingSystemVersion.Count) { @($ExcludeOperatingSystemVersion) -join ', ' } else { 'None' }
+        'Include unknown OS version' = [string] [bool] $IncludeUnknownOperatingSystemVersion
+        'Explicit exclusions' = if ($Exclusions.Count) { '{0} pattern(s) applied' -f $Exclusions.Count } else { 'None' }
+    }
+    if ($useSeparateAutopilotRemovalInventory) {
+        $reportScopeConfiguration['Separate Autopilot join types'] = @($autopilotRemovalIncludeJoinType) -join ', '
+        $reportScopeConfiguration['Separate Autopilot included OS'] = @($autopilotRemovalIncludeOperatingSystem) -join ', '
+    }
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 
