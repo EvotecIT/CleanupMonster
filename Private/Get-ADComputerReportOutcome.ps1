@@ -30,6 +30,11 @@ function Get-ADComputerReportOutcome {
         $satisfiedSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -in 'True', 'AlreadySatisfied' }).Count
         $previewSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -in 'WhatIf', 'AlreadySatisfied' }).Count
         if ($satisfiedSteps -eq 2) {
+            if ($status -eq 'WhatIf') {
+                $label = if ($hasComment) { 'WhatIf error' } else { 'WhatIf preview' }
+                $group = if ($hasComment) { 'NeedsReview' } else { 'WhatIf' }
+                return [pscustomobject] @{ Group = $group; Label = $label }
+            }
             if ($hasComment) { return [pscustomobject] @{ Group = 'NeedsReview'; Label = 'Completed with issue' } }
             return [pscustomobject] @{ Group = 'Completed'; Label = 'Completed' }
         }

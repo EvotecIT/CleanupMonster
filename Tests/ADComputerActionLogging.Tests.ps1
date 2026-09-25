@@ -209,6 +209,14 @@ Describe 'AD computer action reasons' {
         $script:actionLogLines[0].Text | Should -Match 'DisableAndMove WhatIf preview.*Disable=AlreadySatisfied; Move=WhatIf'
     }
 
+    It 'logs metadata-only WhatIf on an already-satisfied composite as a preview' {
+        $result = [pscustomobject] @{ SamAccountName = 'PC10$'; DistinguishedName = 'CN=PC10,DC=contoso,DC=com'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'AlreadySatisfied' }
+
+        Write-ADComputerActionLog -Action DisableAndMove -Results @($result)
+
+        $script:actionLogLines[0].Text | Should -Match 'DisableAndMove WhatIf preview.*Disable=AlreadySatisfied; Move=AlreadySatisfied'
+    }
+
     It 'labels a failed WhatIf attempt as an error' {
         $result = [pscustomobject] @{
             SamAccountName       = 'PC3$'
@@ -232,6 +240,18 @@ Describe 'AD computer action reasons' {
         $script:actionLogLines[0].Text | Should -Match 'Disable completed with issue.*Description update failed'
     }
 
+    It 'logs a failed metadata call when the disable step was already satisfied' {
+        $result = [pscustomobject] @{
+            SamAccountName = 'PC9$'; DistinguishedName = 'CN=PC9,DC=contoso,DC=com'
+            ActionAttempted = $true; ActionStatus = $true; ActionComment = 'Description update denied'
+            DisableActionResult = 'AlreadySatisfied'
+        }
+
+        Write-ADComputerActionLog -Action Disable -Results @($result)
+
+        $script:actionLogLines[0].Text | Should -Match 'Disable completed with issue.*Description update denied'
+    }
+
     It 'does not log one previewed step as a complete disable-and-move preview' {
         $result = [pscustomobject] @{
             SamAccountName      = 'PC4$'
@@ -245,5 +265,17 @@ Describe 'AD computer action reasons' {
         Write-ADComputerActionLog -Action DisableAndMove -Results @($result)
 
         $script:actionLogLines[0].Text | Should -Match 'DisableAndMove incomplete WhatIf preview.*Disable=WhatIf; Move=NotAttempted'
+    }
+
+    It 'retains WhatIf context when the first composite step fails' {
+        $result = [pscustomobject] @{
+            SamAccountName = 'PC8$'; DistinguishedName = 'CN=PC8,DC=contoso,DC=com'
+            ActionAttempted = $true; ActionStatus = 'WhatIf'; ActionComment = 'Access denied'
+            DisableActionResult = 'False'; MoveActionResult = $null
+        }
+
+        Write-ADComputerActionLog -Action DisableAndMove -Results @($result)
+
+        $script:actionLogLines[0].Text | Should -Match 'DisableAndMove WhatIf attempted with error.*Disable=False; Move=NotAttempted.*Access denied'
     }
 }

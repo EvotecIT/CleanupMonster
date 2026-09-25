@@ -33,17 +33,24 @@ function Write-ADComputerActionLog {
             $satisfiedSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -in 'True', 'AlreadySatisfied' }).Count
             $previewSteps = @(@($disableResult, $moveResult) | Where-Object { $_ -in 'WhatIf', 'AlreadySatisfied' }).Count
             if ($satisfiedSteps -eq 2) {
-                $outcome = if ([string]::IsNullOrWhiteSpace([string] $computer.ActionComment)) { 'completed' } else { 'completed with issue' }
-                if ($outcome -eq 'completed with issue') {
-                    $prefix = '[w] '
-                    $color = 'Yellow'
+                $hasComment = -not [string]::IsNullOrWhiteSpace([string] $computer.ActionComment)
+                if ($status -eq 'WhatIf') {
+                    $outcome = if ($hasComment) { 'WhatIf attempted with error' } else { 'WhatIf preview' }
+                    $prefix = if ($hasComment) { '[-] ' } else { '[i] ' }
+                    $color = if ($hasComment) { 'Red' } else { 'Cyan' }
+                } else {
+                    $outcome = if ($hasComment) { 'completed with issue' } else { 'completed' }
+                    if ($hasComment) {
+                        $prefix = '[w] '
+                        $color = 'Yellow'
+                    }
                 }
             } elseif ($completedSteps -eq 1) {
                 $outcome = 'partially completed'
                 $prefix = '[w] '
                 $color = 'Yellow'
             } elseif ($disableResult -eq 'False' -or $moveResult -eq 'False') {
-                $outcome = if ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') { 'WhatIf attempted with error' } else { 'failed' }
+                $outcome = if ($status -eq 'WhatIf' -or $disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') { 'WhatIf attempted with error' } else { 'failed' }
                 $prefix = '[-] '
                 $color = 'Red'
             } elseif ($previewSteps -eq 2 -and ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf')) {

@@ -44,6 +44,14 @@ Describe 'AD current-run report outcomes' {
         (Get-ADComputerReportOutcome -Computer $error -DisableAndMove).Label | Should -Be 'WhatIf error'
     }
 
+    It 'keeps a metadata-only WhatIf preview when both composite steps were already satisfied' {
+        $preview = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'AlreadySatisfied' }
+        $error = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'AlreadySatisfied'; MoveActionResult = 'AlreadySatisfied'; ActionComment = 'Description update denied' }
+
+        (Get-ADComputerReportOutcome -Computer $preview -DisableAndMove).Group | Should -Be 'WhatIf'
+        (Get-ADComputerReportOutcome -Computer $error -DisableAndMove).Label | Should -Be 'WhatIf error'
+    }
+
     It 'does not call a missing move step a complete WhatIf preview' {
         $incomplete = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'WhatIf'; MoveActionResult = $null }
         $completePreview = [pscustomobject] @{ Action = 'Disable'; ActionAttempted = $true; ActionStatus = 'WhatIf'; DisableActionResult = 'WhatIf'; MoveActionResult = 'WhatIf' }
