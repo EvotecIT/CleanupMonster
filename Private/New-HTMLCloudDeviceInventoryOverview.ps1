@@ -78,48 +78,85 @@ function New-HTMLCloudDeviceInventoryOverview {
             }
         }
     )
+    $summaryRows = @(
+        foreach ($family in @('ALL', 'Windows', 'Android', 'iOS', 'iPadOS', 'macOS', 'Other', 'Unknown')) {
+            $entra = @($Statistics.Entra.Rows | Where-Object { $_.OS -eq $family } | Select-Object -First 1)
+            $intune = @($Statistics.Intune.Rows | Where-Object { $_.OS -eq $family } | Select-Object -First 1)
+            $scope = @($Statistics.Scope.Rows | Where-Object { $_.OS -eq $family } | Select-Object -First 1)
+            if ($family -ne 'ALL' -and -not ($entra.Count -or $intune.Count -or $scope.Count)) { continue }
+            [pscustomobject] [ordered] @{
+                OS = $family
+                Entra = '{0:N0}' -f $(if ($entra.Count) { $entra[0].Total } else { 0 })
+                Intune = '{0:N0}' -f $(if ($intune.Count) { $intune[0].Total } else { 0 })
+                Scope = '{0:N0}' -f $(if ($scope.Count) { $scope[0].Total } else { 0 })
+                'Enabled 90d+' = '{0:N0}' -f $(if ($scope.Count) { $scope[0].EnabledOver90 } else { 0 })
+            }
+        }
+    )
+    $staleChartRows = @($Statistics.Scope.Rows | Where-Object { $_.OS -ne 'ALL' -and $_.EnabledOver90 -gt 0 })
 
     New-HTMLTab -Name 'Overview' {
-        New-HTMLSection -HeaderText 'What the job saw' -Direction column {
+        New-HTMLSection -HeaderText 'At a glance' -Direction column {
+            New-HTMLSection -Invisible -Density Compact {
+                New-HTMLInfoCard -Title 'Entra seen' -Number ('{0:N0}' -f $Statistics.Entra.Total) -Subtitle 'Before OS filters' -NumberColor '#2878bd' -Style NoIcon
+                New-HTMLInfoCard -Title 'Intune seen' -Number ('{0:N0}' -f $Statistics.Intune.Total) -Subtitle 'Before OS filters' -NumberColor '#00a978' -Style NoIcon
+                New-HTMLInfoCard -Title 'Cleanup scope' -Number ('{0:N0}' -f $Statistics.Scope.Total) -Subtitle 'After filters' -NumberColor '#e39a22' -Style NoIcon
+                New-HTMLInfoCard -Title 'Enabled, old >90d' -Number ('{0:N0}' -f $Statistics.Scope.Rows[0].EnabledOver90) -Subtitle 'Entra activity; context only' -NumberColor '#d56748' -Style NoIcon
+            }
             New-HTMLText -Text 'Read-only source counts are before OS filters. Entra and Intune may describe the same device, so their totals must not be added.'
-            $seenRows = @(
-                if ($Statistics.Entra) { [pscustomobject] @{ Stage = 'Entra seen'; Records = '{0:N0}' -f $Statistics.Entra.Total } }
-                if ($Statistics.Intune) { [pscustomobject] @{ Stage = 'Intune seen'; Records = '{0:N0}' -f $Statistics.Intune.Total } }
-                if ($Statistics.Scope) { [pscustomobject] @{ Stage = 'In cleanup scope'; Records = '{0:N0}' -f $Statistics.Scope.Total } }
-            )
-            New-HTMLTable -DataTable $seenRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                New-HTMLTableHeader -Names 'Stage', 'Records' -ResponsiveOperations all
+        }
+
+        New-HTMLSection -HeaderText 'Enabled with old Entra activity' {
+            if ($staleChartRows.Count -gt 0) {
+                New-HTMLPanel {
+                    New-HTMLChart {
+                        New-ChartBarOptions -Distributed
+                        New-ChartLegend -HideLegend
+                        foreach ($row in $staleChartRows) { New-ChartBar -Name $row.OS -Value $row.EnabledOver90 }
+                    } -Title 'In cleanup scope, by OS' -SubTitle 'Entra activity over 90 days; selection rules still apply' -Height 240
+                }
+            } else {
+                New-HTMLText -Text 'No enabled in-scope device has Entra activity older than 90 days.'
             }
         }
 
-        if ($entraRows.Count -gt 0) {
-            New-HTMLSection -HeaderText 'Entra inventory by OS' -Direction column {
-                New-HTMLText -Text 'Activity age is cumulative: over 180 days is included in over 90 days. These counts alone do not make a device eligible for action.'
-                New-HTMLTable -DataTable $entraRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                    New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
-                    New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Old over 90 days', 'Old over 180 days', 'Activity unknown' -ResponsiveOperations not-mobile
-                }
+        New-HTMLSection -HeaderText 'OS quick view' -Direction column {
+            New-HTMLText -Text 'One row per OS. Enabled with old Entra activity is a signal to review, not an action count. Use the detailed counts below for age and link breakdowns.'
+            New-HTMLTable -DataTable $summaryRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                New-HTMLTableHeader -Names 'OS', 'Entra', 'Intune', 'Scope', 'Enabled 90d+' -ResponsiveOperations all
             }
         }
-        if ($intuneRows.Count -gt 0) {
-            New-HTMLSection -HeaderText 'Intune inventory by OS' -Direction column {
-                New-HTMLText -Text 'Sync age is cumulative. Intune inventory has no Entra enabled state.'
-                New-HTMLTable -DataTable $intuneRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                    New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
-                    New-HTMLTableHeader -Names 'Sync old over 90 days', 'Sync old over 180 days', 'Sync unknown' -ResponsiveOperations not-mobile
+
+        New-HTMLSection -HeaderText 'Detailed inventory counts' -CanCollapse -Collapsed -Direction column {
+            if ($entraRows.Count -gt 0) {
+                New-HTMLSection -HeaderText 'Entra inventory by OS' -Direction column {
+                    New-HTMLText -Text 'Activity age is cumulative: over 180 days is included in over 90 days. These counts alone do not make a device eligible for action.'
+                    New-HTMLTable -DataTable $entraRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Old over 90 days', 'Old over 180 days', 'Activity unknown' -ResponsiveOperations not-mobile
+                    }
                 }
             }
-        }
-        if ($scopeRows.Count -gt 0) {
-            New-HTMLSection -HeaderText 'What entered cleanup scope' -Direction column {
-                New-HTMLText -Text 'Correlated records after join type, OS, version and explicit exclusion filters. Enabled with old Entra activity is context; the action rules still apply.'
-                New-HTMLTable -DataTable $scopeRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                    New-HTMLTableHeader -Names 'OS', 'InScope' -ResponsiveOperations all
-                    New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled, Entra old 90d', 'Enabled, Entra old 180d', 'Entra activity unknown', 'No Entra record' -ResponsiveOperations not-mobile
+            if ($intuneRows.Count -gt 0) {
+                New-HTMLSection -HeaderText 'Intune inventory by OS' -Direction column {
+                    New-HTMLText -Text 'Sync age is cumulative. Intune inventory has no Entra enabled state.'
+                    New-HTMLTable -DataTable $intuneRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Sync old over 90 days', 'Sync old over 180 days', 'Sync unknown' -ResponsiveOperations not-mobile
+                    }
                 }
-                New-HTMLText -Text 'Source and link state within this scope' -FontWeight bold
-                New-HTMLTable -DataTable $sourceRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                    New-HTMLTableHeader -Names 'State', 'Records' -ResponsiveOperations all
+            }
+            if ($scopeRows.Count -gt 0) {
+                New-HTMLSection -HeaderText 'What entered cleanup scope' -Direction column {
+                    New-HTMLText -Text 'Correlated records after join type, OS, version and explicit exclusion filters. Enabled with old Entra activity is context; the action rules still apply.'
+                    New-HTMLTable -DataTable $scopeRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'OS', 'InScope' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled, Entra old 90d', 'Enabled, Entra old 180d', 'Entra activity unknown', 'No Entra record' -ResponsiveOperations not-mobile
+                    }
+                    New-HTMLText -Text 'Source and link state within this scope' -FontWeight bold
+                    New-HTMLTable -DataTable $sourceRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'State', 'Records' -ResponsiveOperations all
+                    }
                 }
             }
         }
