@@ -13,7 +13,7 @@ function Write-ADComputerActionLog {
         if (-not $computer.ActionAttempted -or [string] $computer.ActionStatus -eq 'ReportOnly') { continue }
 
         $status = [string] $computer.ActionStatus
-        $outcome = if ($status -eq 'WhatIf') { 'WhatIf preview' } elseif ($status -eq 'True') { 'completed' } else { 'failed or skipped' }
+        $outcome = if ($status -eq 'WhatIf') { 'WhatIf preview' } elseif ($status -eq 'True') { 'completed' } else { 'failed' }
         $prefix = if ($status -eq 'True') { '[+] ' } elseif ($status -eq 'WhatIf') { '[i] ' } else { '[-] ' }
         $color = if ($status -eq 'True') { 'Green' } elseif ($status -eq 'WhatIf') { 'Cyan' } else { 'Red' }
         if ($status -eq 'WhatIf' -and -not [string]::IsNullOrWhiteSpace([string] $computer.ActionComment)) {
@@ -32,7 +32,7 @@ function Write-ADComputerActionLog {
                 $prefix = '[w] '
                 $color = 'Yellow'
             } elseif ($disableResult -eq 'False' -or $moveResult -eq 'False') {
-                $outcome = if ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') { 'WhatIf attempted with error' } else { 'failed or skipped' }
+                $outcome = if ($disableResult -eq 'WhatIf' -or $moveResult -eq 'WhatIf') { 'WhatIf attempted with error' } else { 'failed' }
                 $prefix = '[-] '
                 $color = 'Red'
             } elseif ($disableResult -eq 'WhatIf' -and $moveResult -eq 'WhatIf') {
@@ -44,7 +44,7 @@ function Write-ADComputerActionLog {
                 $prefix = '[w] '
                 $color = 'Yellow'
             } else {
-                $outcome = 'failed or skipped'
+                $outcome = 'failed'
                 $prefix = '[-] '
                 $color = 'Red'
             }

@@ -5,12 +5,14 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Write-ADComputerActionLog.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersMove.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-ADComputersDelete.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-ADComputerReportOutcome.ps1')
 
     function Write-Color {
         param([string[]] $Text, [object[]] $Color, [string] $LogFile)
         $script:actionLogLines.Add([pscustomobject] @{ Text = ($Text -join ''); LogFile = $LogFile })
     }
     function ConvertFrom-DistinguishedName { param($DistinguishedName, [switch] $ToDomainCN) 'contoso.com' }
+    function Set-ADObject {}
 }
 
 Describe 'AD computer action reasons' {
@@ -121,6 +123,43 @@ Describe 'AD computer action reasons' {
         $script:actionLogLines.Clear()
         Write-ADComputerActionLog -Action Delete -Results $deleteResult
         $script:actionLogLines.Count | Should -Be 0
+    }
+
+    It 'records a failed protection-removal call as an attempted move' {
+        Mock Set-ADObject { throw 'Protection update denied' }
+        $computer = [pscustomobject] @{
+            SamAccountName = 'PC1$'; DistinguishedName = 'CN=PC1,OU=Workstations,DC=contoso,DC=com'
+            OrganizationalUnit = 'OU=Workstations,DC=contoso,DC=com'; ProtectedFromAccidentalDeletion = $true
+            Action = 'Move'; ActionComment = $null; ActionStatus = $null; ActionDate = $null
+        }
+        $report = [ordered] @{ 'contoso.com' = [ordered] @{ Server = 'dc1.contoso.com'; Computers = @($computer) } }
+
+        $result = @(Request-ADComputersMove -Report $report -MoveLimit 1 -ProcessedComputers ([ordered] @{}) -Today (Get-Date) -TargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -RemoveProtectedFromAccidentalDeletionFlag -DontWriteToEventLog)
+
+        $result[0].ActionAttempted | Should -BeTrue
+        $result[0].ActionStatus | Should -BeFalse
+        $result[0].ActionComment | Should -Match 'Protection update denied'
+        (Get-ADComputerReportOutcome -Computer $result[0]).Label | Should -Be 'Failed'
+        Write-ADComputerActionLog -Action Move -Results $result
+        $script:actionLogLines[-1].Text | Should -Match 'Move failed.*Protection update denied'
+    }
+
+    It 'records a failed protection-removal call as an attempted WhatIf delete' {
+        Mock Set-ADObject { throw 'Protection update denied' }
+        $computer = [pscustomobject] @{
+            SamAccountName = 'PC1$'; DistinguishedName = 'CN=PC1,OU=Workstations,DC=contoso,DC=com'
+            ProtectedFromAccidentalDeletion = $true; Action = 'Delete'; ActionComment = $null; ActionStatus = $null; ActionDate = $null
+        }
+        $report = [ordered] @{ 'contoso.com' = [ordered] @{ Server = 'dc1.contoso.com'; Computers = @($computer) } }
+
+        $result = @(Request-ADComputersDelete -Report $report -WhatIfDelete -DeleteLimit 1 -ProcessedComputers ([ordered] @{}) -Today (Get-Date) -RemoveProtectedFromAccidentalDeletionFlag -DontWriteToEventLog)
+
+        $result[0].ActionAttempted | Should -BeTrue
+        $result[0].ActionStatus | Should -Be 'WhatIf'
+        $result[0].ActionComment | Should -Match 'Protection update denied'
+        (Get-ADComputerReportOutcome -Computer $result[0]).Label | Should -Be 'WhatIf error'
+        Write-ADComputerActionLog -Action Delete -Results $result
+        $script:actionLogLines[-1].Text | Should -Match 'Delete WhatIf attempted with error.*Protection update denied'
     }
 
     It 'logs only attempted and WhatIf actions with their reason to the configured file' {
