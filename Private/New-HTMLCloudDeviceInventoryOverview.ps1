@@ -2,226 +2,160 @@ function New-HTMLCloudDeviceInventoryOverview {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $Statistics
+        [System.Collections.IDictionary] $Statistics,
+        [Parameter(Mandatory)]
+        [Array] $ActionOverview,
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary] $ScopeConfiguration
     )
 
-    $candidateTotals = @(
-        if ($Statistics.CandidateTotals) {
-            foreach ($candidate in $Statistics.CandidateTotals.GetEnumerator()) {
-                [pscustomobject] @{ Action = $candidate.Key; Selected = $candidate.Value }
-            }
-        }
-    )
-    $candidateRows = @(
-        if ($Statistics.Candidates) {
-            foreach ($candidate in $Statistics.Candidates) {
-                foreach ($row in $candidate.Rows) {
-                    if ($row.OS -eq 'ALL') { continue }
-                    $action = $candidate.Label -replace ' candidates.*$', ''
-                    [pscustomobject] @{ Action = $action; OS = $row.OS; Selected = $row.Total; Enabled = $row.Enabled; Disabled = $row.Disabled; Unknown = $row.UnknownState }
-                }
-            }
-        }
-    )
-
-    New-HTMLTab -Name 'Inventory Overview' {
-        New-HTMLSection -HeaderText 'What the job saw' {
-            New-HTMLText -Text 'Primary cleanup query counts are before OS filters. Entra and Intune records can overlap; do not add their totals. Queries still use the configured join types.'
-        }
+    $entraRows = @(
         if ($Statistics.Entra) {
-            New-HTMLSection -Invisible {
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Primary Entra seen' -Text "Records: $($Statistics.Entra.Total)" -BarColorLeft CornflowerBlue -IconSolid info-circle -IconColor CornflowerBlue } -Invisible
+            foreach ($row in $Statistics.Entra.Rows) {
+                [pscustomobject] @{
+                    OS = $row.OS
+                    Seen = '{0:N0}' -f $row.Total
+                    Enabled = '{0:N0}' -f $row.Enabled
+                    Disabled = '{0:N0}' -f $row.Disabled
+                    'Enabled state unknown' = '{0:N0}' -f $row.UnknownState
+                    'Old over 90 days' = '{0:N0}' -f $row.AgeOver90
+                    'Old over 180 days' = '{0:N0}' -f $row.AgeOver180
+                    'Activity unknown' = '{0:N0}' -f $row.UnknownActivity
+                }
             }
         }
+    )
+    $intuneRows = @(
         if ($Statistics.Intune) {
-            New-HTMLSection -Invisible {
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Primary Intune seen' -Text "Records: $($Statistics.Intune.Total)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel } -Invisible
+            foreach ($row in $Statistics.Intune.Rows) {
+                [pscustomobject] @{
+                    OS = $row.OS
+                    Seen = '{0:N0}' -f $row.Total
+                    'Sync old over 90 days' = '{0:N0}' -f $row.AgeOver90
+                    'Sync old over 180 days' = '{0:N0}' -f $row.AgeOver180
+                    'Sync unknown' = '{0:N0}' -f $row.UnknownActivity
+                }
             }
         }
+    )
+    $scopeRows = @(
         if ($Statistics.Scope) {
-            New-HTMLSection -Invisible {
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Cleanup scope' -Text "Correlated records after filters: $($Statistics.Scope.Total)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen } -Invisible
-            }
-        }
-
-        if ($Statistics.Entra) {
-            New-HTMLSection -HeaderText 'Primary Entra seen before OS filters' {
-                New-HTMLText -Text 'Age is days since Entra activity. Older than 90 and 180 days are cumulative. These counts alone do not decide action eligibility.'
-            }
-            if ($Statistics.Entra.Total -gt 0) {
-                New-HTMLSection -Invisible {
-                    New-HTMLPanel {
-                        New-HTMLChart {
-                            foreach ($row in $Statistics.Entra.Rows) {
-                                if ($row.OS -ne 'ALL' -and $row.Total -gt 0) { New-ChartPie -Name $row.OS -Value $row.Total }
-                            }
-                        } -Title 'Entra records by OS'
-                    }
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Enabled state by OS' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.Entra.Rows | Select-Object OS, Total, Enabled, Disabled, @{Name = 'Unknown'; Expression = { $_.UnknownState } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Old Entra activity by OS' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.Entra.Rows | Select-Object OS, @{Name = 'Over90'; Expression = { $_.AgeOver90 } }, @{Name = 'Over180'; Expression = { $_.AgeOver180 } }, @{Name = 'Unknown'; Expression = { $_.UnknownActivity } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Enabled with old Entra activity by OS' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.Entra.Rows | Select-Object OS, @{Name = 'OnOver90'; Expression = { $_.EnabledOver90 } }, @{Name = 'OnOver180'; Expression = { $_.EnabledOver180 } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
+            foreach ($row in $Statistics.Scope.Rows) {
+                [pscustomobject] @{
+                    OS = $row.OS
+                    InScope = '{0:N0}' -f $row.Total
+                    Enabled = '{0:N0}' -f $row.Enabled
+                    Disabled = '{0:N0}' -f $row.Disabled
+                    'Enabled state unknown' = '{0:N0}' -f $row.UnknownState
+                    'Enabled, Entra old 90d' = '{0:N0}' -f $row.EnabledOver90
+                    'Enabled, Entra old 180d' = '{0:N0}' -f $row.EnabledOver180
+                    'Entra activity unknown' = '{0:N0}' -f $row.UnknownActivity
+                    'No Entra record' = '{0:N0}' -f $row.NoEntraRecord
                 }
             }
         }
-
-        if ($Statistics.Intune) {
-            New-HTMLSection -HeaderText 'Primary Intune seen before OS filters' {
-                New-HTMLText -Text 'Age is days since last Intune sync. The age bands do not overlap. Intune records have no Entra enabled state.'
-            }
-            if ($Statistics.Intune.Total -gt 0) {
-                New-HTMLSection -Invisible {
-                    New-HTMLPanel {
-                        New-HTMLChart {
-                            foreach ($row in $Statistics.Intune.Rows) {
-                                if ($row.OS -ne 'ALL' -and $row.Total -gt 0) { New-ChartPie -Name $row.OS -Value $row.Total }
-                            }
-                        } -Title 'Intune records by OS'
-                    }
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLTable -DataTable @($Statistics.Intune.Rows | Select-Object OS, @{Name = 'UpTo90'; Expression = { $_.AgeWithin90 } }, @{Name = 'Days91To180'; Expression = { $_.Age91To180 } }, @{Name = 'Over180'; Expression = { $_.AgeOver180 } }, @{Name = 'Unknown'; Expression = { $_.UnknownActivity } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-        }
-
+    )
+    $sourceRows = @(
         if ($Statistics.Scope) {
-            New-HTMLSection -HeaderText 'Cleanup scope after filters' {
-                New-HTMLText -Text 'Correlated records passed the configured join, OS, version, and explicit exclusion filters. Primary cleanup actions select candidates from this pool. A separate Autopilot removal query, when configured, has its own source and scope below.'
+            foreach ($state in ([ordered] @{ Matched = 'Matched Entra and Intune'; EntraOnly = 'Entra only'; IntuneOnly = 'Intune only'; Other = 'Other source' }).GetEnumerator()) {
+                [pscustomobject] @{ Category = 'Record source'; State = $state.Value; Records = '{0:N0}' -f $Statistics.Scope.Records.($state.Key) }
             }
-            if ($Statistics.Scope.Total -gt 0) {
-                New-HTMLSection -Invisible {
-                    New-HTMLPanel {
-                        New-HTMLChart {
-                            foreach ($row in $Statistics.Scope.Rows) {
-                                if ($row.OS -ne 'ALL' -and $row.Total -gt 0) { New-ChartPie -Name $row.OS -Value $row.Total }
-                            }
-                        } -Title 'Cleanup scope by OS'
+            foreach ($state in ([ordered] @{ Healthy = 'Healthy'; Broken = 'Broken'; NotClaimed = 'Not claimed'; IntuneOnly = 'Intune only'; Other = 'Other' }).GetEnumerator()) {
+                [pscustomobject] @{ Category = 'Intune link'; State = $state.Value; Records = '{0:N0}' -f $Statistics.Scope.Links.($state.Key) }
+            }
+        }
+    )
+    $staleChartRows = @($Statistics.Scope.Rows | Where-Object { $_.OS -ne 'ALL' -and $_.EnabledOver90 -gt 0 })
+
+    New-HTMLTab -Name 'Overview' {
+        New-HTMLSection -HeaderText 'At a glance' -Direction column {
+            New-HTMLSection -Invisible -Density Compact {
+                New-HTMLInfoCard -Title 'Entra seen' -Number ('{0:N0}' -f $Statistics.Entra.Total) -Subtitle 'Before OS filters' -NumberColor '#2878bd' -Style NoIcon
+                New-HTMLInfoCard -Title 'Intune seen' -Number ('{0:N0}' -f $Statistics.Intune.Total) -Subtitle 'Before OS filters' -NumberColor '#00a978' -Style NoIcon
+                New-HTMLInfoCard -Title 'Cleanup scope' -Number ('{0:N0}' -f $Statistics.Scope.Total) -Subtitle 'After filters' -NumberColor '#e39a22' -Style NoIcon
+                New-HTMLInfoCard -Title 'Enabled, old >90d' -Number ('{0:N0}' -f $Statistics.Scope.Rows[0].EnabledOver90) -Subtitle 'Entra activity; context only' -NumberColor '#d56748' -Style NoIcon
+            }
+            New-HTMLText -Text 'Read-only source counts are before OS filters. Entra and Intune may describe the same device, so their totals must not be added.'
+        }
+
+        New-HTMLSection -HeaderText 'Scope and enabled actions' -Direction column {
+            New-HTMLText -Text 'Inventory scope used in this run' -FontWeight bold
+            New-HTMLList {
+                foreach ($setting in $ScopeConfiguration.GetEnumerator()) {
+                    New-HTMLListItem -Text "$(($setting.Key)): $($setting.Value)"
+                }
+            }
+            New-HTMLText -Text 'Only enabled action stages are shown below. Age gates are the main thresholds; the Rules tab contains every configured filter.'
+            if ($ActionOverview.Count -gt 0) {
+                New-HTMLTable -DataTable $ActionOverview -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                    New-HTMLTableHeader -Names 'Action', 'Mode', 'Limit' -ResponsiveOperations all
+                    New-HTMLTableHeader -Names 'Age gates' -ResponsiveOperations not-mobile
+                    New-HTMLTableHeader -Names 'Notes' -ResponsiveOperations none
+                }
+            }
+        }
+
+        New-HTMLSection -HeaderText 'Enabled with old Entra activity' {
+            if ($staleChartRows.Count -gt 0) {
+                New-HTMLPanel {
+                    New-HTMLChart {
+                        New-ChartBarOptions -Distributed
+                        New-ChartLegend -HideLegend
+                        foreach ($row in $staleChartRows) { New-ChartBar -Name $row.OS -Value $row.EnabledOver90 }
+                    } -Title 'In cleanup scope, by OS' -SubTitle 'Entra activity over 90 days; selection rules still apply' -Height 240
+                }
+            } else {
+                New-HTMLText -Text 'No enabled in-scope device has Entra activity older than 90 days.'
+            }
+        }
+
+        New-HTMLSection -HeaderText 'Detailed inventory counts' -CanCollapse -Collapsed -Direction column {
+            if ($entraRows.Count -gt 0) {
+                New-HTMLSection -HeaderText 'Entra inventory by OS' -Direction column {
+                    New-HTMLText -Text 'Activity age is cumulative: over 180 days is included in over 90 days. These counts alone do not make a device eligible for action.'
+                    New-HTMLTable -DataTable $entraRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled state unknown', 'Old over 90 days', 'Old over 180 days', 'Activity unknown' -ResponsiveOperations not-mobile
                     }
                 }
             }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Enabled state by OS' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.Scope.Rows | Select-Object OS, Total, Enabled, Disabled, @{Name = 'Unknown'; Expression = { $_.UnknownState } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
+            if ($intuneRows.Count -gt 0) {
+                New-HTMLSection -HeaderText 'Intune inventory by OS' -Direction column {
+                    New-HTMLText -Text 'Sync age is cumulative. Intune inventory has no Entra enabled state.'
+                    New-HTMLTable -DataTable $intuneRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Sync old over 90 days', 'Sync old over 180 days', 'Sync unknown' -ResponsiveOperations not-mobile
+                    }
                 }
             }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Old Entra activity by OS' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.Scope.Rows | Select-Object OS, @{Name = 'Over90'; Expression = { $_.AgeOver90 } }, @{Name = 'Over180'; Expression = { $_.AgeOver180 } }, @{Name = 'Unknown'; Expression = { $_.UnknownActivity } }, @{Name = 'NoEntra'; Expression = { $_.NoEntraRecord } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Enabled with old Entra activity by OS' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.Scope.Rows | Select-Object OS, @{Name = 'OnOver90'; Expression = { $_.EnabledOver90 } }, @{Name = 'OnOver180'; Expression = { $_.EnabledOver180 } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Record source within cleanup scope' -FontWeight bold
-                    New-HTMLTable -DataTable @(
-                        [pscustomobject] @{ State = 'Matched'; Count = $Statistics.Scope.Records.Matched }
-                        [pscustomobject] @{ State = 'Entra only'; Count = $Statistics.Scope.Records.EntraOnly }
-                        [pscustomobject] @{ State = 'Intune only'; Count = $Statistics.Scope.Records.IntuneOnly }
-                        [pscustomobject] @{ State = 'Other'; Count = $Statistics.Scope.Records.Other }
-                    ) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Intune link within cleanup scope' -FontWeight bold
-                    New-HTMLTable -DataTable @(
-                        [pscustomobject] @{ State = 'Healthy'; Count = $Statistics.Scope.Links.Healthy }
-                        [pscustomobject] @{ State = 'Broken'; Count = $Statistics.Scope.Links.Broken }
-                        [pscustomobject] @{ State = 'Not claimed'; Count = $Statistics.Scope.Links.NotClaimed }
-                        [pscustomobject] @{ State = 'Intune only'; Count = $Statistics.Scope.Links.IntuneOnly }
-                        [pscustomobject] @{ State = 'Other'; Count = $Statistics.Scope.Links.Other }
-                    ) -HideButtons -DisableSearch -DisablePaging -DisableInfo
+            if ($scopeRows.Count -gt 0) {
+                New-HTMLSection -HeaderText 'What entered cleanup scope' -Direction column {
+                    New-HTMLText -Text 'Correlated records after join type, OS, version and explicit exclusion filters. Enabled with old Entra activity is context; the action rules still apply.'
+                    New-HTMLTable -DataTable $scopeRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'OS', 'InScope' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled state unknown', 'Enabled, Entra old 90d', 'Enabled, Entra old 180d', 'Entra activity unknown', 'No Entra record' -ResponsiveOperations not-mobile
+                    }
+                    New-HTMLText -Text 'Source and link state within this scope' -FontWeight bold
+                    New-HTMLTable -DataTable $sourceRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                        New-HTMLTableHeader -Names 'Category', 'State', 'Records' -ResponsiveOperations all
+                    }
                 }
             }
         }
 
         if ($Statistics.AutopilotScope) {
-            New-HTMLSection -HeaderText 'Separate Autopilot removal scope' {
-                New-HTMLText -Text 'Autopilot removal candidates come from this separate query and scope. Source counts below are before OS filters and can overlap the primary query; do not add them together.'
-            }
-            if ($Statistics.AutopilotEntra) {
-                New-HTMLSection -Invisible {
-                    New-HTMLPanel {
-                        New-HTMLText -Text "Autopilot Entra seen: $($Statistics.AutopilotEntra.Total) records" -FontWeight bold
-                        New-HTMLTable -DataTable @($Statistics.AutopilotEntra.Rows | Select-Object OS, Total, Enabled, Disabled) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                    }
-                }
-            }
-            if ($Statistics.AutopilotIntune) {
-                New-HTMLSection -Invisible {
-                    New-HTMLPanel {
-                        New-HTMLText -Text "Autopilot Intune seen: $($Statistics.AutopilotIntune.Total) records" -FontWeight bold
-                        New-HTMLTable -DataTable @($Statistics.AutopilotIntune.Rows | Select-Object OS, Total, @{Name = 'UpTo90'; Expression = { $_.AgeWithin90 } }, @{Name = 'Over180'; Expression = { $_.AgeOver180 } }) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                    }
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Autopilot removal scope after filters' -FontWeight bold
-                    New-HTMLTable -DataTable @($Statistics.AutopilotScope.Rows | Select-Object OS, Total, Enabled, Disabled) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Autopilot scope record source' -FontWeight bold
-                    New-HTMLTable -DataTable @(
-                        [pscustomobject] @{ State = 'Matched'; Count = $Statistics.AutopilotScope.Records.Matched }
-                        [pscustomobject] @{ State = 'Entra only'; Count = $Statistics.AutopilotScope.Records.EntraOnly }
-                        [pscustomobject] @{ State = 'Intune only'; Count = $Statistics.AutopilotScope.Records.IntuneOnly }
-                        [pscustomobject] @{ State = 'Other'; Count = $Statistics.AutopilotScope.Records.Other }
-                    ) -HideButtons -DisableSearch -DisablePaging -DisableInfo
-                }
-            }
-            New-HTMLSection -Invisible {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Autopilot scope Intune link' -FontWeight bold
-                    New-HTMLTable -DataTable @(
-                        [pscustomobject] @{ State = 'Healthy'; Count = $Statistics.AutopilotScope.Links.Healthy }
-                        [pscustomobject] @{ State = 'Broken'; Count = $Statistics.AutopilotScope.Links.Broken }
-                        [pscustomobject] @{ State = 'Not claimed'; Count = $Statistics.AutopilotScope.Links.NotClaimed }
-                        [pscustomobject] @{ State = 'Intune only'; Count = $Statistics.AutopilotScope.Links.IntuneOnly }
-                        [pscustomobject] @{ State = 'Other'; Count = $Statistics.AutopilotScope.Links.Other }
-                    ) -HideButtons -DisableSearch -DisablePaging -DisableInfo
+            $autopilotRows = @(
+                if ($Statistics.AutopilotEntra) { [pscustomobject] @{ Source = 'Entra seen'; Records = '{0:N0}' -f $Statistics.AutopilotEntra.Total } }
+                if ($Statistics.AutopilotIntune) { [pscustomobject] @{ Source = 'Intune seen'; Records = '{0:N0}' -f $Statistics.AutopilotIntune.Total } }
+                [pscustomobject] @{ Source = 'Removal scope'; Records = '{0:N0}' -f $Statistics.AutopilotScope.Total }
+            )
+            New-HTMLSection -HeaderText 'Separate Autopilot removal query' -Direction column {
+                New-HTMLText -Text 'This query has its own scope and can overlap the primary inventory.'
+                New-HTMLTable -DataTable $autopilotRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
+                    New-HTMLTableHeader -Names 'Source', 'Records' -ResponsiveOperations all
                 }
             }
         }
 
-        New-HTMLSection -HeaderText 'Selected by action rules' {
-            New-HTMLText -Text 'Candidate counts are before action limits and confirmation. Current Run shows actual attempts and WhatIf outcomes.'
-        }
-        if ($candidateTotals.Count -gt 0) {
-            New-HTMLSection -Invisible {
-                New-HTMLPanel { New-HTMLTable -DataTable $candidateTotals -HideButtons -DisableSearch -DisablePaging -DisableInfo }
-            }
-        }
-        if ($candidateRows.Count -gt 0) {
-            New-HTMLSection -Invisible {
-                New-HTMLPanel { New-HTMLTable -DataTable $candidateRows -HideButtons -DisableSearch -DisablePaging -DisableInfo }
-            }
-        }
     }
 }

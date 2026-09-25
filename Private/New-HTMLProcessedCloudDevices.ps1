@@ -1,32 +1,146 @@
 function New-HTMLProcessedCloudDevices {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $Export,
-
-        [Parameter(Mandatory)]
-        [Array] $Devices,
-
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Export,
+        [Parameter(Mandatory)] [Array] $Devices,
+        [int] $PrimaryDeviceCount = -1,
         [System.Collections.IDictionary] $Statistics,
-
-        [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $RetireOnlyIf,
-
-        [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $DisableOnlyIf,
-
-        [Parameter(Mandatory)]
-        [System.Collections.IDictionary] $DeleteOnlyIf,
-
-        [System.Collections.IDictionary] $RemoveAutopilotIdentityOnlyIf,
-
-        [Parameter(Mandatory)]
-        [string] $FilePath,
-
+        [Parameter(Mandatory)] [Array] $ActionConfiguration,
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $ScopeConfiguration,
+        [Parameter(Mandatory)] [string] $FilePath,
         [switch] $Online,
         [switch] $ShowHTML,
         [string] $LogFile
     )
+
+    $actionRows = {
+        param([Array] $Records)
+        foreach ($record in $Records) {
+            $outcome = switch ([string] $record.ActionStatus) {
+                'True' { 'Completed' }
+                'False' { 'Failed' }
+                'WhatIf' { 'WhatIf preview' }
+                'ReportOnly' { 'Report only' }
+                default { [string] $record.ActionStatus }
+            }
+            $action = switch ([string] $record.Action) {
+                'StageDelete' { 'Stage for deletion' }
+                'RemoveAutopilotIdentity' { 'Remove Autopilot identity' }
+                default { [string] $record.Action }
+            }
+            [pscustomobject] @{
+                Device = $record.Name
+                Action = $action
+                Outcome = $outcome
+                When = if ($record.ActionDate) { ([datetime] $record.ActionDate).ToString('yyyy-MM-dd HH:mm') } else { '' }
+                'Why selected' = $record.SelectionReason
+                Result = $record.ActionNotes
+                OS = $record.OperatingSystem
+                'Entra age (days)' = $record.EntraLastSeenDays
+                'Intune age (days)' = $record.IntuneLastSeenDays
+                'Entra object ID' = $record.EntraDeviceObjectId
+                'Intune device ID' = $record.ManagedDeviceId
+                'Autopilot identity ID' = $record.AutopilotDeviceId
+                'Autopilot serial' = $record.AutopilotSerialNumber
+                'Autopilot resource' = $record.AutopilotResourceName
+            }
+        }
+    }
+    $currentRows = @(& $actionRows -Records @($Export.CurrentRun))
+    $historyRows = @(& $actionRows -Records @($Export.History))
+    $pendingRows = @(
+        foreach ($device in $Export.PendingActions.Values) {
+            [pscustomobject] @{
+                Device = $device.Name
+                Action = $device.Action
+                Since = if ($device.ActionDate) { ([datetime] $device.ActionDate).ToString('yyyy-MM-dd') } else { '' }
+                'Days pending' = $device.TimeOnPendingList
+                OS = $device.OperatingSystem
+                'Entra object ID' = $device.EntraDeviceObjectId
+                'Intune device ID' = $device.ManagedDeviceId
+            }
+        }
+    )
+    $primaryCount = if ($PrimaryDeviceCount -ge 0) { $PrimaryDeviceCount } else { $Devices.Count }
+    $deviceRows = @(
+        for ($deviceIndex = 0; $deviceIndex -lt $Devices.Count; $deviceIndex++) {
+            $device = $Devices[$deviceIndex]
+            $enabled = if ($device.Enabled -eq $true) { 'Yes' } elseif ($device.Enabled -eq $false) { 'No' } else { 'Unknown' }
+            [pscustomobject] @{
+                Device = $device.Name
+                Scope = if ($deviceIndex -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
+                OS = $device.OperatingSystem
+                Source = $device.RecordState
+                Enabled = $enabled
+                'Entra age (days)' = $device.EntraLastSeenDays
+                'Intune age (days)' = $device.IntuneLastSeenDays
+                'Intune link' = $device.IntuneLinkState
+                'Entra object ID' = $device.EntraDeviceObjectId
+                'Intune device ID' = $device.ManagedDeviceId
+                'Autopilot identity ID' = $device.AutopilotDeviceId
+            }
+        }
+    )
+    $enabledActions = @($ActionConfiguration | Where-Object { $_.Enabled })
+    $ageRuleNames = [ordered] @{
+        LastSeenEntraMoreThan = 'Entra activity'
+        LastSeenIntuneMoreThan = 'Intune sync'
+        IntuneStaleWhenPresentMoreThan = 'Matching Intune sync'
+        RegisteredMoreThan = 'Registration'
+        ListProcessedMoreThan = 'Pending'
+        AutopilotLastContactMoreThan = 'Autopilot contact'
+    }
+    $actionOverview = @(
+        foreach ($action in $enabledActions) {
+            $ageGates = @(
+                foreach ($ruleName in $ageRuleNames.Keys) {
+                    if ($action.Rules.Contains($ruleName) -and $null -ne $action.Rules[$ruleName]) {
+                        if ($ruleName -eq 'ListProcessedMoreThan') {
+                            'Pending at least {0} days' -f $action.Rules[$ruleName]
+                        } else {
+                            '{0} >{1} days' -f $ageRuleNames[$ruleName], $action.Rules[$ruleName]
+                        }
+                    }
+                }
+            )
+            [pscustomobject] [ordered] @{
+                Action = $action.Name
+                Mode = $action.Mode
+                Limit = if ($action.Limit -eq 0) { 'Unlimited' } else { [string] $action.Limit }
+                'Age gates' = if ($ageGates.Count) { $ageGates -join '; ' } else { 'See full rules' }
+                Notes = [string] $action.Additional
+            }
+        }
+    )
+    $ruleRows = @(
+        foreach ($action in $enabledActions) {
+            foreach ($rule in $action.Rules.GetEnumerator()) {
+                $value = if ($null -eq $rule.Value) { 'Not set' } elseif ($rule.Value -is [Array]) { $rule.Value -join ', ' } else { [string] $rule.Value }
+                [pscustomobject] @{ Action = [string] $action.Name; Rule = [string] $rule.Key; Value = $value }
+            }
+        }
+    )
+    $candidateTotals = @(
+        if ($Statistics.CandidateTotals) {
+            foreach ($candidate in $Statistics.CandidateTotals.GetEnumerator()) {
+                [pscustomobject] @{ Action = [string] $candidate.Key; Selected = '{0:N0}' -f $candidate.Value }
+            }
+        }
+    )
+    $candidateRows = @(
+        if ($Statistics.Candidates) {
+            foreach ($candidate in $Statistics.Candidates) {
+                foreach ($row in $candidate.Rows) {
+                    if ($row.OS -eq 'ALL') { continue }
+                    [pscustomobject] @{ Action = $candidate.Label -replace ' candidates.*$', ''; OS = $row.OS; Selected = '{0:N0}' -f $row.Total }
+                }
+            }
+        }
+    )
+    $previewCount = @($Export.CurrentRun | Where-Object { $_.ActionStatus -eq 'WhatIf' }).Count
+    $reportOnlyCount = @($Export.CurrentRun | Where-Object { $_.ActionStatus -eq 'ReportOnly' }).Count
+    $completedCount = @($Export.CurrentRun | Where-Object { [string] $_.ActionStatus -eq 'True' }).Count
+    $failedCount = @($Export.CurrentRun | Where-Object { [string] $_.ActionStatus -eq 'False' }).Count
 
     New-HTML {
         New-HTMLTabStyle -BorderRadius 0px -TextTransform capitalize -BackgroundColorActive SlateGrey -BackgroundColor BlizzardBlue
@@ -41,97 +155,90 @@ function New-HTMLProcessedCloudDevices {
             }
         }
 
-        if ($Statistics) {
-            New-HTMLCloudDeviceInventoryOverview -Statistics $Statistics
-        }
+        if ($Statistics) { New-HTMLCloudDeviceInventoryOverview -Statistics $Statistics -ActionOverview $actionOverview -ScopeConfiguration $ScopeConfiguration }
 
         New-HTMLTab -Name 'Current Run' {
-            New-HTMLSection {
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Matched' -Text "Matched records actioned: $(@($Export.CurrentRun | Where-Object { $_.RecordState -eq 'Matched' }).Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Entra only' -Text "Entra-only records actioned: $(@($Export.CurrentRun | Where-Object { $_.RecordState -eq 'EntraOnly' }).Count)" -BarColorLeft CornflowerBlue -IconSolid info-circle -IconColor CornflowerBlue } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Intune only' -Text "Intune-only records actioned: $(@($Export.CurrentRun | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel } -Invisible
-            } -Invisible
-            New-HTMLTable -DataTable $Export.CurrentRun -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Retire' -BackgroundColor EnergyYellow
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor Yellow
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAutopilotIdentity' -BackgroundColor LightCyan
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'False' -BackgroundColor Salmon
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'WhatIf' -BackgroundColor LightBlue
-                New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'ReportOnly' -BackgroundColor Lavender
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
-                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
-            } -WarningAction SilentlyContinue
-        }
-
-        New-HTMLTab -Name 'History' {
-            New-HTMLTable -DataTable $Export.History -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Retire' -BackgroundColor EnergyYellow
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor Yellow
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace
-                New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'RemoveAutopilotIdentity' -BackgroundColor LightCyan
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
-                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
-            } -WarningAction SilentlyContinue
-        }
-
-        New-HTMLTab -Name 'Pending Actions' {
-            New-HTMLTable -DataTable $Export.PendingActions.Values -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
-                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
-            } -WarningAction SilentlyContinue
-        }
-
-        New-HTMLTab -Name 'Devices' {
-            New-HTMLSection {
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Total' -Text "Devices discovered: $($Devices.Count)" -BarColorLeft MintGreen -IconSolid info-circle -IconColor MintGreen } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Current Run' -Text "Actions this run: $($Export.CurrentRun.Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Pending' -Text "Pending actions: $($Export.PendingActions.Count)" -BarColorLeft OrangeRed -IconSolid info-circle -IconColor OrangeRed } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Matched' -Text "Matched records: $(@($Devices | Where-Object { $_.RecordState -eq 'Matched' }).Count)" -BarColorLeft SeaGreen -IconSolid info-circle -IconColor SeaGreen } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Entra only' -Text "Entra-only records: $(@($Devices | Where-Object { $_.RecordState -eq 'EntraOnly' }).Count)" -BarColorLeft CornflowerBlue -IconSolid info-circle -IconColor CornflowerBlue } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Intune only' -Text "Intune-only records: $(@($Devices | Where-Object { $_.RecordState -eq 'IntuneOnly' }).Count)" -BarColorLeft OrangePeel -IconSolid info-circle -IconColor OrangePeel } -Invisible
-                New-HTMLPanel { New-HTMLToast -TextHeader 'Broken Intune links' -Text "Broken Intune links: $(@($Devices | Where-Object { $_.IntuneLinkState -eq 'Broken' }).Count)" -BarColorLeft Salmon -IconSolid unlink -IconColor Salmon } -Invisible
-            } -Invisible
-
-            New-HTMLSection -HeaderText 'Rules' {
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Retire rules' -FontWeight bold
-                    New-HTMLTable -DataTable @([PSCustomObject] $RetireOnlyIf)
+            New-HTMLSection -HeaderText 'Selected by rules this run' -Direction column {
+                New-HTMLText -Text 'These counts are before action limits or confirmation. The action table below shows what the job attempted or previewed.'
+                if ($candidateTotals.Count -gt 0) {
+                    New-HTMLTable -DataTable $candidateTotals -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering
+                } else {
+                    New-HTMLText -Text 'No cleanup action was selected for this run.'
                 }
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Disable rules' -FontWeight bold
-                    New-HTMLTable -DataTable @([PSCustomObject] $DisableOnlyIf)
-                }
-                New-HTMLPanel {
-                    New-HTMLText -Text 'Delete rules' -FontWeight bold
-                    New-HTMLTable -DataTable @([PSCustomObject] $DeleteOnlyIf)
-                }
-                if ($RemoveAutopilotIdentityOnlyIf) {
-                    New-HTMLPanel {
-                        New-HTMLText -Text 'Remove Autopilot identity rules' -FontWeight bold
-                        New-HTMLTable -DataTable @([PSCustomObject] $RemoveAutopilotIdentityOnlyIf)
+                if ($candidateRows.Count -gt 0) {
+                    New-HTMLSection -HeaderText 'Selected by OS' -CanCollapse -Collapsed {
+                        New-HTMLTable -DataTable $candidateRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering
                     }
                 }
             }
+            New-HTMLSection -HeaderText 'Actions attempted this run' -Direction column {
+                New-HTMLText -Text "$previewCount WhatIf preview(s), $reportOnlyCount report-only result(s), $completedCount completed, $failedCount failed. WhatIf previews enter History but never start pending actions."
+                if ($currentRows.Count -gt 0) {
+                    New-HTMLTable -DataTable $currentRows -HideButtons -HideFooter -PagingLength 25 -TextWhenNoData 'No actions in this run.' {
+                        New-HTMLTableHeader -Names 'Device', 'Action', 'Outcome' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'OS', 'Entra age (days)', 'Intune age (days)', 'Entra object ID', 'Intune device ID', 'Autopilot identity ID', 'Autopilot serial', 'Autopilot resource' -ResponsiveOperations none
+                    }
+                } else {
+                    New-HTMLText -Text 'No actions were attempted in this run.'
+                }
+            }
+        }
 
-            New-HTMLTable -DataTable $Devices -Filtering -ScrollX {
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'Matched' -BackgroundColor Honeydew
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'EntraOnly' -BackgroundColor AliceBlue
-                New-HTMLTableCondition -Name 'RecordState' -ComparisonType string -Value 'IntuneOnly' -BackgroundColor Cornsilk
-                New-HTMLTableCondition -Name 'IntuneLinkState' -ComparisonType string -Value 'Broken' -BackgroundColor MistyRose
-            } -WarningAction SilentlyContinue
+        New-HTMLTab -Name 'History' {
+            New-HTMLSection -HeaderText 'Action history' -Direction column {
+                New-HTMLText -Text 'Completed, failed, and WhatIf attempts are retained across runs. A WhatIf entry is a preview, not a completed change. Report-only results are not retained.'
+                if ($historyRows.Count -gt 0) {
+                    New-HTMLTable -DataTable $historyRows -HideButtons -HideFooter -PagingLength 25 -TextWhenNoData 'No history recorded.' {
+                        New-HTMLTableHeader -Names 'Device', 'Action', 'Outcome' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'OS', 'Entra age (days)', 'Intune age (days)', 'Entra object ID', 'Intune device ID', 'Autopilot identity ID', 'Autopilot serial', 'Autopilot resource' -ResponsiveOperations none
+                    }
+                } else {
+                    New-HTMLText -Text 'No action history has been recorded yet.'
+                }
+            }
+        }
+
+        New-HTMLTab -Name 'Pending Actions' {
+            New-HTMLSection -HeaderText 'Waiting for the next stage' -Direction column {
+                New-HTMLText -Text 'Only completed actions enter this list. WhatIf previews never start a pending period.'
+                if ($pendingRows.Count -gt 0) {
+                    New-HTMLTable -DataTable $pendingRows -HideButtons -HideFooter -PagingLength 25 {
+                        New-HTMLTableHeader -Names 'Device', 'Action', 'Days pending' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Since', 'OS', 'Entra object ID', 'Intune device ID' -ResponsiveOperations not-mobile
+                    }
+                } else {
+                    New-HTMLText -Text 'No devices are pending a later action.'
+                }
+            }
+        }
+
+        New-HTMLTab -Name 'Devices' {
+            New-HTMLSection -HeaderText 'Devices returned for reporting' -Direction column {
+                New-HTMLText -Text 'The primary cleanup inventory appears first. A separate Autopilot removal query can add rows; those rows are marked Autopilot removal only. A primary row can also match the Autopilot query. This is inventory context, not an action list.'
+                if ($deviceRows.Count -gt 0) {
+                    New-HTMLTable -DataTable $deviceRows -HideButtons -HideFooter -PagingLength 25 {
+                        New-HTMLTableHeader -Names 'Device', 'Scope', 'OS', 'Enabled' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Source', 'Entra age (days)', 'Intune age (days)', 'Intune link', 'Entra object ID', 'Intune device ID', 'Autopilot identity ID' -ResponsiveOperations not-mobile
+                    }
+                } else {
+                    New-HTMLText -Text 'No devices entered cleanup scope.'
+                }
+            }
+        }
+
+        New-HTMLTab -Name 'Rules' {
+            New-HTMLSection -HeaderText 'Enabled action rules' -Direction column {
+                New-HTMLText -Text 'Only enabled action stages appear here. These are the complete selection settings used in this run.'
+                New-HTMLTable -DataTable $ruleRows -HideButtons -HideFooter -PagingLength 25 -ResponsivePriorityOrder 'Action', 'Rule', 'Value'
+            }
         }
 
         try {
             if ($LogFile -and (Test-Path -LiteralPath $LogFile -ErrorAction Stop)) {
                 $logContent = Get-Content -Raw -LiteralPath $LogFile -ErrorAction Stop
-                New-HTMLTab -Name 'Log' {
-                    New-HTMLCodeBlock -Code $logContent -Style generic
-                }
+                New-HTMLTab -Name 'Log' { New-HTMLCodeBlock -Code $logContent -Style generic }
             }
         } catch {
             Write-Color -Text '[e] ', "Couldn't read the log file. Skipping adding log to HTML. Error: $($_.Exception.Message)" -Color Yellow, Red

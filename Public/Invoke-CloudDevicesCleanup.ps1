@@ -16,8 +16,9 @@ function Invoke-CloudDevicesCleanup {
     - RemoveAutopilotIdentity: removes stale Windows Autopilot identities without deleting Entra or Intune records.
 
     The cmdlet keeps a datastore with PendingActions and History so staged actions
-    can be reviewed over multiple runs. ReportOnly and WhatIf/action-specific
-    WhatIf modes show candidates without mutating pending cleanup state.
+    can be reviewed over multiple runs. ReportOnly shows candidates without writing
+    updated cleanup state. WhatIf and action-specific WhatIf modes save attempted
+    previews in History, but do not add them to PendingActions.
 
     Same-name Windows Autopilot and hybrid/cloud-join duplicate groups are preserved
     from destructive cloud actions by default. This protects the by-design duplicate
@@ -237,19 +238,19 @@ function Invoke-CloudDevicesCleanup {
     Existing pending actions are still read so staged candidates can be reported accurately.
 
     .PARAMETER WhatIfRetire
-    Previews retire actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+    Previews retire actions only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfDisable
-    Previews disable actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+    Previews disable actions only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfStageDelete
-    Previews staging already-disabled delete candidates without updating the pending-action datastore.
+    Previews staging already-disabled delete candidates. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfDelete
-    Previews delete actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+    Previews delete actions only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfRemoveAutopilotIdentity
-    Previews standalone Autopilot identity removal only. Preview results are shown in the current report but are not stored in history.
+    Previews standalone Autopilot identity removal only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER LogPath
     Path to a log file. Summary lines show the configured inventory scope, OS and correlation counts, Entra activity age bands, and the mix of selected candidates for each enabled action.
@@ -772,22 +773,8 @@ function Invoke-CloudDevicesCleanup {
         if ($reportDeleted.Count -gt 0) { $reportDeleted }
         if ($reportAutopilotIdentityRemoved.Count -gt 0) { $reportAutopilotIdentityRemoved }
     )
-    $persistedRun = @()
-    if ($reportRetired.Count -gt 0) {
-        $persistedRun += @($reportRetired | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportDisabled.Count -gt 0) {
-        $persistedRun += @($reportDisabled | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportStagedForDelete.Count -gt 0) {
-        $persistedRun += @($reportStagedForDelete | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportDeleted.Count -gt 0) {
-        $persistedRun += @($reportDeleted | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportAutopilotIdentityRemoved.Count -gt 0) {
-        $persistedRun += @($reportAutopilotIdentityRemoved | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
+    # Previewed attempts belong to the audit trail, but never to PendingActions.
+    $persistedRun = @($export.CurrentRun | Where-Object { $_.ActionStatus -ne 'ReportOnly' })
     $export.History = @(
         if ($export.History) { $export.History }
         if ($persistedRun.Count -gt 0) { $persistedRun }
@@ -806,7 +793,28 @@ function Invoke-CloudDevicesCleanup {
         $reportDevices = @(Merge-CloudDeviceReportInventory -PrimaryDevices $allDevices -AdditionalDevices $autopilotRemovalDevices)
     }
 
-    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -Statistics $reportStatistics -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    $reportActionConfiguration = @(
+        [pscustomobject] @{ Name = 'Retire'; Enabled = $Retire.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfRetire) { 'WhatIf' } else { 'Live' }; Limit = $RetireLimit; Rules = $retireOnlyIf }
+        [pscustomobject] @{ Name = 'Disable'; Enabled = $Disable.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfDisable) { 'WhatIf' } else { 'Live' }; Limit = $DisableLimit; Rules = $disableOnlyIf }
+        [pscustomobject] @{ Name = 'Stage for delete'; Enabled = $processStageDisabledForDelete; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfStageDelete) { 'WhatIf' } else { 'Live' }; Limit = $StageDisabledForDeleteLimit; Rules = $stageDeleteOnlyIf }
+        [pscustomobject] @{ Name = 'Delete'; Enabled = $Delete.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfDelete) { 'WhatIf' } else { 'Live' }; Limit = $DeleteLimit; Rules = $deleteOnlyIf; Additional = "Remove Intune record: $DeleteRemoveIntuneRecord; remove Autopilot identity: $($DeleteAutopilotIdentity.IsPresent)" }
+        [pscustomobject] @{ Name = 'Remove Autopilot identity'; Enabled = $RemoveAutopilotIdentity.IsPresent; Mode = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $WhatIfRemoveAutopilotIdentity) { 'WhatIf' } else { 'Live' }; Limit = $RemoveAutopilotIdentityLimit; Rules = $removeAutopilotIdentityOnlyIf }
+    )
+    $reportScopeConfiguration = [ordered] @{
+        'Join types' = @($primaryIncludeJoinType) -join ', '
+        'Included OS' = @($primaryIncludeOperatingSystem) -join ', '
+        'Excluded OS' = if ($ExcludeOperatingSystem.Count) { @($ExcludeOperatingSystem) -join ', ' } else { 'None' }
+        'Include unknown OS' = [string] [bool] $IncludeUnknownOperatingSystem
+        'Included OS versions' = if ($IncludeOperatingSystemVersion.Count) { @($IncludeOperatingSystemVersion) -join ', ' } else { 'Any' }
+        'Excluded OS versions' = if ($ExcludeOperatingSystemVersion.Count) { @($ExcludeOperatingSystemVersion) -join ', ' } else { 'None' }
+        'Include unknown OS version' = [string] [bool] $IncludeUnknownOperatingSystemVersion
+        'Explicit exclusions' = if ($Exclusions.Count) { '{0} pattern(s) applied' -f $Exclusions.Count } else { 'None' }
+    }
+    if ($useSeparateAutopilotRemovalInventory) {
+        $reportScopeConfiguration['Separate Autopilot join types'] = @($autopilotRemovalIncludeJoinType) -join ', '
+        $reportScopeConfiguration['Separate Autopilot included OS'] = @($autopilotRemovalIncludeOperatingSystem) -join ', '
+    }
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 
