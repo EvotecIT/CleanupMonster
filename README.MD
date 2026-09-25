@@ -270,7 +270,7 @@ What matters most:
 - same-name Windows Autopilot hybrid/cloud-join duplicate groups are preserved from cloud cleanup actions by default; use `-PreserveDuplicateDeviceNames:$false` only after reviewing the duplicate set in the report
 - blank current activity is unsafe for destructive selection, including when a pending device had activity before but the current inventory loses it
 - Entra-backed disable requires `Enabled -eq $true`; Entra-backed delete requires `Enabled -eq $false`; unknown enabled state is treated as unsafe
-- `-ReportOnly`, top-level `-WhatIf`, and action-specific preview switches do not add devices to `PendingActions` or persisted `History`
+- `-ReportOnly` does not write updated cleanup state; top-level `-WhatIf` and action-specific preview switches save attempted previews in `History` but do not add devices to `PendingActions`
 - `-Confirm` prompts at the top-level action stage before destructive retire, disable, or delete requests are submitted
 
 Recommended production stance:

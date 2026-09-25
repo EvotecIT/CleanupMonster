@@ -17,6 +17,7 @@ function New-HTMLCloudDeviceInventoryOverview {
                     Seen = '{0:N0}' -f $row.Total
                     Enabled = '{0:N0}' -f $row.Enabled
                     Disabled = '{0:N0}' -f $row.Disabled
+                    'Enabled state unknown' = '{0:N0}' -f $row.UnknownState
                     'Old over 90 days' = '{0:N0}' -f $row.AgeOver90
                     'Old over 180 days' = '{0:N0}' -f $row.AgeOver180
                     'Activity unknown' = '{0:N0}' -f $row.UnknownActivity
@@ -45,6 +46,7 @@ function New-HTMLCloudDeviceInventoryOverview {
                     InScope = '{0:N0}' -f $row.Total
                     Enabled = '{0:N0}' -f $row.Enabled
                     Disabled = '{0:N0}' -f $row.Disabled
+                    'Enabled state unknown' = '{0:N0}' -f $row.UnknownState
                     'Enabled, Entra old 90d' = '{0:N0}' -f $row.EnabledOver90
                     'Enabled, Entra old 180d' = '{0:N0}' -f $row.EnabledOver180
                     'Entra activity unknown' = '{0:N0}' -f $row.UnknownActivity
@@ -55,10 +57,12 @@ function New-HTMLCloudDeviceInventoryOverview {
     )
     $sourceRows = @(
         if ($Statistics.Scope) {
-            [pscustomobject] @{ State = 'Matched Entra and Intune'; Records = '{0:N0}' -f $Statistics.Scope.Records.Matched }
-            [pscustomobject] @{ State = 'Entra only'; Records = '{0:N0}' -f $Statistics.Scope.Records.EntraOnly }
-            [pscustomobject] @{ State = 'Intune only'; Records = '{0:N0}' -f $Statistics.Scope.Records.IntuneOnly }
-            [pscustomobject] @{ State = 'Broken Intune link'; Records = '{0:N0}' -f $Statistics.Scope.Links.Broken }
+            foreach ($state in ([ordered] @{ Matched = 'Matched Entra and Intune'; EntraOnly = 'Entra only'; IntuneOnly = 'Intune only'; Other = 'Other source' }).GetEnumerator()) {
+                [pscustomobject] @{ Category = 'Record source'; State = $state.Value; Records = '{0:N0}' -f $Statistics.Scope.Records.($state.Key) }
+            }
+            foreach ($state in ([ordered] @{ Healthy = 'Healthy'; Broken = 'Broken'; NotClaimed = 'Not claimed'; IntuneOnly = 'Intune only'; Other = 'Other' }).GetEnumerator()) {
+                [pscustomobject] @{ Category = 'Intune link'; State = $state.Value; Records = '{0:N0}' -f $Statistics.Scope.Links.($state.Key) }
+            }
         }
     )
     $staleChartRows = @($Statistics.Scope.Rows | Where-Object { $_.OS -ne 'ALL' -and $_.EnabledOver90 -gt 0 })
@@ -111,7 +115,7 @@ function New-HTMLCloudDeviceInventoryOverview {
                     New-HTMLText -Text 'Activity age is cumulative: over 180 days is included in over 90 days. These counts alone do not make a device eligible for action.'
                     New-HTMLTable -DataTable $entraRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
                         New-HTMLTableHeader -Names 'OS', 'Seen' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Old over 90 days', 'Old over 180 days', 'Activity unknown' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled state unknown', 'Old over 90 days', 'Old over 180 days', 'Activity unknown' -ResponsiveOperations not-mobile
                     }
                 }
             }
@@ -129,11 +133,11 @@ function New-HTMLCloudDeviceInventoryOverview {
                     New-HTMLText -Text 'Correlated records after join type, OS, version and explicit exclusion filters. Enabled with old Entra activity is context; the action rules still apply.'
                     New-HTMLTable -DataTable $scopeRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
                         New-HTMLTableHeader -Names 'OS', 'InScope' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled, Entra old 90d', 'Enabled, Entra old 180d', 'Entra activity unknown', 'No Entra record' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'Enabled', 'Disabled', 'Enabled state unknown', 'Enabled, Entra old 90d', 'Enabled, Entra old 180d', 'Entra activity unknown', 'No Entra record' -ResponsiveOperations not-mobile
                     }
                     New-HTMLText -Text 'Source and link state within this scope' -FontWeight bold
                     New-HTMLTable -DataTable $sourceRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering {
-                        New-HTMLTableHeader -Names 'State', 'Records' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Category', 'State', 'Records' -ResponsiveOperations all
                     }
                 }
             }

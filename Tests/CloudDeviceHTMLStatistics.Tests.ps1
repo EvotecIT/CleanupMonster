@@ -15,7 +15,7 @@ Describe 'Cloud device HTML inventory overview' {
             $entra = Write-CloudDeviceStatistics -Label 'Entra seen' -Mode Entra -Devices @(
                 [pscustomobject] @{ OperatingSystem = 'Windows'; Enabled = $true; LastSeenDays = 200 }
                 [pscustomobject] @{ OperatingSystem = 'macOS'; Enabled = $true; LastSeenDays = 220 }
-                [pscustomobject] @{ OperatingSystem = 'Android'; Enabled = $true; LastSeenDays = $null }
+                [pscustomobject] @{ OperatingSystem = 'Android'; Enabled = $null; LastSeenDays = $null }
             ) -PassThru
             $intune = Write-CloudDeviceStatistics -Label 'Intune seen' -Mode Intune -Devices @(
                 [pscustomobject] @{ OperatingSystem = 'macOS'; LastSeenDays = 210 }
@@ -64,6 +64,10 @@ Describe 'Cloud device HTML inventory overview' {
         ($html.Contains('Entra activity') -and $html.Contains('Matching Intune sync')) | Should -BeTrue
         $html | Should -Match 'Selected by rules this run'
         $html | Should -Match 'Detailed inventory counts'
+        $html | Should -Match 'Enabled state unknown'
+        $html | Should -Match 'Other source'
+        $html | Should -Match 'Not claimed'
+        $html | Should -Match 'Healthy'
         $html | Should -Match 'In cleanup scope, by OS'
         $html | Should -Match 'Enabled, Entra old 90d'
         $html | Should -Match 'macOS'

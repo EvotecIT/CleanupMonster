@@ -16,8 +16,9 @@ function Invoke-CloudDevicesCleanup {
     - RemoveAutopilotIdentity: removes stale Windows Autopilot identities without deleting Entra or Intune records.
 
     The cmdlet keeps a datastore with PendingActions and History so staged actions
-    can be reviewed over multiple runs. ReportOnly and WhatIf/action-specific
-    WhatIf modes show candidates without mutating pending cleanup state.
+    can be reviewed over multiple runs. ReportOnly shows candidates without writing
+    updated cleanup state. WhatIf and action-specific WhatIf modes save attempted
+    previews in History, but do not add them to PendingActions.
 
     Same-name Windows Autopilot and hybrid/cloud-join duplicate groups are preserved
     from destructive cloud actions by default. This protects the by-design duplicate
@@ -237,19 +238,19 @@ function Invoke-CloudDevicesCleanup {
     Existing pending actions are still read so staged candidates can be reported accurately.
 
     .PARAMETER WhatIfRetire
-    Previews retire actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+    Previews retire actions only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfDisable
-    Previews disable actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+    Previews disable actions only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfStageDelete
-    Previews staging already-disabled delete candidates without updating the pending-action datastore.
+    Previews staging already-disabled delete candidates. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfDelete
-    Previews delete actions only. Preview results are shown in the current report but are not stored as pending actions or history.
+    Previews delete actions only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER WhatIfRemoveAutopilotIdentity
-    Previews standalone Autopilot identity removal only. Preview results are shown in the current report but are not stored in history.
+    Previews standalone Autopilot identity removal only. Attempted previews are saved in History, not PendingActions.
 
     .PARAMETER LogPath
     Path to a log file. Summary lines show the configured inventory scope, OS and correlation counts, Entra activity age bands, and the mix of selected candidates for each enabled action.
