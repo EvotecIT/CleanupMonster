@@ -1027,7 +1027,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $script:capturedReportOnlyProcessedDevices.Contains('intune:managed-staged') | Should -BeTrue
     }
 
-    It 'does not persist WhatIf action results into exported history' {
+    It 'records WhatIf action results in history without adding pending actions' {
         $dataStorePath = Join-Path ([IO.Path]::GetTempPath()) "cleanupmonster-whatif-$([guid]::NewGuid()).xml"
 
         try {
@@ -1066,7 +1066,8 @@ Describe 'Invoke-CloudDevicesCleanup' {
 
             $exportedCloudCleanup = Import-Clixml -LiteralPath $dataStorePath
             @($exportedCloudCleanup.CurrentRun).Count | Should -Be 1
-            $exportedCloudCleanup.History.Count | Should -Be 0
+            $exportedCloudCleanup.History.Count | Should -Be 1
+            $exportedCloudCleanup.History[0].ActionStatus | Should -Be 'WhatIf'
             $exportedCloudCleanup.PendingActions.Count | Should -Be 0
 
         } finally {
@@ -1074,6 +1075,31 @@ Describe 'Invoke-CloudDevicesCleanup' {
                 Remove-Item -LiteralPath $dataStorePath -Force
             }
         }
+    }
+
+    It 'keeps WhatIf attempts in history across later runs' {
+        $dataStorePath = Join-Path $TestDrive 'cloud-preview-history.xml'
+        Mock Import-CloudDevicesData {
+            param($DataStorePath, $Export)
+            if (Test-Path -LiteralPath $DataStorePath) {
+                $previous = Import-Clixml -LiteralPath $DataStorePath
+                $Export.History = @($previous.History)
+            }
+            [ordered] @{}
+        }
+        Mock Get-InitialCloudDevices { @([pscustomobject] @{ Name = 'PC-Preview'; EntraDeviceObjectId = 'entra-preview' }) }
+        Mock Get-CloudDevicesToProcess { @([pscustomobject] @{ Name = 'PC-Preview'; EntraDeviceObjectId = 'entra-preview' }) }
+        Mock Request-CloudDevicesDisable {
+            @([pscustomobject] @{ Name = 'PC-Preview'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = Get-Date })
+        }
+
+        Invoke-CloudDevicesCleanup -Disable -WhatIfDisable -DataStorePath $dataStorePath -Suppress | Out-Null
+        Invoke-CloudDevicesCleanup -Disable -WhatIfDisable -DataStorePath $dataStorePath -Suppress | Out-Null
+
+        $stored = Import-Clixml -LiteralPath $dataStorePath
+        @($stored.History).Count | Should -Be 2
+        @($stored.CurrentRun).Count | Should -Be 1
+        $stored.PendingActions.Count | Should -Be 0
     }
 
 }

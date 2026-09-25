@@ -772,22 +772,8 @@ function Invoke-CloudDevicesCleanup {
         if ($reportDeleted.Count -gt 0) { $reportDeleted }
         if ($reportAutopilotIdentityRemoved.Count -gt 0) { $reportAutopilotIdentityRemoved }
     )
-    $persistedRun = @()
-    if ($reportRetired.Count -gt 0) {
-        $persistedRun += @($reportRetired | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportDisabled.Count -gt 0) {
-        $persistedRun += @($reportDisabled | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportStagedForDelete.Count -gt 0) {
-        $persistedRun += @($reportStagedForDelete | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportDeleted.Count -gt 0) {
-        $persistedRun += @($reportDeleted | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
-    if ($reportAutopilotIdentityRemoved.Count -gt 0) {
-        $persistedRun += @($reportAutopilotIdentityRemoved | Where-Object { $_.ActionStatus -notin 'WhatIf', 'ReportOnly' })
-    }
+    # Previewed attempts belong to the audit trail, but never to PendingActions.
+    $persistedRun = @($export.CurrentRun | Where-Object { $_.ActionStatus -ne 'ReportOnly' })
     $export.History = @(
         if ($export.History) { $export.History }
         if ($persistedRun.Count -gt 0) { $persistedRun }
@@ -806,7 +792,7 @@ function Invoke-CloudDevicesCleanup {
         $reportDevices = @(Merge-CloudDeviceReportInventory -PrimaryDevices $allDevices -AdditionalDevices $autopilotRemovalDevices)
     }
 
-    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -Statistics $reportStatistics -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -Statistics $reportStatistics -RetireOnlyIf $retireOnlyIf -DisableOnlyIf $disableOnlyIf -DeleteOnlyIf $deleteOnlyIf -RemoveAutopilotIdentityOnlyIf $removeAutopilotIdentityOnlyIf -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 
