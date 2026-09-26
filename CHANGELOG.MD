@@ -1,4 +1,9 @@
-﻿### 3.1.20 - 2026.09.25
+﻿### 3.1.21 - 2026.09.26
+
+- Record registered owner and UPN, Intune user UPN, compliance, and source-specific management details for attempted cloud-device actions in the log, Current Run, and History.
+- Include the same audit snapshot for WhatIf attempts in History without changing action eligibility, limits, or pending actions.
+
+### 3.1.20 - 2026.09.25
 
 - Reorganize the cloud device report: Overview shows inventory, cleanup scope, and enabled rules; Current Run shows this run's selections and attempts; History retains completed, failed, and WhatIf attempts; Pending Actions contains completed actions only.
 - Replace duplicate large report tables with a compact cloud overview and one expandable action table in the AD Current Run report, alongside outcome cards and a selected-action chart.
