@@ -16,6 +16,7 @@ function New-HTMLProcessedCloudDevices {
     $actionRows = {
         param([Array] $Records)
         foreach ($record in $Records) {
+            $audit = Get-CloudDeviceAuditContext -Device $record
             $outcome = switch ([string] $record.ActionStatus) {
                 'True' { 'Completed' }
                 'False' { 'Failed' }
@@ -43,6 +44,15 @@ function New-HTMLProcessedCloudDevices {
                 'Autopilot identity ID' = $record.AutopilotDeviceId
                 'Autopilot serial' = $record.AutopilotSerialNumber
                 'Autopilot resource' = $record.AutopilotResourceName
+                'Registered owner' = $audit.RegisteredOwner
+                'Owner UPN' = $audit.RegisteredOwnerUPN
+                'Intune user UPN' = $audit.IntuneUserUPN
+                'Entra compliant' = $audit.EntraCompliant
+                'Intune compliance' = $audit.IntuneCompliance
+                'Entra managed' = $audit.EntraManaged
+                'Entra management type' = $audit.EntraManagementType
+                'MDM app ID' = $audit.MdmAppId
+                'Intune management agent' = $audit.IntuneManagementAgent
             }
         }
     }
@@ -178,6 +188,7 @@ function New-HTMLProcessedCloudDevices {
                         New-HTMLTableHeader -Names 'Device', 'Action', 'Outcome' -ResponsiveOperations all
                         New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
                         New-HTMLTableHeader -Names 'OS', 'Entra age (days)', 'Intune age (days)', 'Entra object ID', 'Intune device ID', 'Autopilot identity ID', 'Autopilot serial', 'Autopilot resource' -ResponsiveOperations none
+                        New-HTMLTableHeader -Names 'Registered owner', 'Owner UPN', 'Intune user UPN', 'Entra compliant', 'Intune compliance', 'Entra managed', 'Entra management type', 'MDM app ID', 'Intune management agent' -ResponsiveOperations none
                     }
                 } else {
                     New-HTMLText -Text 'No actions were attempted in this run.'
@@ -193,6 +204,7 @@ function New-HTMLProcessedCloudDevices {
                         New-HTMLTableHeader -Names 'Device', 'Action', 'Outcome' -ResponsiveOperations all
                         New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
                         New-HTMLTableHeader -Names 'OS', 'Entra age (days)', 'Intune age (days)', 'Entra object ID', 'Intune device ID', 'Autopilot identity ID', 'Autopilot serial', 'Autopilot resource' -ResponsiveOperations none
+                        New-HTMLTableHeader -Names 'Registered owner', 'Owner UPN', 'Intune user UPN', 'Entra compliant', 'Intune compliance', 'Entra managed', 'Entra management type', 'MDM app ID', 'Intune management agent' -ResponsiveOperations none
                     }
                 } else {
                     New-HTMLText -Text 'No action history has been recorded yet.'

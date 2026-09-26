@@ -16,7 +16,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
         Mock Get-Module {
             [PSCustomObject] @{
                 Name    = 'GraphEssentials'
-                Version = [version] '0.0.65'
+                Version = [version] '0.0.66'
             }
         }
         Mock Get-Command {
@@ -25,21 +25,21 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = [version] '0.0.65'
+                    Version = [version] '0.0.66'
                 }
             }
         }
     }
 
-    It 'accepts the GraphEssentials release that provides fail-closed cloud paging' {
+    It 'accepts the GraphEssentials release that provides MDM app ID audit data' {
         Assert-CloudDeviceCleanupSettings | Should -BeTrue
     }
 
-    It 'rejects the preceding installed GraphEssentials version without cloud paging' {
+    It 'rejects the preceding installed GraphEssentials version without MDM app ID audit data' {
         Mock Get-Module {
             [PSCustomObject] @{
                 Name    = 'GraphEssentials'
-                Version = [version] '0.0.64'
+                Version = [version] '0.0.65'
             }
         }
 
@@ -53,7 +53,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = [version] '0.0.64'
+                    Version = [version] '0.0.65'
                 }
             }
         }
@@ -68,7 +68,7 @@ Describe 'Assert-CloudDeviceCleanupSettings' {
                 Name       = $Name
                 ModuleName = 'GraphEssentials'
                 Module     = [PSCustomObject] @{
-                    Version = if ($Name -eq 'Get-MyDevice') { [version] '0.0.64' } else { [version] '0.0.65' }
+                    Version = if ($Name -eq 'Get-MyDevice') { [version] '0.0.65' } else { [version] '0.0.66' }
                 }
             }
         }

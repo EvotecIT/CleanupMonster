@@ -8,6 +8,7 @@ Describe 'Cloud device HTML inventory overview' {
             $ErrorActionPreference = 'Stop'
             Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
             . (Join-Path $RepositoryRoot 'Private/Write-CloudDeviceStatistics.ps1')
+            . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLCloudDeviceInventoryOverview.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLProcessedCloudDevices.ps1')
             function Write-Color { param([object[]] $Text, [object[]] $Color, [string] $LogFile) }
@@ -33,7 +34,7 @@ Describe 'Cloud device HTML inventory overview' {
                 Candidates = @($candidate); CandidateTotals = [ordered] @{ Disable = 1; Delete = 0 }
                 AutopilotScope = $autopilotScope; AutopilotEntra = $autopilotEntra; AutopilotIntune = $autopilotIntune
             }
-            $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1' }
+            $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1'; HasIntuneRecord = $false; OwnerDisplayName = @('Audit Owner'); OwnerUserPrincipalName = @('audit.owner@contoso.com'); IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null; IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'; ManagementAgent = $null }
             $autopilotPreview = [pscustomobject] @{ Name = 'AP-03'; Action = 'RemoveAutopilotIdentity'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Autopilot contact 210 days'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
             $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{} }
             $actionConfiguration = @(
@@ -77,6 +78,10 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'Source and link state within this scope'
         $html | Should -Match 'WhatIf preview'
         $html | Should -Match 'Entra age 200 days'
+        $html | Should -Match 'Registered owner'
+        $html | Should -Match 'audit.owner@contoso.com'
+        $html | Should -Match 'No Intune record'
+        $html | Should -Match '0000000a-0000-0000-c000-000000000000'
         $html | Should -Match 'Activity unknown'
         $html | Should -Match 'No Entra record'
         $html | Should -Match 'autopilot-identity-03'

@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceAuditContext.ps1')
     . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceStatistics.ps1')
@@ -1075,6 +1076,10 @@ Describe 'Invoke-CloudDevicesCleanup' {
                         Name         = 'iPhone-Preview'
                         Action       = 'Retire'
                         ActionStatus = 'WhatIf'
+                        OwnerDisplayName = @('Audit Owner')
+                        OwnerUserPrincipalName = @('audit.owner@contoso.com')
+                        ComplianceState = 'compliant'
+                        ManagementAgent = 'mdm'
                     }
                 )
             }
@@ -1085,6 +1090,9 @@ Describe 'Invoke-CloudDevicesCleanup' {
             @($exportedCloudCleanup.CurrentRun).Count | Should -Be 1
             $exportedCloudCleanup.History.Count | Should -Be 1
             $exportedCloudCleanup.History[0].ActionStatus | Should -Be 'WhatIf'
+            $exportedCloudCleanup.History[0].OwnerUserPrincipalName | Should -Contain 'audit.owner@contoso.com'
+            $exportedCloudCleanup.History[0].ComplianceState | Should -Be 'compliant'
+            $exportedCloudCleanup.History[0].ManagementAgent | Should -Be 'mdm'
             $exportedCloudCleanup.PendingActions.Count | Should -Be 0
 
         } finally {

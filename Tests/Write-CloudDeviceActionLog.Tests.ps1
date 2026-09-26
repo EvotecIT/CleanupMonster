@@ -1,5 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
+    . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceAuditContext.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesStageDelete.ps1')
 
@@ -22,10 +23,10 @@ Describe 'Write-CloudDeviceActionLog' {
 
         Write-CloudDeviceActionLog -Action Disable -CandidateCount 19776 -Limit 2 -Results $results
 
-        $script:actionLogLines.Count | Should -Be 3
+        $script:actionLogLines.Count | Should -Be 9
         $script:actionLogLines[0] | Should -Match 'Disable WhatIf preview.*EntraObjectId=entra-1.*IntuneManagedDeviceId=intune-1'
-        $script:actionLogLines[1] | Should -Match 'Disable WhatIf preview.*EntraObjectId=entra-2.*IntuneManagedDeviceId=intune-2'
-        $script:actionLogLines[2] | Should -Match '0 completed, 2 WhatIf.*19774 of 19776.*Limit reached \(2\)'
+        $script:actionLogLines[4] | Should -Match 'Disable WhatIf preview.*EntraObjectId=entra-2.*IntuneManagedDeviceId=intune-2'
+        $script:actionLogLines[8] | Should -Match '0 completed, 2 WhatIf.*19774 of 19776.*Limit reached \(2\)'
     }
 
     It 'reports failed deletes with their sub-action note and does not call them completed' {
@@ -39,7 +40,7 @@ Describe 'Write-CloudDeviceActionLog' {
         Write-CloudDeviceActionLog -Action Delete -CandidateCount 1 -Limit 5 -Results @($result)
 
         $script:actionLogLines[0] | Should -Match 'Delete failed.*Intune: Removal failed.*Entra: Record delete was skipped'
-        $script:actionLogLines[1] | Should -Match '0 completed, 0 WhatIf, 0 ReportOnly, 1 failed'
+        $script:actionLogLines[4] | Should -Match '0 completed, 0 WhatIf, 0 ReportOnly, 1 failed'
     }
 
     It 'makes an empty delete stage explicit' {
@@ -93,5 +94,48 @@ Describe 'Write-CloudDeviceActionLog' {
         $script:actionLogLines[0] | Should -Match 'Delete WhatIf preview.*EntraLastSeenDays=230 > 180'
         $script:actionLogLines[0] | Should -Match 'IntuneLastSeenDays=205 > 180'
         $script:actionLogLines[0] | Should -Match 'RegisteredDays=400 > 180.*PendingDays=95 >= 90'
+    }
+
+    It 'logs the identity, compliance, and management snapshot for an attempted device' {
+        $result = [pscustomobject] @{
+            Name = 'Phone'; ActionStatus = 'WhatIf'; HasIntuneRecord = $false
+            OwnerDisplayName = @('User One'); OwnerUserPrincipalName = @('user.one@contoso.com')
+            IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null
+            IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'
+            ManagementAgent = $null
+        }
+
+        Write-CloudDeviceActionLog -Action Disable -CandidateCount 1 -Limit 1 -Results @($result)
+
+        $script:actionLogLines[1] | Should -Match 'Identity: Owner=User One; OwnerUPN=user.one@contoso.com'
+        $script:actionLogLines[2] | Should -Match 'Compliance: Entra=False; Intune=No Intune record'
+        $script:actionLogLines[3] | Should -Match 'Management: EntraManaged=True; EntraType=mdm'
+        $script:actionLogLines[3] | Should -Match 'MdmAppId=0000000a-0000-0000-c000-000000000000'
+    }
+
+    It 'identifies absent Entra data for an Intune-only attempt' {
+        $result = [pscustomobject] @{
+            Name = 'Phone'; ActionStatus = 'WhatIf'; RecordState = 'IntuneOnly'; HasEntraRecord = $true; HasIntuneRecord = $true
+            IsManaged = $true; ComplianceState = 'compliant'; ManagementAgent = 'mdm'
+            IntuneUserPrincipalName = 'phone.user@contoso.com'
+        }
+
+        Write-CloudDeviceActionLog -Action Delete -CandidateCount 1 -Limit 1 -Results @($result)
+
+        $script:actionLogLines[3] | Should -Match 'EntraManaged=Entra details not captured'
+        $script:actionLogLines[2] | Should -Match 'Entra=Entra details not captured; Intune=compliant'
+        $script:actionLogLines[1] | Should -Match 'IntuneUserUPN=phone.user@contoso.com'
+    }
+
+    It 'distinguishes an Intune-only attempt with no correlated Entra object' {
+        $result = [pscustomobject] @{
+            Name = 'Phone'; ActionStatus = 'WhatIf'; RecordState = 'IntuneOnly'
+            HasEntraRecord = $false; HasIntuneRecord = $true; IsManaged = $true
+        }
+
+        Write-CloudDeviceActionLog -Action Delete -CandidateCount 1 -Limit 1 -Results @($result)
+
+        $script:actionLogLines[2] | Should -Match 'Entra=No Entra record'
+        $script:actionLogLines[3] | Should -Match 'EntraManaged=No Entra record'
     }
 }
