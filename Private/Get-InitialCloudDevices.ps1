@@ -292,6 +292,7 @@ function Get-InitialCloudDevices {
                 IsManaged                  = $entraDevice.IsManaged
                 IsCompliant                = $entraDevice.IsCompliant
                 ManagementType             = $entraDevice.ManagementType
+                MdmAppId                   = $entraDevice.MdmEnrollmentAppId
                 EnrollmentType             = $entraDevice.EnrollmentType
                 DeviceEnrollmentType       = if ($intuneDevice) { $intuneDevice.DeviceEnrollmentType } else { $null }
                 OwnerDisplayName           = $entraDevice.OwnerDisplayName
@@ -372,6 +373,7 @@ function Get-InitialCloudDevices {
                 IsManaged                  = $true
                 IsCompliant                = $null
                 ManagementType             = $null
+                MdmAppId                   = $null
                 EnrollmentType             = $null
                 DeviceEnrollmentType       = $intuneDevice.DeviceEnrollmentType
                 OwnerDisplayName           = $null

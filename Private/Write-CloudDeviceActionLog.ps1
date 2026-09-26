@@ -54,6 +54,10 @@ function Write-CloudDeviceActionLog {
             $details += "; SelectionReason: $reason"
         }
         Write-Color -Text $prefix, $details -Color Yellow, $color -LogFile $LogPath
+        $audit = Get-CloudDeviceAuditContext -Device $device
+        Write-Color -Text '    ', "Identity: Owner=$($audit.RegisteredOwner); OwnerUPN=$($audit.RegisteredOwnerUPN); IntuneUserUPN=$($audit.IntuneUserUPN)" -Color DarkGray, Gray -LogFile $LogPath
+        Write-Color -Text '    ', "Compliance: Entra=$($audit.EntraCompliant); Intune=$($audit.IntuneCompliance)" -Color DarkGray, Gray -LogFile $LogPath
+        Write-Color -Text '    ', "Management: EntraManaged=$($audit.EntraManaged); EntraType=$($audit.EntraManagementType); MdmAppId=$($audit.MdmAppId); IntuneAgent=$($audit.IntuneManagementAgent)" -Color DarkGray, Gray -LogFile $LogPath
     }
 
     $notProcessed = [Math]::Max(0, $CandidateCount - $Results.Count)

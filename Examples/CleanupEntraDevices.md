@@ -14,7 +14,7 @@ Check the existing app's Microsoft Graph **application permissions** and tenant 
 | `DeviceManagementManagedDevices.ReadWrite.All` | Intune managed-device inventory and final record removal |
 | `DeviceManagementServiceConfig.ReadWrite.All` | Autopilot identity inventory and final removal |
 
-Release GraphEssentials **0.0.65** first, then a CleanupMonster release **3.1.17 or newer** containing this change. Install both on the scheduled host before running this example. These versions provide fail-closed cloud inventory paging, stop ambiguous Autopilot matches, stop Entra deletion after an Intune deletion failure, and protect recently synced Intune devices. Earlier releases do not contain all of these changes.
+Release GraphEssentials **0.0.66** first, then the CleanupMonster release containing cloud action audit context. Install both on the scheduled host before running this example. GraphEssentials 0.0.66 adds the Entra MDM app ID to the full device inventory; CleanupMonster records it with the owner, UPN, compliance, and management fields for each attempted action.
 
 ## Run it like the old job
 
@@ -26,5 +26,7 @@ Release GraphEssentials **0.0.65** first, then a CleanupMonster release **3.1.17
 The policy disables Entra joined or registered devices on the selected platforms after more than 90 days of known Entra inactivity and registration age. It deletes only after more than 180 days of both, and after a successful CleanupMonster disable has remained in the new datastore for more than 90 days. The old already-disabled backlog is not automatically promoted. Keep the datastore across runs; do not run overlapping instances.
 
 This cloud cmdlet uses Entra and Intune inventory. In this example, **both** Entra activity and, when an Intune record exists, Intune last sync must be older than 90 days for disable and 180 days for delete. A matching Intune record with unknown last sync is excluded. Entra-only records still use the Entra threshold. The cmdlet does not query Jamf or delete Jamf records. A recent Jamf check-in will not block cloud actions for a Mac. The old AD cleanup job continues to use Jamf for its AD computer decisions. The Autopilot identity option applies only to Windows or records whose operating system is unknown.
+
+The action log and the expandable rows in Current Run and History show a snapshot of the registered owner and UPN, Intune user UPN, Entra and Intune compliance, Entra management state and type, Entra MDM app ID, and Intune management agent. These are the values observed when the action was attempted, including a WhatIf preview. The Entra portal's **Security settings management** label has no confirmed equivalent in this Graph device inventory, so the report shows the named source fields instead of guessing that label. These audit fields do not change action eligibility.
 
 If an Intune device cleanup rule is set to 90 days, remember that Microsoft describes it as **hiding** stale devices from the portal and reports. It does not replace this Entra cleanup policy or prove an Intune object was deleted. See [Intune device cleanup rules](https://learn.microsoft.com/en-us/intune/governance/configure-cleanup-rules) and [Microsoft Entra stale-device guidance](https://learn.microsoft.com/en-us/entra/identity/devices/manage-stale-devices).
