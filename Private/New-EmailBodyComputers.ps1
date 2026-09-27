@@ -20,13 +20,13 @@
 
         EmailText -Text "Following is a summary for the computer object cleanup:" -FontWeight bold
         EmailList {
-            EmailListItem -Text "Objects actioned: ", $Output.CurrentRun.Count -Color None, Green -FontWeight normal, bold
+            EmailListItem -Text "Objects actioned: ", $CurrentRun.Count -Color None, Green -FontWeight normal, bold
             EmailListItem -Text "Objects deleted: ", $DeletedObjects.Count -Color None, Salmon -FontWeight normal, bold
             EmailListItem -Text "Objects disabled: ", $DisabledObjects.Count -Color None, Orange -FontWeight normal, bold
         }
 
         EmailText -Text "Following objects were actioned:" -LineBreak -FontWeight bold -Color Salmon
-        EmailTable -DataTable $Output.CurrentRun -HideFooter {
+        EmailTable -DataTable $CurrentRun -HideFooter {
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Delete' -BackgroundColor PinkLace -Inline
             New-HTMLTableCondition -Name 'Action' -ComparisonType string -Value 'Disable' -BackgroundColor EnergyYellow -Inline
             New-HTMLTableCondition -Name 'ActionStatus' -ComparisonType string -Value 'True' -BackgroundColor LightGreen -Inline
