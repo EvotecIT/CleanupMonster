@@ -89,6 +89,7 @@ BeforeAll {
             $WhatIfMove,
             $WhatIf,
             $MoveLimit,
+            $RunStatistics,
             $ReportOnly,
             $Today,
             $ProcessedComputers,
@@ -502,6 +503,18 @@ Describe 'Invoke-ADComputersCleanup' {
         $Result.CurrentRun | Should -BeNullOrEmpty
         $Result.History | Should -HaveCount 1
         $Result.History[0].SamAccountName | Should -Be 'HISTORY$'
+    }
+    It 'passes observed move limit and skip statistics into the email' {
+        Mock Request-ADComputersMove {
+            $RunStatistics['LimitStoppedIteration'] = $true
+            $RunStatistics['AlreadyAtTargetSkipped'] = 2
+        }
+        Mock New-EmailBodyComputers { 'email' }
+        $result = Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -WhatIfMove -MoveLimit 1
+        $result.EmailBody | Should -Be 'email'
+        Assert-MockCalled New-EmailBodyComputers -Times 1 -Exactly -ParameterFilter {
+            $StageConfiguration[0].Action -eq 'Move' -and $StageConfiguration[0].LimitStoppedIteration -eq $true -and $StageConfiguration[0].AlreadyAtTargetSkipped -eq 2
+        }
     }
     It 'passes AD stage mode and global limit into the email' {
         Mock New-EmailBodyComputers { 'email' }

@@ -5,6 +5,7 @@ function Get-ADComputerEmailStageConfiguration {
         [bool] $Disable, [bool] $DisableAndMove, [bool] $Move, [bool] $Delete,
         [int] $DisableLimit, [int] $MoveLimit, [int] $DeleteLimit,
         [bool] $ReportOnly, [bool] $Suppressed,
+        [System.Collections.IDictionary] $MoveRunStatistics = @{},
         [bool] $WhatIfDisable, [bool] $WhatIfMove, [bool] $WhatIfDelete
     )
 
@@ -23,6 +24,8 @@ function Get-ADComputerEmailStageConfiguration {
         [pscustomobject] @{
             Action = $stage.Action
             Name = $stage.Name
+            LimitStoppedIteration = if ($stage.Action -eq 'Move') { $MoveRunStatistics.LimitStoppedIteration } else { $null }
+            AlreadyAtTargetSkipped = if ($stage.Action -eq 'Move') { $MoveRunStatistics.AlreadyAtTargetSkipped } else { 0 }
             Candidates = $assignedCounts[$stage.Action]
             Limit = $stage.Limit
             Mode = if ($Suppressed) { 'Suppressed' } elseif ($ReportOnly) { 'Report only' } elseif ($stage.Preview) { 'WhatIf' } else { 'Live' }

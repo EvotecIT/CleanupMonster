@@ -47,13 +47,14 @@ function Get-CleanupEmailReport {
         $remaining = [Math]::Max(0, [int] $stage.Candidates - $stageRows.Count)
         $limitApplies = $stage.Mode -ne 'Suppressed' -and ($Source -eq 'Cloud' -or $stage.Mode -ne 'Report only')
         $limitReached = $limitApplies -and $stage.Limit -gt 0 -and $stageRows.Count -ge $stage.Limit -and $remaining -gt 0
-        if ($stage.Action -eq 'StageDelete') { $limitReached = $limitApplies -and $stage.LimitStoppedIteration -eq $true }
+        if ($stage.Action -eq 'StageDelete' -or ($Source -eq 'AD' -and $stage.Action -eq 'Move')) { $limitReached = $limitApplies -and $stage.LimitStoppedIteration -eq $true }
         $note = if ($stage.Mode -eq 'Suppressed') { 'Actions suppressed because inventory was incomplete or below its safety limit.' }
         elseif ($stage.ConfirmationDeclined) { 'Confirmation declined; no action was started for this stage.' }
         elseif ($limitReached) { "Limit reached ($($stage.Limit)); $remaining candidate(s) have no action result." }
         elseif ($remaining -gt 0) { "$remaining candidate(s) have no action result; see the run log for skips or an early stop." }
         else { 'All candidates have a result.' }
         if ($stage.AlreadyPendingSkipped -gt 0) { $note += " Already pending: $($stage.AlreadyPendingSkipped) candidate(s) skipped without a result." }
+        if ($stage.AlreadyAtTargetSkipped -gt 0) { $note += " Already in target OU: $($stage.AlreadyAtTargetSkipped) candidate(s) skipped without a result." }
         [pscustomobject] @{
             Action = $stage.Name
             Mode = $stage.Mode

@@ -6,6 +6,7 @@
         [switch] $ReportOnly,
         [switch] $WhatIfMove,
         [int] $MoveLimit,
+        [System.Collections.IDictionary] $RunStatistics = @{},
         [System.Collections.IDictionary] $ProcessedComputers,
         [DateTime] $Today,
         [Object] $TargetOrganizationalUnit,
@@ -25,6 +26,15 @@
         Write-Color -Text "[-] TargetOrganizationalUnit is not a string or hashtable. Skipping moving to proper OU." -Color Yellow, Red
         return
     }
+    $RunStatistics['LimitStoppedIteration'] = $false
+    $RunStatistics['AlreadyAtTargetSkipped'] = 0
+    $selectedCount = 0
+    foreach ($domain in $Report.Keys) {
+        foreach ($computer in $Report[$domain]['Computers']) {
+            if ($computer.Action -eq 'Move') { $selectedCount++ }
+        }
+    }
+    $visitedCount = 0
     $CountMoveLimit = 0
     # :top means name of the loop, so we can break it
     :topLoop foreach ($Domain in $Report.Keys) {
@@ -33,13 +43,14 @@
             if ($Computer.Action -ne 'Move') {
                 continue
             }
+            $visitedCount++
             if ($ReportOnly) {
                 $Computer
             } else {
                 if ($OrganizationalUnit[$Domain]) {
                     # we check if the computer is already in the correct OU
                     if ($Computer.OrganizationalUnit -eq $OrganizationalUnit[$Domain]) {
-                        # this shouldn't really happen as we should have filtered it out earlier
+                        $RunStatistics['AlreadyAtTargetSkipped']++
                     } else {
                         if ($Computer.ProtectedFromAccidentalDeletion) {
                             if ($RemoveProtectedFromAccidentalDeletionFlag) {
@@ -118,6 +129,7 @@
                         $CountMoveLimit++
                         if ($MoveLimit) {
                             if ($MoveLimit -eq $CountMoveLimit) {
+                                $RunStatistics['LimitStoppedIteration'] = $visitedCount -lt $selectedCount
                                 break topLoop # this breaks top loop
                             }
                         }
@@ -138,6 +150,7 @@
                     $CountMoveLimit++
                     if ($MoveLimit) {
                         if ($MoveLimit -eq $CountMoveLimit) {
+                            $RunStatistics['LimitStoppedIteration'] = $visitedCount -lt $selectedCount
                             break topLoop # this breaks top loop
                         }
                     }

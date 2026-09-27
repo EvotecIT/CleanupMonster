@@ -5,9 +5,33 @@ BeforeAll {
     }
     Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
     function Write-Color {}
+    . (Get-CleanupMonsterPath 'Private/Request-ADComputersMove.ps1')
+    function Move-ADObject { [pscustomobject] @{ DistinguishedName = 'CN=NEW,OU=Target,DC=test' } }
 }
 
 Describe 'Cleanup email outcome and limit reporting' {
+    It 'reports observed AD move stops and already-at-target skips' -ForEach @(
+        @{ Tail = 0; MissingTarget = $false; Stopped = $false; Skipped = 1 }
+        @{ Tail = 1; MissingTarget = $false; Stopped = $true; Skipped = 1 }
+        @{ Tail = 0; MissingTarget = $true; Stopped = $true; Skipped = 0 }
+    ) {
+        $computers = @('TARGET', 'NEW') | ForEach-Object {
+            [pscustomobject] @{ SamAccountName=$_; Action='Move'; OrganizationalUnit=if ($_ -eq 'TARGET') {'OU=Target,DC=test'} else {'OU=Old,DC=test'}; DistinguishedName="CN=$_,DC=test"; DistinguishedNameAfterMove=$null; ProtectedFromAccidentalDeletion=$false; ActionDate=$null; ActionStatus=$null; ActionComment=$null }
+        }
+        if ($Tail) { $computers += [pscustomobject] @{Action='Move';OrganizationalUnit='OU=Old,DC=test'} }
+        $domains = @{test=@{Computers=@($computers);Server='dc.test'}}
+        $statistics = @{}
+        $target = if ($MissingTarget) { @{other='OU=Target,DC=test'} } else { @{test='OU=Target,DC=test'} }
+        $results = @(Request-ADComputersMove -Report $domains -MoveLimit 1 -RunStatistics $statistics -TargetOrganizationalUnit $target -WhatIfMove -DontWriteToEventLog -Today (Get-Date) -ProcessedComputers @{})
+        $statistics.LimitStoppedIteration | Should -Be $Stopped
+        $statistics.AlreadyAtTargetSkipped | Should -Be $Skipped
+        $results.Count | Should -Be 1
+        $stages = @(Get-ADComputerEmailStageConfiguration -Report $domains -Move $true -MoveLimit 1 -WhatIfMove $true -MoveRunStatistics $statistics)
+        $report = Get-CleanupEmailReport -Source AD -CurrentRun $results -StageConfiguration $stages
+        if ($Stopped) { $report.Summary.Note | Should -Match 'Limit reached' }
+        else { $report.Summary.Note | Should -Not -Match 'Limit reached' }
+        if ($Skipped) { $report.Summary.Note | Should -Match 'Already in target OU: 1' }
+    }
     It 'distinguishes a real stage limit stop from already-pending skips at the result limit' -ForEach @(
         @{ Tail = 0; Stopped = $false }
         @{ Tail = 1; Stopped = $true }
