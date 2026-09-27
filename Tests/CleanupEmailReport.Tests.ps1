@@ -97,9 +97,24 @@ Describe 'Cleanup email outcome and limit reporting' {
         $text | Should -Match 'Limit reached \(2\)'
         $text | Should -Match 'Failed overall \(check subactions\)'
         $text | Should -Match 'Intune: Record removed; Entra: Access denied'
-        $text | Should -Match 'owner@example.test'
-        $text | Should -Match 'IntuneCompliance: compliant'
+        $audit = Get-CleanupEmailReport -Source Cloud -CurrentRun $records -StageConfiguration $stages
+        $audit.Actions[0].Details | Should -Match 'owner@example.test'
+        $audit.Actions[0].Details | Should -Match 'IntuneCompliance: compliant'
         $text | Should -Match 'Entra age=190 days'
+    }
+
+    It 'renders 500 results once in a static compact email table' {
+        $records = @(1..500 | ForEach-Object {
+            [pscustomobject] @{ Name = ('DEVICE-{0:0000}' -f $_); Action = 'Delete'; ActionStatus = 'True'; SelectionReason = 'Activity: 210 days; pending: 95 days' }
+        })
+        $body = New-EmailBodyCloudDevices -CurrentRun $records -StageConfiguration @([pscustomobject] @{ Action = 'Delete'; Name = 'Delete'; Mode = 'Live'; Candidates = 20000; Limit = 500 })
+        [regex]::Matches($body, '>DEVICE-[0-9]{4}<').Count | Should -Be 500
+        $body | Should -Match 'DEVICE-0500'
+        $body | Should -Not -Match '<script'
+        $text = [System.Net.WebUtility]::HtmlDecode(($body -replace '<[^>]+>', ' ')) -replace '\s+', ' '
+        $text | Should -Match 'Completed: 500'
+        $text | Should -Match 'Limit reached \(500\)'
+        $text | Should -Match 'remaining without a result: 19500'
     }
 
     It 'distinguishes confirmation declined from a reached cloud limit' {

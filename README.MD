@@ -848,7 +848,7 @@ Remove the action-specific `WhatIf` switches gradually after reports are reviewe
 
 ### Email summaries for AD computers and cloud devices
 
-Both `Invoke-ADComputersCleanup` and `Invoke-CloudDevicesCleanup` return an email body in `$Output.EmailBody`. Each enabled stage shows its mode, candidate count, configured limit, outcome counts, and candidates without a result. Device results include the selection reason, timestamp, available audit fields, and error or subaction notes. Successful changes, WhatIf previews, report-only candidates, skipped results, and results needing review are counted separately.
+Both `Invoke-ADComputersCleanup` and `Invoke-CloudDevicesCleanup` return an email body in `$Output.EmailBody`. A summary table shows each enabled stage's mode, candidate count, configured limit, outcome counts, and candidates without a result. One compact device table lists the device, action, outcome, selection reason, and error or subaction notes. Successful changes, WhatIf previews, report-only candidates, skipped results, and results needing review are counted separately. Full timestamps, IDs, ownership, compliance, and management details remain in the HTML report, log, and saved history.
 
 CleanupMonster prepares the body; the scheduled script sends it. Use the same code after either cleanup call, with your configured sender, recipients, and Microsoft Graph mail connection. Omit `-Suppress` on the cleanup call so it returns `$Output`.
 

@@ -33,6 +33,7 @@ function Get-CleanupEmailReport {
                 Outcome = $outcome.Label
                 When = $record.ActionDate
                 Reason = $record.SelectionReason
+                Notes = if ($Source -eq 'AD') { $record.ActionComment } else { $record.ActionNotes }
                 Details = $details -join '; '
                 Category = $outcome.Category
                 Stage = $record.Action
