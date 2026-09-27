@@ -1,7 +1,22 @@
 function New-EmailBodyServiceAccounts {
     [CmdletBinding()]
-    param([Array] $CurrentRun = @(), [Array] $StageConfiguration = @())
+    param(
+        [Array] $CurrentRun = @(),
+        [Array] $StageConfiguration = @()
+    )
 
-    $report = Get-CleanupEmailReport -Source ServiceAccount -CurrentRun $CurrentRun -StageConfiguration $StageConfiguration
-    New-EmailBodyCleanup -Title 'Service account cleanup' -Report $report -ObjectLabel 'Account'
+    $reportParameters = @{
+        Source             = 'ServiceAccount'
+        CurrentRun         = $CurrentRun
+        StageConfiguration = $StageConfiguration
+    }
+    $report = Get-CleanupEmailReport @reportParameters
+
+    # The PSWriteHTML header, summary table and result table live in this shared template.
+    $emailParameters = @{
+        Title       = 'Service account cleanup'
+        Report      = $report
+        ObjectLabel = 'Account'
+    }
+    New-EmailBodyCleanup @emailParameters
 }

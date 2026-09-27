@@ -6,6 +6,17 @@ function New-EmailBodyCloudDevices {
     )
 
     Write-Color -Text '[i] ', 'Preparing optional cloud cleanup email body; this command does not send.' -Color Yellow, White
-    $report = Get-CleanupEmailReport -CurrentRun $CurrentRun -StageConfiguration $StageConfiguration -Source Cloud
-    New-EmailBodyCleanup -Title 'Cloud device cleanup summary' -Report $report
+    $reportParameters = @{
+        Source             = 'Cloud'
+        CurrentRun         = $CurrentRun
+        StageConfiguration = $StageConfiguration
+    }
+    $report = Get-CleanupEmailReport @reportParameters
+
+    # The PSWriteHTML header, summary table and result table live in this shared template.
+    $emailParameters = @{
+        Title  = 'Cloud device cleanup summary'
+        Report = $report
+    }
+    New-EmailBodyCleanup @emailParameters
 }
