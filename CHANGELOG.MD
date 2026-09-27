@@ -1,4 +1,11 @@
-﻿### 3.1.21 - 2026.09.26
+﻿### 3.1.22 - 2026.09.27
+
+- Use compact PSWriteHTML email summary and result tables for AD computers, cloud devices, service accounts, and SID history, with outcomes, selection reasons, notes, and configured limits.
+- Separate completed actions from WhatIf previews, report-only candidates, confirmation skips, failures, and partial results. Report actual staging and AD move limit stops and keep service-account limits separate per domain.
+- Report each SID removal attempt independently and flag failed verification, including a SID still present after a successful removal call. Preserve unknown remaining counts when the verification read fails.
+- Document sending the prepared email body through Mailozaurr and Microsoft Graph.
+
+### 3.1.21 - 2026.09.26
 
 - Record registered owner and UPN, Intune user UPN, compliance, and source-specific management details for attempted cloud-device actions in the log, Current Run, and History.
 - Include the same audit snapshot for WhatIf attempts in History without changing action eligibility, limits, or pending actions.
