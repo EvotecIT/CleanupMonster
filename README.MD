@@ -846,6 +846,27 @@ $Output
 
 Remove the action-specific `WhatIf` switches gradually after reports are reviewed and the pending-action lifecycle is behaving as expected.
 
+### Email summaries for AD computers and cloud devices
+
+Both `Invoke-ADComputersCleanup` and `Invoke-CloudDevicesCleanup` return an email body in `$Output.EmailBody`. Each enabled stage shows its mode, candidate count, configured limit, outcome counts, and candidates without a result. Device results include the selection reason, timestamp, available audit fields, and error or subaction notes. Successful changes, WhatIf previews, report-only candidates, skipped results, and results needing review are counted separately.
+
+CleanupMonster prepares the body; the scheduled script sends it. Use the same code after either cleanup call, with your configured sender, recipients, and Microsoft Graph mail connection. Omit `-Suppress` on the cleanup call so it returns `$Output`.
+
+```powershell
+Import-Module Mailozaurr
+
+$sendEmailMessageSplat = @{
+    From           = 'cleanup@example.com'
+    To             = 'operations@example.com'
+    Subject        = 'Device cleanup results'
+    Body           = $Output.EmailBody
+    MgGraphRequest = $true
+}
+Send-EmailMessage @sendEmailMessageSplat
+```
+
+Counts describe action results, not unique devices. A failed overall cloud delete can include a successful subaction; inspect its notes. AD limits are global across domains and are not applied in report-only mode. Cloud report-only stages still apply their limits. The email describes the current run; the HTML report and saved history provide the longer audit trail.
+
 ### Service-Account Walkthrough 🔐
 
 Service-account cleanup supports report-only reviews, disable/delete staging, and explicit safety guardrails.

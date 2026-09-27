@@ -1,6 +1,10 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
+    . (Get-CleanupMonsterPath 'Private/Get-ADComputerReportOutcome.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-CleanupEmailActionOutcome.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-CleanupEmailReport.ps1')
+    . (Get-CleanupMonsterPath 'Private/New-EmailBodyCleanup.ps1')
     . (Get-CleanupMonsterPath 'Private/New-EmailBodyComputers.ps1')
     function Write-Color {}
 }
@@ -11,18 +15,21 @@ Describe 'New-EmailBodyComputers current-run email' {
             CurrentRun = @([pscustomobject]@{ Name = 'STALE-EMAIL-ROW'; Action = 'Disable' })
         }
         $currentRun = @(
-            [pscustomobject]@{ Name = 'CURRENT-DISABLED'; Action = 'Disable'; ActionStatus = $true }
-            [pscustomobject]@{ Name = 'CURRENT-PREVIEW'; Action = 'Delete'; ActionStatus = 'WhatIf' }
+            [pscustomobject]@{ SamAccountName = 'CURRENT-DISABLED'; Action = 'Disable'; ActionStatus = $true; ActionAttempted = $true }
+            [pscustomobject]@{ SamAccountName = 'CURRENT-PREVIEW'; Action = 'Delete'; ActionStatus = 'WhatIf'; ActionAttempted = $true }
         )
 
-        $body = New-EmailBodyComputers -CurrentRun $currentRun
+        $stages = @(
+            [pscustomobject] @{ Action = 'Disable'; Name = 'Disable'; Mode = 'Live'; Candidates = 1; Limit = 0 }
+            [pscustomobject] @{ Action = 'Delete'; Name = 'Delete'; Mode = 'WhatIf'; Candidates = 1; Limit = 0 }
+        )
+        $body = New-EmailBodyComputers -CurrentRun $currentRun -StageConfiguration $stages
         $text = [System.Net.WebUtility]::HtmlDecode(($body -replace '<[^>]+>', ' ')) -replace '\s+', ' '
 
-        $text | Should -Match 'Objects actioned: 2'
-        $text | Should -Match 'Objects deleted: 1'
-        $text | Should -Match 'Objects disabled: 1'
-        $text | Should -Match 'CURRENT-DISABLED Disable True'
-        $text | Should -Match 'CURRENT-PREVIEW Delete WhatIf'
+        $text | Should -Match 'Completed: 1'
+        $text | Should -Match 'WhatIf: 1'
+        $text | Should -Match 'CURRENT-DISABLED Disable Completed'
+        $text | Should -Match 'CURRENT-PREVIEW Delete WhatIf preview'
         $text | Should -Not -Match 'STALE-EMAIL-ROW'
     }
 
@@ -31,12 +38,14 @@ Describe 'New-EmailBodyComputers current-run email' {
             CurrentRun = @([pscustomobject]@{ Name = 'STALE-EMAIL-ROW'; Action = 'Delete' })
         }
 
-        $body = New-EmailBodyComputers -CurrentRun @()
+        $body = New-EmailBodyComputers -CurrentRun @() -StageConfiguration @([pscustomobject] @{ Action = 'Delete'; Name = 'Delete'; Mode = 'Live'; Candidates = 0; Limit = 5 })
         $text = [System.Net.WebUtility]::HtmlDecode(($body -replace '<[^>]+>', ' ')) -replace '\s+', ' '
 
-        $text | Should -Match 'Objects actioned: 0'
-        $text | Should -Match 'Objects deleted: 0'
-        $text | Should -Match 'Objects disabled: 0'
+        $text | Should -Match 'Candidates: 0; limit: 5; results: 0'
+        $text | Should -Match 'Completed: 0'
+        $text | Should -Match 'No action results'
         $text | Should -Not -Match 'STALE-EMAIL-ROW'
     }
 }
+
+AfterAll { Remove-Module PSWriteHTML -ErrorAction SilentlyContinue }

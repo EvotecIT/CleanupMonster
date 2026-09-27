@@ -141,6 +141,7 @@ function Request-CloudDevicesDelete {
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionStatus' -Value $actionStatus -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'Action' -Value 'Delete' -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionNotes' -Value ($subActionMessages -join '; ') -Force
+        Add-Member -InputObject $result -MemberType NoteProperty -Name 'ActionBlocked' -Value (-not $continueRecordDelete) -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'AutopilotIdentityRemoved' -Value $autopilotIdentityRemoved -Force
         Add-Member -InputObject $result -MemberType NoteProperty -Name 'ProcessedDeviceKeys' -Value $device.ProcessedDeviceKeys -Force
         $results.Add($result)

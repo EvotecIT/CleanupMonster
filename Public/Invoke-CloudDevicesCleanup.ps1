@@ -819,7 +819,16 @@ function Invoke-CloudDevicesCleanup {
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 
     if (-not $Suppress) {
-        $export.EmailBody = New-EmailBodyCloudDevices -CurrentRun $export.CurrentRun
+        $emailStages = @(
+            [pscustomobject] @{ Action = 'Retire'; Name = 'Retire'; Enabled = $Retire.IsPresent; Candidates = $devicesToRetire.Count; Limit = $RetireLimit; Preview = $WhatIfRetire.IsPresent; ConfirmationDeclined = $devicesToRetire.Count -gt 0 -and -not $processRetire }
+            [pscustomobject] @{ Action = 'Disable'; Name = 'Disable'; Enabled = $Disable.IsPresent; Candidates = $devicesToDisable.Count; Limit = $DisableLimit; Preview = $WhatIfDisable.IsPresent; ConfirmationDeclined = $devicesToDisable.Count -gt 0 -and -not $processDisable }
+            [pscustomobject] @{ Action = 'StageDelete'; Name = 'Stage for delete'; Enabled = $processStageDisabledForDelete; Candidates = $devicesToStageForDelete.Count; Limit = $StageDisabledForDeleteLimit; Preview = $WhatIfStageDelete.IsPresent; ConfirmationDeclined = $devicesToStageForDelete.Count -gt 0 -and -not $processStageDelete }
+            [pscustomobject] @{ Action = 'Delete'; Name = 'Delete'; Enabled = $Delete.IsPresent; Candidates = $devicesToDelete.Count; Limit = $DeleteLimit; Preview = $WhatIfDelete.IsPresent; ConfirmationDeclined = $devicesToDelete.Count -gt 0 -and -not $processDelete }
+            [pscustomobject] @{ Action = 'RemoveAutopilotIdentity'; Name = 'Remove Autopilot identity'; Enabled = $RemoveAutopilotIdentity.IsPresent; Candidates = $devicesToRemoveAutopilotIdentity.Count; Limit = $RemoveAutopilotIdentityLimit; Preview = $WhatIfRemoveAutopilotIdentity.IsPresent; ConfirmationDeclined = $devicesToRemoveAutopilotIdentity.Count -gt 0 -and -not $processRemoveAutopilotIdentity }
+        ) | Where-Object Enabled | ForEach-Object {
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name Mode -Value $(if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $_.Preview) { 'WhatIf' } else { 'Live' }) -PassThru
+        }
+        $export.EmailBody = New-EmailBodyCloudDevices -CurrentRun $export.CurrentRun -StageConfiguration $emailStages
         $export
     }
 }

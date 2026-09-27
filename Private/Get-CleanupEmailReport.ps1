@@ -1,0 +1,72 @@
+function Get-CleanupEmailReport {
+    [CmdletBinding()]
+    param(
+        [Array] $CurrentRun = @(),
+        [Array] $StageConfiguration = @(),
+        [ValidateSet('AD', 'Cloud')] [string] $Source,
+        [switch] $DisableAndMove
+    )
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    foreach ($record in $CurrentRun) {
+        $stage = @($StageConfiguration | Where-Object { $_.Action -eq $record.Action }) | Select-Object -First 1
+        $outcome = Get-CleanupEmailActionOutcome -Record $record -Source $Source -ReportOnly:($stage.Mode -eq 'Report only') -DisableAndMove:$DisableAndMove
+        $details = [System.Collections.Generic.List[string]]::new()
+        $fields = if ($Source -eq 'AD') {
+            @('DomainName', 'DNSHostName', 'DistinguishedName', 'OperatingSystem', 'LastLogonDays', 'PasswordLastChangedDays', 'TimeOnPendingList', 'DisableActionResult', 'MoveActionResult', 'ActionComment')
+        } else {
+            @('EntraDeviceObjectId', 'ManagedDeviceId', 'AutopilotDeviceId', 'OperatingSystem', 'EntraLastSeenDays', 'IntuneLastSeenDays', 'EntraRegisteredDays', 'TimeOnPendingList', 'ActionBlocked', 'AutopilotIdentityRemoved', 'ActionNotes')
+        }
+        foreach ($field in $fields) {
+            $property = $record.PSObject.Properties[$field]
+            if ($property -and $null -ne $property.Value -and [string] $property.Value -ne '') {
+                $details.Add("${field}: $($property.Value)")
+            }
+        }
+        if ($Source -eq 'Cloud') {
+            $audit = Get-CloudDeviceAuditContext -Device $record
+            foreach ($property in $audit.PSObject.Properties) { $details.Add("$($property.Name): $($property.Value)") }
+        }
+        $rows.Add([pscustomobject] @{
+                Device = if ($Source -eq 'AD') { $record.SamAccountName } else { $record.Name }
+                Action = if ($DisableAndMove -and $record.Action -eq 'Disable') { 'Disable and move' } else { $record.Action }
+                Outcome = $outcome.Label
+                When = $record.ActionDate
+                Reason = $record.SelectionReason
+                Details = $details -join '; '
+                Category = $outcome.Category
+                Stage = $record.Action
+            })
+    }
+
+    $summary = foreach ($stage in $StageConfiguration) {
+        $stageRows = @($rows | Where-Object Stage -eq $stage.Action)
+        $counts = @{ Completed = 0; AlreadySatisfied = 0; WhatIf = 0; Skipped = 0; ReportOnly = 0; NeedsReview = 0 }
+        foreach ($row in $stageRows) { $counts[$row.Category]++ }
+        $remaining = [Math]::Max(0, [int] $stage.Candidates - $stageRows.Count)
+        $limitApplies = $stage.Mode -ne 'Suppressed' -and ($Source -eq 'Cloud' -or $stage.Mode -ne 'Report only')
+        $limitReached = $limitApplies -and $stage.Limit -gt 0 -and $stageRows.Count -ge $stage.Limit -and $remaining -gt 0
+        $note = if ($stage.Mode -eq 'Suppressed') { 'Actions suppressed because inventory was incomplete or below its safety limit.' }
+        elseif ($stage.ConfirmationDeclined) { 'Confirmation declined; no action was started for this stage.' }
+        elseif ($limitReached) { "Limit reached ($($stage.Limit)); $remaining candidate(s) have no action result." }
+        elseif ($remaining -gt 0) { "$remaining candidate(s) have no action result; see the run log for skips or an early stop." }
+        else { 'All candidates have a result.' }
+        [pscustomobject] @{
+            Action = $stage.Name
+            Mode = $stage.Mode
+            Candidates = [int] $stage.Candidates
+            Limit = if ($stage.Limit -eq 0) { 'Unlimited' } elseif (-not $limitApplies) { "$($stage.Limit) (not applied)" } else { [string] $stage.Limit }
+            Results = $stageRows.Count
+            Completed = $counts.Completed
+            AlreadySatisfied = $counts.AlreadySatisfied
+            WhatIf = $counts.WhatIf
+            Skipped = $counts.Skipped
+            ReportOnly = $counts.ReportOnly
+            NeedsReview = $counts.NeedsReview
+            Failed = @($stageRows | Where-Object { $_.Outcome -in @('Failed', 'Failed overall (check subactions)', 'WhatIf error') }).Count
+            Remaining = $remaining
+            Note = $note
+        }
+    }
+    [pscustomobject] @{ Summary = @($summary); Actions = $rows.ToArray() }
+}
