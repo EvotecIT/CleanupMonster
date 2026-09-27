@@ -36,7 +36,7 @@ function Get-SIDHistoryEmailReport {
     $limitText = "Objects: $(if ($null -eq $Export.RemoveLimitObject) {'Unlimited'} else {$Export.RemoveLimitObject}); SIDs: $(if ($null -eq $Export.RemoveLimitSID) {'Unlimited'} else {$Export.RemoveLimitSID})"
     $notes = [System.Collections.Generic.List[string]]::new()
     $notes.Add("Selected $(@($Export.ObjectsToProcess).Count) object/domain group(s), $selectedSIDCount SID value(s). Counts are per SID result, not unique objects.")
-    if ($Export.ObjectCollectionLimitReached) { $notes.Add('Object collection reached its configured limit; eligible totals beyond that boundary were not evaluated.') }
+    if ($Export.ObjectCollectionLimitReached) { $notes.Add('Object collection reached its configured limit; additional eligible object/domain groups may exist. Reaching this boundary does not prove that any groups were omitted.') }
     if ($Export.SIDLimitStoppedIteration) { $notes.Add("SID limit stopped removal with $remaining selected SID value(s) without a result.") }
     if ($Export.EmailMode -eq 'Report only') { $notes.Add('No removals attempted. Object collection limit applies; SID removal limit is not applied in report-only mode.') }
     [pscustomobject] @{

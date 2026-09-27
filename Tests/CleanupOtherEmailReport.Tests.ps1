@@ -52,6 +52,8 @@ Describe 'Service account and SID cleanup email contracts' {
         $report.Summary.NeedsReview | Should -Be 1
         $report.Summary.Remaining | Should -Be 1
         $report.Summary.Note | Should -Match 'SID limit stopped'
+        $report.Summary.Note | Should -Match 'additional eligible object/domain groups may exist'
+        $report.Summary.Note | Should -Match 'does not prove that any groups were omitted'
         $report.Actions[1].Reason | Should -Match 'SID-2'
     }
     It 'shows selected report-only SID candidates without claiming removals' {
