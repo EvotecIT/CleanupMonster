@@ -61,6 +61,28 @@ Describe 'Service account and SID cleanup email contracts' {
         $report.Summary.Completed | Should -Be 0
         $report.Summary.Note | Should -Match 'SID removal limit is not applied'
     }
+    It 'checks the attempted SID after successful removal while preserving preview semantics' -ForEach @(
+        @{ Preview=$false; StillPresent=$true; NeedsReview=1; Completed=0; PreviewCount=0 }
+        @{ Preview=$false; StillPresent=$false; NeedsReview=0; Completed=1; PreviewCount=0 }
+        @{ Preview=$true; StillPresent=$true; NeedsReview=0; Completed=0; PreviewCount=1 }
+    ) {
+        Mock Set-ADObject {}
+        Mock Get-ADObject { [pscustomobject] @{SIDHistory=if ($StillPresent) {@('SID-1','SID-OTHER')} else {@('SID-OTHER')}} }
+        $export=@{History=[System.Collections.Generic.List[pscustomobject]]::new()}
+        $items=@([pscustomobject] @{Object=[pscustomobject] @{Name='User';Domain='test';DistinguishedName='CN=User,DC=test';SIDHistory=@('SID-1','SID-OTHER')};SIDHistoryToRemove=@('SID-1');QueryServer='dc.test'})
+        Remove-ADSIDHistory -ObjectsToProcess $items -Export $export -RemoveLimitSID 1 -Confirm:$false -WhatIf:$Preview
+        $export.ObjectsToProcess=$items
+        $export.EmailMode=if ($Preview) {'WhatIf'} else {'Live'}
+        $report=Get-SIDHistoryEmailReport -Export $export
+        $report.Summary.NeedsReview | Should -Be $NeedsReview
+        $report.Summary.Completed | Should -Be $Completed
+        $report.Summary.WhatIf | Should -Be $PreviewCount
+        if ($NeedsReview) {
+            $export.History[0].VerificationError | Should -Match 'SID-1 is still present'
+            $export.CurrentRun[0].SIDAfterTargetedCount | Should -Be 1
+            $report.Actions[0].Notes | Should -Not -Match 'counts are unknown'
+        }
+    }
     It 'records verification failure without zero remaining SID counts' {
         Mock Set-ADObject {}
         Mock Get-ADObject { throw 'reread failed' }

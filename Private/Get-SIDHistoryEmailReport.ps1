@@ -23,7 +23,10 @@ function Get-SIDHistoryEmailReport {
             if ($record.VerificationError) {
                 $category = 'NeedsReview'
                 $label = if ($record.ActionStatus -eq 'Success') { 'Completed; verification failed' } elseif ($record.ActionStatus -eq 'WhatIf') { 'WhatIf error' } else { $label }
-                $notes += " Verification failed: $($record.VerificationError); remaining SID counts are unknown."
+                $notes += " Verification failed: $($record.VerificationError)"
+                if ($null -eq $record.SIDAfterTargetedCount) {
+                    $notes += '; remaining SID counts are unknown.'
+                }
             }
             $counts[$category]++
             $rows.Add([pscustomobject] @{ Device=$record.ObjectName; Domain=$record.ObjectDomain; Action='Remove SID history'; Outcome=$label; Reason="Target SID: $($record.SIDAttempted); targeted before: $($record.SIDBeforeTargetedCount)"; Notes=$notes })

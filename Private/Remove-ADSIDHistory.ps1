@@ -149,6 +149,9 @@
                 $CurrentRunObject.SIDAfterCount = $null
                 $CurrentRunObject.SIDAfterTargetedCount = $null
             }
+            if ($CurrentRunObject.ActionStatus -eq 'Success' -and $RefreshedObject -and $RefreshedObject.SIDHistory -contains $SID) {
+                $CurrentRunObject.VerificationError = "SID $SID is still present after the removal call."
+            }
             Add-Member -InputObject $Result -NotePropertyName VerificationError -NotePropertyValue $CurrentRunObject.VerificationError -Force
             Write-Color -Text '[i] ', "SID history: $($Object.Name) [$($Object.Domain)]; SID: $SID; outcome: $($CurrentRunObject.ActionStatus); error: $($CurrentRunObject.ActionError); verification error: $($CurrentRunObject.VerificationError)" -Color Yellow, White -LogFile $LogPath
             $CurrentRunSnapshot = [ordered] @{}
