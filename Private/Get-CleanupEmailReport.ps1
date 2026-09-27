@@ -3,16 +3,16 @@ function Get-CleanupEmailReport {
     param(
         [Array] $CurrentRun = @(),
         [Array] $StageConfiguration = @(),
-        [ValidateSet('AD', 'Cloud')] [string] $Source,
+        [ValidateSet('AD', 'Cloud', 'ServiceAccount')] [string] $Source,
         [switch] $DisableAndMove
     )
 
     $rows = [System.Collections.Generic.List[object]]::new()
     foreach ($record in $CurrentRun) {
-        $stage = @($StageConfiguration | Where-Object { $_.Action -eq $record.Action }) | Select-Object -First 1
+        $stage = @($StageConfiguration | Where-Object { $_.Action -eq $record.Action -and (-not $_.Domain -or $_.Domain -eq $record.DomainName) }) | Select-Object -First 1
         $outcome = Get-CleanupEmailActionOutcome -Record $record -Source $Source -ReportOnly:($stage.Mode -eq 'Report only') -DisableAndMove:$DisableAndMove
         $details = [System.Collections.Generic.List[string]]::new()
-        $fields = if ($Source -eq 'AD') {
+        $fields = if ($Source -ne 'Cloud') {
             @('DomainName', 'DNSHostName', 'DistinguishedName', 'OperatingSystem', 'LastLogonDays', 'PasswordLastChangedDays', 'TimeOnPendingList', 'DisableActionResult', 'MoveActionResult', 'ActionComment')
         } else {
             @('EntraDeviceObjectId', 'ManagedDeviceId', 'AutopilotDeviceId', 'OperatingSystem', 'EntraLastSeenDays', 'IntuneLastSeenDays', 'EntraRegisteredDays', 'TimeOnPendingList', 'ActionBlocked', 'AutopilotIdentityRemoved', 'ActionNotes')
@@ -28,12 +28,13 @@ function Get-CleanupEmailReport {
             foreach ($property in $audit.PSObject.Properties) { $details.Add("$($property.Name): $($property.Value)") }
         }
         $rows.Add([pscustomobject] @{
-                Device = if ($Source -eq 'AD') { $record.SamAccountName } else { $record.Name }
+                Device = if ($Source -ne 'Cloud') { $record.SamAccountName } else { $record.Name }
+                Domain = $record.DomainName
                 Action = if ($DisableAndMove -and $record.Action -eq 'Disable') { 'Disable and move' } else { $record.Action }
                 Outcome = $outcome.Label
                 When = $record.ActionDate
                 Reason = $record.SelectionReason
-                Notes = if ($Source -eq 'AD') { $record.ActionComment } else { $record.ActionNotes }
+                Notes = if ($Source -ne 'Cloud') { $record.ActionComment } else { $record.ActionNotes }
                 Details = $details -join '; '
                 Category = $outcome.Category
                 Stage = $record.Action
@@ -41,7 +42,7 @@ function Get-CleanupEmailReport {
     }
 
     $summary = foreach ($stage in $StageConfiguration) {
-        $stageRows = @($rows | Where-Object Stage -eq $stage.Action)
+        $stageRows = @($rows | Where-Object { $_.Stage -eq $stage.Action -and (-not $stage.Domain -or $_.Domain -eq $stage.Domain) })
         $counts = @{ Completed = 0; AlreadySatisfied = 0; WhatIf = 0; Skipped = 0; ReportOnly = 0; NeedsReview = 0 }
         foreach ($row in $stageRows) { $counts[$row.Category]++ }
         $remaining = [Math]::Max(0, [int] $stage.Candidates - $stageRows.Count)
@@ -55,6 +56,7 @@ function Get-CleanupEmailReport {
         else { 'All candidates have a result.' }
         if ($stage.AlreadyPendingSkipped -gt 0) { $note += " Already pending: $($stage.AlreadyPendingSkipped) candidate(s) skipped without a result." }
         if ($stage.AlreadyAtTargetSkipped -gt 0) { $note += " Already in target OU: $($stage.AlreadyAtTargetSkipped) candidate(s) skipped without a result." }
+        if ($stage.ExcludedForDisable -gt 0) { $note += " Excluded from delete: $($stage.ExcludedForDisable) account(s) selected for disable in this run." }
         [pscustomobject] @{
             Action = $stage.Name
             Mode = $stage.Mode

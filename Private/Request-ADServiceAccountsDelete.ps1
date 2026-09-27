@@ -12,12 +12,14 @@ function Request-ADServiceAccountsDelete {
     foreach ($Account in $Accounts) {
         if ($Account.Action -ne 'Delete') { continue }
         if ($ReportOnly) {
+            $Account.ActionStatus = 'ReportOnly'
             $Account
             continue
         }
         $Server = $Account.Server
         $Success = $false
-        if ($PSCmdlet.ShouldProcess($Account.DistinguishedName, 'Delete service account')) {
+        $actionApproved = $PSCmdlet.ShouldProcess($Account.DistinguishedName, 'Delete service account')
+        if ($actionApproved) {
             try {
                 Remove-ADObject -Identity $Account.DistinguishedName -Server $Server -Confirm:$false -WhatIf:$WhatIfDelete -ErrorAction Stop
                 $Success = $true
@@ -28,7 +30,10 @@ function Request-ADServiceAccountsDelete {
             }
         }
         $Account.ActionDate = $Today
-        if ($WhatIfDelete.IsPresent) {
+        if (-not $actionApproved -and -not $WhatIfPreference) {
+            $Account.ActionStatus = 'Skipped'
+            $Account.ActionComment = 'Confirmation declined; no action was started.'
+        } elseif ($WhatIfDelete.IsPresent -or $WhatIfPreference) {
             $Account.ActionStatus = 'WhatIf'
         } else {
             $Account.ActionStatus = $Success

@@ -5,8 +5,12 @@ BeforeAll {
     $Private = Get-ChildItem -Path (Get-CleanupMonsterPath 'Private') -Filter '*ServiceAccounts*.ps1'
     . $Public
     foreach ($P in $Private) { . $P.FullName }
+    . (Get-CleanupMonsterPath 'Private/Get-ServiceAccountSelectionReason.ps1')
+    . (Get-CleanupMonsterPath 'Private/Write-ServiceAccountActionLog.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-CleanupEmailActionOutcome.ps1')
+    function New-EmailBodyServiceAccounts { param($CurrentRun, $StageConfiguration) 'service email' }
 
-    function Write-Color { param([Parameter(ValueFromRemainingArguments=$true)]$Text,[object[]]$Color) }
+    function Write-Color { param([Parameter(ValueFromRemainingArguments=$true)]$Text,[object[]]$Color,[string]$LogFile) }
     function Set-LoggingCapabilities {}
     function Get-GitHubVersion { param($Cmdlet,$RepositoryOwner,$RepositoryName) '0.0.0' }
     function Get-WinADForestDetails { param([string]$Forest,[string[]]$IncludeDomains,[string[]]$ExcludeDomains) @{ Domains=@('domain.local'); QueryServers=@{ 'domain.local'=@{ HostName=@('localhost') } }; DomainsExtended=@{}; Forest='domain.local' } }
@@ -18,6 +22,16 @@ BeforeAll {
 }
 
 Describe 'Invoke-ADServiceAccountsCleanup' {
+    It 'reports zero candidates for empty disable and delete selections' {
+        Mock New-EmailBodyServiceAccounts {
+            $script:EmptyServiceStages = $StageConfiguration
+            'service email'
+        }
+        $result = Invoke-ADServiceAccountsCleanup -Disable -Delete -ReportOnly
+        $script:EmptyServiceStages | Should -HaveCount 2
+        foreach ($stage in $script:EmptyServiceStages) { $stage.Candidates | Should -Be 0 }
+        $result.CurrentRun | Should -BeNullOrEmpty
+    }
     It 'exports the function' {
         Get-Command Invoke-ADServiceAccountsCleanup -ErrorAction Stop | Should -Not -BeNullOrEmpty
     }

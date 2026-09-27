@@ -140,7 +140,7 @@ Describe 'Cleanup email outcome and limit reporting' {
         $audit = Get-CleanupEmailReport -Source Cloud -CurrentRun $records -StageConfiguration $stages
         $audit.Actions[0].Details | Should -Match 'owner@example.test'
         $audit.Actions[0].Details | Should -Match 'IntuneCompliance: compliant'
-        $text | Should -Match 'Entra age=190 days'
+        $text | Should -Match 'Entra age = 190 days'
     }
 
     It 'renders 500 results once in a static compact email table' {

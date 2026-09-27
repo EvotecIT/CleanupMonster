@@ -846,7 +846,7 @@ $Output
 
 Remove the action-specific `WhatIf` switches gradually after reports are reviewed and the pending-action lifecycle is behaving as expected.
 
-### Email summaries for AD computers and cloud devices
+### Email summaries for cleanup runs
 
 Both `Invoke-ADComputersCleanup` and `Invoke-CloudDevicesCleanup` return an email body in `$Output.EmailBody`. A summary table shows each enabled stage's mode, candidate count, configured limit, outcome counts, and candidates without a result. One compact device table lists the device, action, outcome, selection reason, and error or subaction notes. Successful changes, WhatIf previews, report-only candidates, skipped results, and results needing review are counted separately. Full timestamps, IDs, ownership, compliance, and management details remain in the HTML report, log, and saved history.
 
@@ -866,6 +866,10 @@ Send-EmailMessage @sendEmailMessageSplat
 ```
 
 Counts describe action results, not unique devices. A failed overall cloud delete can include a successful subaction; inspect its notes. AD limits are global across domains and are not applied in report-only mode. Cloud report-only stages still apply their limits. The email describes the current run; the HTML report and saved history provide the longer audit trail.
+
+`Invoke-ADServiceAccountsCleanup` and `Invoke-ADSIDHistoryCleanup` also return `$Output.EmailBody` for the same Mailozaurr sending pattern. Service-account emails separate disable/delete stages by domain because their limits apply per domain. Rows include the account, outcome, configured age reasons and errors; accounts selected for disable and excluded from delete are counted separately. Service-account `History` contains this run's results; this command does not persist a cross-run history datastore.
+
+SID-history emails contain one result per targeted SID. Completed removals, WhatIf previews, failed attempts and report-only candidates are separate. The summary shows both object-collection and SID-removal limits. If collection reaches its object limit, the eligible population beyond that boundary is not known. A failed verification read leaves remaining SID counts unknown and flags the result for review. SID details and verification errors remain in output, configured HTML/log files and the SID-history datastore.
 
 ### Service-Account Walkthrough 🔐
 

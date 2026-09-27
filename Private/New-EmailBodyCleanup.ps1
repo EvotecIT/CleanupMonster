@@ -1,6 +1,6 @@
 function New-EmailBodyCleanup {
     [CmdletBinding()]
-    param([string] $Title, [psobject] $Report)
+    param([string] $Title, [psobject] $Report, [string] $ObjectLabel = 'Device')
 
     $summaryRows = @($Report.Summary | ForEach-Object {
         [pscustomobject] @{
@@ -10,10 +10,10 @@ function New-EmailBodyCleanup {
     })
     $actionRows = @($Report.Actions | ForEach-Object {
         $context = [System.Collections.Generic.List[string]]::new()
-        if ($_.Reason) { $context.Add([string] $_.Reason) }
+        if ($_.Reason) { $context.Add(([regex]::Replace([string] $_.Reason, '([a-z])([A-Z])', '$1 $2')).Replace('=', ' = ')) }
         if ($_.Notes) { $context.Add("Notes: $($_.Notes)") }
         [pscustomobject] @{
-            Device = $_.Device
+            $ObjectLabel = if ($_.Domain) { "$($_.Device) ($($_.Domain))" } else { $_.Device }
             Action = $_.Action
             Outcome = $_.Outcome
             'Reason / notes' = $context -join "`n"
@@ -34,9 +34,9 @@ function New-EmailBodyCleanup {
                     }
                     EmailText -Text 'Completed = successful overall result. Previews make no changes. Needs review includes failures, partial changes and blocked previews.' -FontSize '12px' -Color '#64748b' -LineBreak
                     if ($actionRows.Count) {
-                        EmailText -Text "Device results ($($actionRows.Count))" -FontWeight bold -FontSize '16px' -LineBreak
+                        EmailText -Text "$ObjectLabel results ($($actionRows.Count))" -FontWeight bold -FontSize '16px' -LineBreak
                         EmailTable -DataTable $actionRows -HideFooter -WordBreak break-word {
-                            EmailTableHeader -Names 'Device', 'Action', 'Outcome', 'Reason / notes' -BackgroundColor '#e0f2f1' -Color '#134e4a' -Alignment left
+                            EmailTableHeader -Names $ObjectLabel, 'Action', 'Outcome', 'Reason / notes' -BackgroundColor '#e0f2f1' -Color '#134e4a' -Alignment left
                             EmailTableCondition -Name 'Outcome' -ComparisonType string -Value 'Completed' -BackgroundColor '#dcfce7' -Color '#166534' -Inline
                             EmailTableCondition -Name 'Outcome' -ComparisonType string -Value 'WhatIf preview' -BackgroundColor '#e0f2fe' -Color '#075985' -Inline
                             EmailTableCondition -Name 'Outcome' -ComparisonType string -Value 'WhatIf preview (see notes)' -BackgroundColor '#e0f2fe' -Color '#075985' -Inline
@@ -47,7 +47,7 @@ function New-EmailBodyCleanup {
                     } else {
                         EmailText -Text 'No action results were returned in this run.' -LineBreak
                     }
-                    EmailText -Text 'Counts are action results, not unique devices. Full timestamps, IDs, ownership, compliance and management details remain in the HTML report, log and saved history. A failed overall delete may still have completed a subaction; check its notes.' -FontSize '12px' -Color '#64748b' -LineBreak
+                    EmailText -Text 'Counts are action results, not unique objects. Full audit fields remain in the cleanup output and configured reports. A failed overall action may still have completed a subaction; check its notes.' -FontSize '12px' -Color '#64748b' -LineBreak
                 }
             }
         }

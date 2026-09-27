@@ -2,13 +2,23 @@ function Get-CleanupEmailActionOutcome {
     [CmdletBinding()]
     param(
         [psobject] $Record,
-        [ValidateSet('AD', 'Cloud')] [string] $Source,
+        [ValidateSet('AD', 'Cloud', 'ServiceAccount')] [string] $Source,
         [switch] $ReportOnly,
         [switch] $DisableAndMove
     )
 
     if ($ReportOnly -or [string] $Record.ActionStatus -eq 'ReportOnly') {
         return [pscustomobject] @{ Category = 'ReportOnly'; Label = 'Report only candidate' }
+    }
+    if ($Source -eq 'ServiceAccount') {
+        if ([string] $Record.ActionStatus -eq 'Skipped') { return [pscustomobject] @{ Category='Skipped'; Label='Skipped' } }
+        if ([string] $Record.ActionStatus -eq 'WhatIf') {
+            return [pscustomobject] @{ Category=if ($Record.ActionComment) {'NeedsReview'} else {'WhatIf'}; Label=if ($Record.ActionComment) {'WhatIf error'} else {'WhatIf preview'} }
+        }
+        if ([string] $Record.ActionStatus -eq 'True') {
+            return [pscustomobject] @{ Category=if ($Record.ActionComment) {'NeedsReview'} else {'Completed'}; Label=if ($Record.ActionComment) {'Completed with issue'} else {'Completed'} }
+        }
+        return [pscustomobject] @{ Category='NeedsReview'; Label=if ([string] $Record.ActionStatus -eq 'False') {'Failed'} else {'Unknown result'} }
     }
     if ($Source -eq 'AD') {
         $outcome = Get-ADComputerReportOutcome -Computer $Record -DisableAndMove:$DisableAndMove
