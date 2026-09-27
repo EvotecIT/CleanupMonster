@@ -11,6 +11,7 @@ function Request-CloudDevicesStageDelete {
         [datetime] $Today,
 
         [int] $StageLimit = 0,
+        [System.Collections.IDictionary] $RunStatistics = @{},
 
         [switch] $ReportOnly,
         [switch] $WhatIfStageDelete,
@@ -19,9 +20,12 @@ function Request-CloudDevicesStageDelete {
 
     $results = [System.Collections.Generic.List[object]]::new()
     $attemptedCount = 0
+    $RunStatistics['LimitStoppedIteration'] = $false
+    $RunStatistics['AlreadyPendingSkipped'] = 0
 
     foreach ($device in $Devices) {
         if ($StageLimit -gt 0 -and $attemptedCount -ge $StageLimit) {
+            $RunStatistics['LimitStoppedIteration'] = $true
             break
         }
 
@@ -41,6 +45,7 @@ function Request-CloudDevicesStageDelete {
         }
 
         if ($alreadyPending) {
+            $RunStatistics['AlreadyPendingSkipped']++
             continue
         }
 

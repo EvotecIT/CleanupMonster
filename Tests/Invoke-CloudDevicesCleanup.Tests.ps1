@@ -20,7 +20,7 @@ BeforeAll {
     function Request-CloudDevicesDelete { @() }
     function Request-CloudDevicesRemoveAutopilotIdentity { @() }
     function New-HTMLProcessedCloudDevices { param($Statistics, $ActionConfiguration, $ScopeConfiguration) }
-    function New-EmailBodyCloudDevices { param($CurrentRun) '' }
+    function New-EmailBodyCloudDevices { param([Array] $CurrentRun, [Array] $StageConfiguration) '' }
 }
 
 Describe 'Invoke-CloudDevicesCleanup' {
@@ -1127,4 +1127,13 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $stored.PendingActions.Count | Should -Be 0
     }
 
+    It 'passes enabled candidate totals and WhatIf mode into the cloud email' {
+        Mock Get-CloudDevicesToProcess { @([pscustomobject] @{ Name = 'ONE' }, [pscustomobject] @{ Name = 'TWO' }) }
+        Mock New-EmailBodyCloudDevices { 'email' }
+        $result = Invoke-CloudDevicesCleanup -Disable -WhatIfDisable -DisableLimit 1
+        $result.EmailBody | Should -Be 'email'
+        Assert-MockCalled New-EmailBodyCloudDevices -Times 1 -Exactly -ParameterFilter {
+            @($StageConfiguration).Count -eq 1 -and $StageConfiguration[0].Action -eq 'Disable' -and $StageConfiguration[0].Candidates -eq 2 -and $StageConfiguration[0].Limit -eq 1 -and $StageConfiguration[0].Mode -eq 'WhatIf'
+        }
+    }
 }

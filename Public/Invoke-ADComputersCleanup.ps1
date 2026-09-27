@@ -954,7 +954,9 @@
     }
 
     if ($Move) {
+        $moveRunStatistics = @{}
         $requestADComputersMoveSplat = @{
+            RunStatistics                             = $moveRunStatistics
             Report                                    = $Report
             WhatIfMove                                = $WhatIfMove
             WhatIf                                    = $WhatIfPreference
@@ -1083,6 +1085,10 @@
         Write-Color -Text "[i] ", "Computers deleted in this run`: ", $ReportDeleted.Count -Color Yellow, Cyan, Green
     }
 
+    if (-not $Suppress) {
+        $emailStages = @(Get-ADComputerEmailStageConfiguration -Report $Report -Disable:$Disable -DisableAndMove:$DisableAndMove -Move:$Move -Delete:$Delete -DisableLimit $DisableLimit -MoveLimit $MoveLimit -DeleteLimit $DeleteLimit -MoveRunStatistics $moveRunStatistics -ReportOnly:$EffectiveReportOnly -Suppressed:$InventoryWritesSuppressed -WhatIfDisable:$WhatIfDisable -WhatIfMove:$WhatIfMove -WhatIfDelete:$WhatIfDelete)
+    }
+
     if ($Export -and $ReportPath) {
         [Array] $ComputersToProcess = @(
             foreach ($Domain in $Report.Keys) {
@@ -1130,7 +1136,7 @@
     Write-Color -Text "[i] Finished process of cleaning up stale computers" -Color Green
 
     if (-not $Suppress) {
-        $Export.EmailBody = New-EmailBodyComputers -CurrentRun $Export.CurrentRun
+        $Export.EmailBody = New-EmailBodyComputers -CurrentRun $Export.CurrentRun -StageConfiguration $emailStages -DisableAndMove:$DisableAndMove
         $Export
     }
 }

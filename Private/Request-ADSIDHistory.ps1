@@ -21,6 +21,7 @@
         [System.Collections.Generic.List[PSCustomObject]] $ObjectsToProcess
     )
     $GlobalLimitObject = 0
+    $Export['ObjectCollectionLimitReached'] = $false
 
     # Process each domain SID
     :TopLoop foreach ($Domain in $DomainNames) {
@@ -151,6 +152,7 @@
             # Increment counter and check limits
             $GlobalLimitObject++
             if ($LimitPerObject -and $GlobalLimitObject -ge $RemoveLimitObject) {
+                $Export['ObjectCollectionLimitReached'] = $true
                 Write-Color -Text "[i] ", "Reached object limit of ", $RemoveLimitObject, ". Stopping object collection." -Color Yellow, White, Green, White
                 break TopLoop
             }

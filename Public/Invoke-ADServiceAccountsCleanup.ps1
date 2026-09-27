@@ -246,8 +246,10 @@ function Invoke-ADServiceAccountsCleanup {
     $Today = Get-Date
     [Array]$Processed = @()
     $ScheduledForDisableByDomain = @{}
+    $emailStages = [System.Collections.Generic.List[object]]::new()
     foreach ($Domain in $Report.Keys) {
         $Accounts = $Report[$Domain]['Accounts']
+        $excludedForDisable = 0
         if ($Disable) {
             $DisableOnlyIf = @{
                 LastLogonDateMoreThan             = $DisableLastLogonDateMoreThan
@@ -258,10 +260,14 @@ function Invoke-ADServiceAccountsCleanup {
                 TreatMissingWhenCreatedAsStale    = $DisableTreatMissingWhenCreatedAsStale.IsPresent
                 NoPrincipalsAllowedToRetrieveManagedPassword = $DisableNoPrincipalsAllowedToRetrieveManagedPassword.IsPresent
             }
-            $ToDisable = Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $Accounts -ActionIf $DisableOnlyIf -Exclusions $ExcludeAccounts
+            $ToDisable = @(Get-ADServiceAccountsToProcess -Type 'Disable' -Accounts $Accounts -ActionIf $DisableOnlyIf -Exclusions $ExcludeAccounts)
             $ScheduledForDisableByDomain[$Domain] = @($ToDisable | ForEach-Object { $_.DistinguishedName })
             $Report[$Domain]['AccountsToBeDisabled'] = $ToDisable.Count
-            $Processed += Request-ADServiceAccountsDisable -Accounts $ToDisable -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -DisableLimit $DisableLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
+            $disableResults = @(Request-ADServiceAccountsDisable -Accounts $ToDisable -ReportOnly:$ReportOnly -WhatIfDisable:$WhatIfDisable -DisableLimit $DisableLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog)
+            foreach ($account in $disableResults) { Add-Member -InputObject $account -NotePropertyName DomainName -NotePropertyValue $Domain -Force }
+            $Processed += $disableResults
+            Write-ServiceAccountActionLog -Results $disableResults -LogPath $LogPath
+            $emailStages.Add([pscustomobject] @{ Action='Disable'; Name="Disable ($Domain; per-domain limit)"; Domain=$Domain; Candidates=@($ToDisable).Count; Limit=$DisableLimit; Mode=if ($ReportOnly) {'Report only'} elseif ($WhatIfDisable -or $WhatIfPreference) {'WhatIf'} else {'Live'} })
         }
         if ($Delete) {
             $DeleteOnlyIf = @{
@@ -273,17 +279,22 @@ function Invoke-ADServiceAccountsCleanup {
                 TreatMissingWhenCreatedAsStale    = $DeleteTreatMissingWhenCreatedAsStale.IsPresent
                 NoPrincipalsAllowedToRetrieveManagedPassword = $DeleteNoPrincipalsAllowedToRetrieveManagedPassword.IsPresent
             }
-            $ToDelete = Get-ADServiceAccountsToProcess -Type 'Delete' -Accounts $Accounts -ActionIf $DeleteOnlyIf -Exclusions $ExcludeAccounts
+            $ToDelete = @(Get-ADServiceAccountsToProcess -Type 'Delete' -Accounts $Accounts -ActionIf $DeleteOnlyIf -Exclusions $ExcludeAccounts)
             if ($ScheduledForDisableByDomain[$Domain].Count -gt 0) {
                 $AccountsScheduledForDisable = $ScheduledForDisableByDomain[$Domain]
                 [Array] $SkippedDeleteBecauseDisabled = @($ToDelete | Where-Object { $_.DistinguishedName -in $AccountsScheduledForDisable })
                 $ToDelete = @($ToDelete | Where-Object { $_.DistinguishedName -notin $AccountsScheduledForDisable })
                 if ($SkippedDeleteBecauseDisabled.Count -gt 0) {
+                    $excludedForDisable = $SkippedDeleteBecauseDisabled.Count
                     Write-Color -Text "[i] ", "Skipping delete for ", $SkippedDeleteBecauseDisabled.Count, " service account(s) in domain ", $Domain, " because they are already scheduled for disable in this run." -Color Yellow, Cyan, Green, Cyan, Green, Cyan
                 }
             }
             $Report[$Domain]['AccountsToBeDeleted'] = $ToDelete.Count
-            $Processed += Request-ADServiceAccountsDelete -Accounts $ToDelete -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -DeleteLimit $DeleteLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog
+            $deleteResults = @(Request-ADServiceAccountsDelete -Accounts $ToDelete -ReportOnly:$ReportOnly -WhatIfDelete:$WhatIfDelete -DeleteLimit $DeleteLimit -Today $Today -DontWriteToEventLog:$DontWriteToEventLog)
+            foreach ($account in $deleteResults) { Add-Member -InputObject $account -NotePropertyName DomainName -NotePropertyValue $Domain -Force }
+            $Processed += $deleteResults
+            Write-ServiceAccountActionLog -Results $deleteResults -LogPath $LogPath
+            $emailStages.Add([pscustomobject] @{ Action='Delete'; Name="Delete ($Domain; per-domain limit)"; Domain=$Domain; Candidates=@($ToDelete).Count; Limit=$DeleteLimit; ExcludedForDisable=$excludedForDisable; Mode=if ($ReportOnly) {'Report only'} elseif ($WhatIfDelete -or $WhatIfPreference) {'WhatIf'} else {'Live'} })
         }
     }
 
@@ -321,5 +332,8 @@ function Invoke-ADServiceAccountsCleanup {
     }
 
     Write-Color -Text "[i] Finished process of cleaning up service accounts" -Color Green
-    if (-not $Suppress) { $Export }
+    if (-not $Suppress) {
+        $Export['EmailBody'] = New-EmailBodyServiceAccounts -CurrentRun $Export.CurrentRun -StageConfiguration $emailStages.ToArray()
+        $Export
+    }
 }

@@ -1,13 +1,12 @@
-function New-EmailBodyCloudDevices {
+function New-EmailBodyServiceAccounts {
     [CmdletBinding()]
     param(
-        [Array] $CurrentRun,
+        [Array] $CurrentRun = @(),
         [Array] $StageConfiguration = @()
     )
 
-    Write-Color -Text '[i] ', 'Preparing optional cloud cleanup email body; this command does not send.' -Color Yellow, White
     $reportParameters = @{
-        Source             = 'Cloud'
+        Source             = 'ServiceAccount'
         CurrentRun         = $CurrentRun
         StageConfiguration = $StageConfiguration
     }
@@ -15,8 +14,9 @@ function New-EmailBodyCloudDevices {
 
     # The PSWriteHTML header, summary table and result table live in this shared template.
     $emailParameters = @{
-        Title  = 'Cloud device cleanup summary'
-        Report = $report
+        Title       = 'Service account cleanup'
+        Report      = $report
+        ObjectLabel = 'Account'
     }
     New-EmailBodyCleanup @emailParameters
 }

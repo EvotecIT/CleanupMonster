@@ -83,8 +83,9 @@ function Get-ADServiceAccountsToProcess {
             $AccountData['ActionStatus'] = $null
             $AccountData['ActionDate'] = $null
             $AccountData['ActionComment'] = $null
+            $AccountData['SelectionReason'] = Get-ServiceAccountSelectionReason -Account ([pscustomobject] $AccountData) -ActionIf $ActionIf
             [PSCustomObject] $AccountData
         }
     }
-    $Output
+    foreach ($selectedAccount in $Output) { $selectedAccount }
 }

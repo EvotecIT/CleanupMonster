@@ -12,12 +12,14 @@ function Request-ADServiceAccountsDisable {
     foreach ($Account in $Accounts) {
         if ($Account.Action -ne 'Disable') { continue }
         if ($ReportOnly) {
+            $Account.ActionStatus = 'ReportOnly'
             $Account
             continue
         }
         $Server = $Account.Server
         $Success = $false
-        if ($PSCmdlet.ShouldProcess($Account.DistinguishedName, 'Disable service account')) {
+        $actionApproved = $PSCmdlet.ShouldProcess($Account.DistinguishedName, 'Disable service account')
+        if ($actionApproved) {
             try {
                 Disable-ADAccount -Identity $Account.DistinguishedName -Server $Server -WhatIf:$WhatIfDisable -ErrorAction Stop
                 $Success = $true
@@ -28,7 +30,10 @@ function Request-ADServiceAccountsDisable {
             }
         }
         $Account.ActionDate = $Today
-        if ($WhatIfDisable.IsPresent) {
+        if (-not $actionApproved -and -not $WhatIfPreference) {
+            $Account.ActionStatus = 'Skipped'
+            $Account.ActionComment = 'Confirmation declined; no action was started.'
+        } elseif ($WhatIfDisable.IsPresent -or $WhatIfPreference) {
             $Account.ActionStatus = 'WhatIf'
         } else {
             $Account.ActionStatus = $Success

@@ -8,7 +8,9 @@ function Write-CloudDeviceActionLog {
         [int] $Limit,
         [Array] $Results = @(),
         [string] $LogPath,
-        [switch] $ConfirmationDeclined
+        [switch] $ConfirmationDeclined,
+        [nullable[bool]] $LimitStoppedIteration,
+        [int] $AlreadyPendingSkipped = 0
     )
 
     $completed = 0
@@ -62,9 +64,12 @@ function Write-CloudDeviceActionLog {
 
     $notProcessed = [Math]::Max(0, $CandidateCount - $Results.Count)
     $summary = "$Action results: $completed completed, $previewed WhatIf, $reported ReportOnly, $failed failed; $notProcessed of $CandidateCount candidate(s) without an action result."
-    if ($Limit -gt 0 -and $Results.Count -ge $Limit -and $notProcessed -gt 0) {
+    $limitReached = $Limit -gt 0 -and $Results.Count -ge $Limit -and $notProcessed -gt 0
+    if ($Action -eq 'StageDelete') { $limitReached = $LimitStoppedIteration -eq $true }
+    if ($limitReached) {
         $summary += " Limit reached ($Limit)."
     }
+    if ($AlreadyPendingSkipped -gt 0) { $summary += " Already pending: $AlreadyPendingSkipped candidate(s) skipped without an action result." }
     if ($ConfirmationDeclined) {
         $summary += ' Confirmation declined.'
     }

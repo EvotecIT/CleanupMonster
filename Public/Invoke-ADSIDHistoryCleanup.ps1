@@ -275,10 +275,13 @@
     }
 
     Request-ADSIDHistory @requestADSIDHistorySplat
+    $Export['EmailMode'] = if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference) { 'WhatIf' } else { 'Live' }
+    $Export['RemoveLimitSID'] = $RemoveLimitSID
+    $Export['RemoveLimitObject'] = $RemoveLimitObject
 
     if (-not $ReportOnly) {
         # Process the collected objects for SID removal
-        Remove-ADSIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export -RemoveLimitSID $RemoveLimitSID
+        Remove-ADSIDHistory -ObjectsToProcess $ObjectsToProcess -Export $Export -RemoveLimitSID $RemoveLimitSID -LogPath $LogPath
     }
 
     $Export['TotalObjectsFound'] = $ObjectsToProcess.Count

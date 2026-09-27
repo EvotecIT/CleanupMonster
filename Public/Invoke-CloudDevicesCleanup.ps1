@@ -701,6 +701,7 @@ function Invoke-CloudDevicesCleanup {
     }
 
     if ($processStageDisabledForDelete) {
+        $stageDeleteRunStatistics = @{ LimitStoppedIteration = $false; AlreadyPendingSkipped = 0 }
         $devicesToStageForDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $stageDeleteOnlyIf -ProcessedDevices $processedDevices)
         Write-Color -Text '[i] ', 'Devices to be staged for delete: ', $devicesToStageForDelete.Count, '. Current stage limit: ', $(if ($StageDisabledForDeleteLimit -eq 0) { 'Unlimited' } else { $StageDisabledForDeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         $reportStatistics.CandidateTotals.StageDelete = $devicesToStageForDelete.Count
@@ -713,9 +714,9 @@ function Invoke-CloudDevicesCleanup {
             $processStageDelete = $PSCmdlet.ShouldProcess("$($devicesToStageForDelete.Count) cloud device(s)", 'Stage for delete')
         }
         if ($processStageDelete) {
-            $reportStagedForDelete = @(Request-CloudDevicesStageDelete -Devices $devicesToStageForDelete -ProcessedDevices $processedDevices -Today $today -StageLimit $StageDisabledForDeleteLimit -ReportOnly:$ReportOnly -WhatIfStageDelete:$WhatIfStageDelete -WhatIf:$WhatIfPreference)
+            $reportStagedForDelete = @(Request-CloudDevicesStageDelete -Devices $devicesToStageForDelete -ProcessedDevices $processedDevices -Today $today -StageLimit $StageDisabledForDeleteLimit -RunStatistics $stageDeleteRunStatistics -ReportOnly:$ReportOnly -WhatIfStageDelete:$WhatIfStageDelete -WhatIf:$WhatIfPreference)
         }
-        Write-CloudDeviceActionLog -Action StageDelete -CandidateCount $devicesToStageForDelete.Count -Limit $StageDisabledForDeleteLimit -Results $reportStagedForDelete -LogPath $LogPath -ConfirmationDeclined:($devicesToStageForDelete.Count -gt 0 -and -not $processStageDelete)
+        Write-CloudDeviceActionLog -Action StageDelete -CandidateCount $devicesToStageForDelete.Count -Limit $StageDisabledForDeleteLimit -Results $reportStagedForDelete -LogPath $LogPath -ConfirmationDeclined:($devicesToStageForDelete.Count -gt 0 -and -not $processStageDelete) -LimitStoppedIteration $stageDeleteRunStatistics.LimitStoppedIteration -AlreadyPendingSkipped $stageDeleteRunStatistics.AlreadyPendingSkipped
     }
 
     if ($Delete) {
@@ -819,7 +820,16 @@ function Invoke-CloudDevicesCleanup {
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 
     if (-not $Suppress) {
-        $export.EmailBody = New-EmailBodyCloudDevices -CurrentRun $export.CurrentRun
+        $emailStages = @(
+            [pscustomobject] @{ Action = 'Retire'; Name = 'Retire'; Enabled = $Retire.IsPresent; Candidates = $devicesToRetire.Count; Limit = $RetireLimit; Preview = $WhatIfRetire.IsPresent; ConfirmationDeclined = $devicesToRetire.Count -gt 0 -and -not $processRetire }
+            [pscustomobject] @{ Action = 'Disable'; Name = 'Disable'; Enabled = $Disable.IsPresent; Candidates = $devicesToDisable.Count; Limit = $DisableLimit; Preview = $WhatIfDisable.IsPresent; ConfirmationDeclined = $devicesToDisable.Count -gt 0 -and -not $processDisable }
+            [pscustomobject] @{ Action = 'StageDelete'; Name = 'Stage for delete'; Enabled = $processStageDisabledForDelete; Candidates = $devicesToStageForDelete.Count; Limit = $StageDisabledForDeleteLimit; Preview = $WhatIfStageDelete.IsPresent; ConfirmationDeclined = $devicesToStageForDelete.Count -gt 0 -and -not $processStageDelete; LimitStoppedIteration = $stageDeleteRunStatistics.LimitStoppedIteration; AlreadyPendingSkipped = $stageDeleteRunStatistics.AlreadyPendingSkipped }
+            [pscustomobject] @{ Action = 'Delete'; Name = 'Delete'; Enabled = $Delete.IsPresent; Candidates = $devicesToDelete.Count; Limit = $DeleteLimit; Preview = $WhatIfDelete.IsPresent; ConfirmationDeclined = $devicesToDelete.Count -gt 0 -and -not $processDelete }
+            [pscustomobject] @{ Action = 'RemoveAutopilotIdentity'; Name = 'Remove Autopilot identity'; Enabled = $RemoveAutopilotIdentity.IsPresent; Candidates = $devicesToRemoveAutopilotIdentity.Count; Limit = $RemoveAutopilotIdentityLimit; Preview = $WhatIfRemoveAutopilotIdentity.IsPresent; ConfirmationDeclined = $devicesToRemoveAutopilotIdentity.Count -gt 0 -and -not $processRemoveAutopilotIdentity }
+        ) | Where-Object Enabled | ForEach-Object {
+            Add-Member -InputObject $_ -MemberType NoteProperty -Name Mode -Value $(if ($ReportOnly) { 'Report only' } elseif ($WhatIfPreference -or $_.Preview) { 'WhatIf' } else { 'Live' }) -PassThru
+        }
+        $export.EmailBody = New-EmailBodyCloudDevices -CurrentRun $export.CurrentRun -StageConfiguration $emailStages
         $export
     }
 }

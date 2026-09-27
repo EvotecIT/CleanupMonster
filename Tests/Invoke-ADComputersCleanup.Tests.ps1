@@ -1,6 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Public/Invoke-ADComputersCleanup.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-ADComputerEmailStageConfiguration.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-ADComputerActionLog.ps1')
 
     function Write-Color { param([Parameter(ValueFromRemainingArguments = $true)] $Text, [object[]] $Color) }
@@ -88,6 +89,7 @@ BeforeAll {
             $WhatIfMove,
             $WhatIf,
             $MoveLimit,
+            $RunStatistics,
             $ReportOnly,
             $Today,
             $ProcessedComputers,
@@ -112,10 +114,18 @@ BeforeAll {
         }
     }
     function New-HTMLProcessedComputers {}
-    function New-EmailBodyComputers { param($CurrentRun) '' }
+    function New-EmailBodyComputers { param($CurrentRun, $StageConfiguration, $DisableAndMove) '' }
 }
 
 Describe 'Invoke-ADComputersCleanup' {
+    It 'reports normalized AD preview switches including explicit global WhatIf opt-outs' -ForEach @(
+        @{ Preview = $false; Mode = 'Live' }
+        @{ Preview = $true; Mode = 'WhatIf' }
+    ) {
+        Mock New-EmailBodyComputers { $script:emailStages = $StageConfiguration; 'email' }
+        Invoke-ADComputersCleanup -Disable -WhatIf -WhatIfDisable:$Preview | Out-Null
+        $script:emailStages[0].Mode | Should -Be $Mode
+    }
     It 'logs returned AD action results but no report-only candidate detail' {
         Mock Request-ADComputersDisable {
             [pscustomobject] @{
@@ -493,5 +503,25 @@ Describe 'Invoke-ADComputersCleanup' {
         $Result.CurrentRun | Should -BeNullOrEmpty
         $Result.History | Should -HaveCount 1
         $Result.History[0].SamAccountName | Should -Be 'HISTORY$'
+    }
+    It 'passes observed move limit and skip statistics into the email' {
+        Mock Request-ADComputersMove {
+            $RunStatistics['LimitStoppedIteration'] = $true
+            $RunStatistics['AlreadyAtTargetSkipped'] = 2
+        }
+        Mock New-EmailBodyComputers { 'email' }
+        $result = Invoke-ADComputersCleanup -Move -MoveTargetOrganizationalUnit 'OU=Disabled,DC=contoso,DC=com' -WhatIfMove -MoveLimit 1
+        $result.EmailBody | Should -Be 'email'
+        Assert-MockCalled New-EmailBodyComputers -Times 1 -Exactly -ParameterFilter {
+            $StageConfiguration[0].Action -eq 'Move' -and $StageConfiguration[0].LimitStoppedIteration -eq $true -and $StageConfiguration[0].AlreadyAtTargetSkipped -eq 2
+        }
+    }
+    It 'passes AD stage mode and global limit into the email' {
+        Mock New-EmailBodyComputers { 'email' }
+        $result = Invoke-ADComputersCleanup -Disable -WhatIfDisable -DisableLimit 2
+        $result.EmailBody | Should -Be 'email'
+        Assert-MockCalled New-EmailBodyComputers -Times 1 -Exactly -ParameterFilter {
+            $StageConfiguration.Count -eq 1 -and $StageConfiguration[0].Action -eq 'Disable' -and $StageConfiguration[0].Candidates -eq 0 -and $StageConfiguration[0].Limit -eq 2 -and $StageConfiguration[0].Mode -eq 'WhatIf'
+        }
     }
 }
