@@ -20,7 +20,7 @@ BeforeAll {
     function Request-CloudDevicesDelete { @() }
     function Request-CloudDevicesRemoveAutopilotIdentity { @() }
     function New-HTMLProcessedCloudDevices { param($Statistics, $ActionConfiguration, $ScopeConfiguration) }
-    function New-EmailBodyCloudDevices { param($CurrentRun, $StageConfiguration) '' }
+    function New-EmailBodyCloudDevices { param([Array] $CurrentRun, [Array] $StageConfiguration) '' }
 }
 
 Describe 'Invoke-CloudDevicesCleanup' {
@@ -1133,7 +1133,7 @@ Describe 'Invoke-CloudDevicesCleanup' {
         $result = Invoke-CloudDevicesCleanup -Disable -WhatIfDisable -DisableLimit 1
         $result.EmailBody | Should -Be 'email'
         Assert-MockCalled New-EmailBodyCloudDevices -Times 1 -Exactly -ParameterFilter {
-            $StageConfiguration.Count -eq 1 -and $StageConfiguration[0].Action -eq 'Disable' -and $StageConfiguration[0].Candidates -eq 2 -and $StageConfiguration[0].Limit -eq 1 -and $StageConfiguration[0].Mode -eq 'WhatIf'
+            @($StageConfiguration).Count -eq 1 -and $StageConfiguration[0].Action -eq 'Disable' -and $StageConfiguration[0].Candidates -eq 2 -and $StageConfiguration[0].Limit -eq 1 -and $StageConfiguration[0].Mode -eq 'WhatIf'
         }
     }
 }

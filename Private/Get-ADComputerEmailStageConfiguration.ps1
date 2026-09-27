@@ -5,7 +5,7 @@ function Get-ADComputerEmailStageConfiguration {
         [bool] $Disable, [bool] $DisableAndMove, [bool] $Move, [bool] $Delete,
         [int] $DisableLimit, [int] $MoveLimit, [int] $DeleteLimit,
         [bool] $ReportOnly, [bool] $Suppressed,
-        [bool] $GlobalWhatIf, [bool] $WhatIfDisable, [bool] $WhatIfMove, [bool] $WhatIfDelete
+        [bool] $WhatIfDisable, [bool] $WhatIfMove, [bool] $WhatIfDelete
     )
 
     $assignedCounts = @{ Disable = 0; Move = 0; Delete = 0 }
@@ -25,7 +25,7 @@ function Get-ADComputerEmailStageConfiguration {
             Name = $stage.Name
             Candidates = $assignedCounts[$stage.Action]
             Limit = $stage.Limit
-            Mode = if ($Suppressed) { 'Suppressed' } elseif ($ReportOnly) { 'Report only' } elseif ($GlobalWhatIf -or $stage.Preview) { 'WhatIf' } else { 'Live' }
+            Mode = if ($Suppressed) { 'Suppressed' } elseif ($ReportOnly) { 'Report only' } elseif ($stage.Preview) { 'WhatIf' } else { 'Live' }
         }
     }
 }

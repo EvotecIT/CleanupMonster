@@ -15,6 +15,16 @@ Describe 'Write-CloudDeviceActionLog' {
         $script:actionLogLines = [System.Collections.Generic.List[string]]::new()
     }
 
+    It 'logs pending skips separately from an actual stage iteration stop' -ForEach @(
+        @{ Stopped = $false }
+        @{ Stopped = $true }
+    ) {
+        Write-CloudDeviceActionLog -Action StageDelete -CandidateCount 2 -Limit 1 -Results @([pscustomobject] @{Name='STAGED';ActionStatus='WhatIf'}) -AlreadyPendingSkipped 1 -LimitStoppedIteration $Stopped
+        $script:actionLogLines[-1] | Should -Match 'Already pending: 1'
+        if ($Stopped) { $script:actionLogLines[-1] | Should -Match 'Limit reached' }
+        else { $script:actionLogLines[-1] | Should -Not -Match 'Limit reached' }
+    }
+
     It 'identifies each bounded WhatIf target and distinguishes previews from completed actions' {
         $results = @(
             [pscustomobject] @{ Name = 'iPad'; EntraDeviceObjectId = 'entra-1'; ManagedDeviceId = 'intune-1'; ActionStatus = 'WhatIf'; ActionNotes = $null },

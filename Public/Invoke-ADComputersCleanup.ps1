@@ -1084,7 +1084,7 @@
     }
 
     if (-not $Suppress) {
-        $emailStages = @(Get-ADComputerEmailStageConfiguration -Report $Report -Disable:$Disable -DisableAndMove:$DisableAndMove -Move:$Move -Delete:$Delete -DisableLimit $DisableLimit -MoveLimit $MoveLimit -DeleteLimit $DeleteLimit -ReportOnly:$EffectiveReportOnly -Suppressed:$InventoryWritesSuppressed -GlobalWhatIf:$WhatIfPreference -WhatIfDisable:$WhatIfDisable -WhatIfMove:$WhatIfMove -WhatIfDelete:$WhatIfDelete)
+        $emailStages = @(Get-ADComputerEmailStageConfiguration -Report $Report -Disable:$Disable -DisableAndMove:$DisableAndMove -Move:$Move -Delete:$Delete -DisableLimit $DisableLimit -MoveLimit $MoveLimit -DeleteLimit $DeleteLimit -ReportOnly:$EffectiveReportOnly -Suppressed:$InventoryWritesSuppressed -WhatIfDisable:$WhatIfDisable -WhatIfMove:$WhatIfMove -WhatIfDelete:$WhatIfDelete)
     }
 
     if ($Export -and $ReportPath) {

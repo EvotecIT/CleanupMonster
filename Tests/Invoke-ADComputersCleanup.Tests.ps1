@@ -117,6 +117,14 @@ BeforeAll {
 }
 
 Describe 'Invoke-ADComputersCleanup' {
+    It 'reports normalized AD preview switches including explicit global WhatIf opt-outs' -ForEach @(
+        @{ Preview = $false; Mode = 'Live' }
+        @{ Preview = $true; Mode = 'WhatIf' }
+    ) {
+        Mock New-EmailBodyComputers { $script:emailStages = $StageConfiguration; 'email' }
+        Invoke-ADComputersCleanup -Disable -WhatIf -WhatIfDisable:$Preview | Out-Null
+        $script:emailStages[0].Mode | Should -Be $Mode
+    }
     It 'logs returned AD action results but no report-only candidate detail' {
         Mock Request-ADComputersDisable {
             [pscustomobject] @{

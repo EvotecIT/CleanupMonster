@@ -1,6 +1,6 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
-    foreach ($helper in @('Get-ADComputerReportOutcome', 'Get-CloudDeviceAuditContext', 'Get-CleanupEmailActionOutcome', 'Get-CleanupEmailReport', 'Get-ADComputerEmailStageConfiguration', 'New-EmailBodyCleanup', 'New-EmailBodyCloudDevices', 'Request-CloudDevicesDelete')) {
+    foreach ($helper in @('Get-ADComputerReportOutcome', 'Get-CloudDeviceAuditContext', 'Get-CleanupEmailActionOutcome', 'Get-CleanupEmailReport', 'Get-ADComputerEmailStageConfiguration', 'New-EmailBodyCleanup', 'New-EmailBodyCloudDevices', 'Request-CloudDevicesDelete', 'Request-CloudDevicesStageDelete')) {
         . (Get-CleanupMonsterPath "Private/$helper.ps1")
     }
     Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
@@ -8,6 +8,22 @@ BeforeAll {
 }
 
 Describe 'Cleanup email outcome and limit reporting' {
+    It 'distinguishes a real stage limit stop from already-pending skips at the result limit' -ForEach @(
+        @{ Tail = 0; Stopped = $false }
+        @{ Tail = 1; Stopped = $true }
+    ) {
+        $devices = @([pscustomobject] @{ ProcessedDeviceKey = 'pending' }, [pscustomobject] @{ ProcessedDeviceKey = 'new' })
+        if ($Tail) { $devices += [pscustomobject] @{ ProcessedDeviceKey = 'tail' } }
+        $statistics = @{}
+        $results = @(Request-CloudDevicesStageDelete -Devices $devices -ProcessedDevices ([ordered] @{pending=@{}}) -Today (Get-Date) -StageLimit 1 -WhatIfStageDelete -RunStatistics $statistics)
+        $statistics.AlreadyPendingSkipped | Should -Be 1
+        $statistics.LimitStoppedIteration | Should -Be $Stopped
+        $stage = [pscustomobject] @{ Action='StageDelete';Name='Stage for delete';Mode='WhatIf';Candidates=$devices.Count;Limit=1;AlreadyPendingSkipped=$statistics.AlreadyPendingSkipped;LimitStoppedIteration=$statistics.LimitStoppedIteration }
+        $report = Get-CleanupEmailReport -Source Cloud -CurrentRun $results -StageConfiguration @($stage)
+        $report.Summary.Note | Should -Match 'Already pending: 1'
+        if ($Stopped) { $report.Summary.Note | Should -Match 'Limit reached' }
+        else { $report.Summary.Note | Should -Not -Match 'Limit reached' }
+    }
     It 'counts final assigned AD actions rather than overlapping rule match counters' {
         $domains = @{ 'one.test' = @{ ComputersToBeDisabled = 20; ComputersToBeDeleted = 19; Computers = @([pscustomobject] @{ Action = 'Disable' }) + @(1..19 | ForEach-Object { [pscustomobject] @{ Action = 'Delete' } }) } }
         $stages = @(Get-ADComputerEmailStageConfiguration -Report $domains -Disable $true -Delete $true -DisableLimit 1)
