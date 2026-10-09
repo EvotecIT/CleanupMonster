@@ -10,12 +10,12 @@
     [string] $GitHubApiKeyPath = 'C:\Support\Important\GitHubAPI.txt'
 )
 
-Import-Module PSPublishModule -Force -ErrorAction Stop
+Import-Module PSPublishModule -MinimumVersion '3.0.161' -Force -ErrorAction Stop
 
 Build-Module -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '3.1.22'
+        ModuleVersion        = '3.1.23'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
@@ -30,15 +30,16 @@ Build-Module -ModuleName 'CleanupMonster' {
     }
     New-ConfigurationManifest @Manifest
 
-    New-ConfigurationModule -Type RequiredModule -Name 'PSSharedGoods', 'PSWriteHTML' -Guid Auto -Version Latest -VersionSource PSGallery
+    New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods' -Guid Auto -RequiredVersion '0.0.313' -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteHTML' -Guid Auto -Version Latest -VersionSource PSGallery
     New-ConfigurationModule -Type RequiredModule -Name 'PSEventViewer' -Guid Auto -Version '4.0.0' -VersionSource PSGallery
-    New-ConfigurationModule -Type RequiredModule -Name 'ADEssentials' -Guid Auto -Version '1.0.5' -VersionSource PSGallery
-    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -Version '1.0.3' -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'ADEssentials' -Guid Auto -Version '1.0.6' -VersionSource PSGallery
+    New-ConfigurationModule -Type ApprovedModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -RequiredVersion '1.0.7' -VersionSource PSGallery
     New-ConfigurationModule -Type ExternalModule -Name @(
         'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
         'Microsoft.WSMan.Management', 'NetTCPIP', 'CimCmdlets'
     )
-    New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods', 'PSWriteColor', 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'ADEssentials'
+    New-ConfigurationModule -Type ApprovedModule -Name 'Connectimo', 'PSUnifi', 'PSWebToolbox', 'PSMyPassword', 'PSPublishModule', 'ADEssentials'
     New-ConfigurationModuleSkip -IgnoreModuleName 'PowerJamf', 'GraphEssentials' -IgnoreFunctionName @(
         'Disable-MyDevice', 'Get-JamfDevice', 'Get-MyDevice', 'Get-MyDeviceIntune',
         'Invoke-MyDeviceRetire', 'Remove-MyAutopilotDevice', 'Remove-MyDevice', 'Remove-MyDeviceIntuneRecord'
