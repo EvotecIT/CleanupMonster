@@ -8,7 +8,7 @@
     Description          = 'This module provides an easy way to cleanup Active Directory and cloud devices from dead/old objects based on various criteria. It can also disable, move, retire or delete objects. It can utilize Azure AD, Intune and Jamf to get additional information about objects before deleting them.'
     FunctionsToExport    = @('Invoke-ADComputersCleanup', 'Invoke-ADServiceAccountsCleanup', 'Invoke-ADSIDHistoryCleanup', 'Invoke-CloudDevicesCleanup')
     GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
-    ModuleVersion        = '3.1.23'
+    ModuleVersion        = '3.1.24'
     PowerShellVersion    = '5.1'
     PrivateData          = @{
         PSData = @{
@@ -30,7 +30,7 @@
         }, @{
             Guid            = '9fc9fd61-7f11-4f4b-a527-084086f1905f'
             ModuleName      = 'ADEssentials'
-            ModuleVersion   = '1.0.6'
+            ModuleVersion   = '1.0.7'
         }, @{
             Guid            = '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f'
             ModuleName      = 'PSWriteColor'

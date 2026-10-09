@@ -5,17 +5,19 @@
 
     [bool] $SignModule = ($RunMode -eq 'Publish'),
 
+    [bool] $PublishGitHub = $true,
+
     [string] $PowerShellGalleryApiKeyPath = 'C:\Support\Important\PowerShellGalleryAPI.txt',
 
     [string] $GitHubApiKeyPath = 'C:\Support\Important\GitHubAPI.txt'
 )
 
-Import-Module PSPublishModule -MinimumVersion '3.0.163' -Force -ErrorAction Stop
+Import-Module PSPublishModule -MinimumVersion '3.0.164' -Force -ErrorAction Stop
 
 Build-Module -ModuleName 'CleanupMonster' {
     # Usual defaults as per standard module
     $Manifest = [ordered] @{
-        ModuleVersion        = '3.1.23'
+        ModuleVersion        = '3.1.24'
         CompatiblePSEditions = @('Desktop', 'Core')
         GUID                 = 'cd1f9987-6242-452c-a7db-6337d4a6b639'
         Author               = 'Przemyslaw Klys'
@@ -33,7 +35,7 @@ Build-Module -ModuleName 'CleanupMonster' {
     New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods' -Guid Auto -Version 'Latest' -VersionSource PSGallery
     New-ConfigurationModule -Type RequiredModule -Name 'PSWriteHTML' -Guid Auto -Version Latest -VersionSource PSGallery
     New-ConfigurationModule -Type RequiredModule -Name 'PSEventViewer' -Guid Auto -Version '4.0.0' -VersionSource PSGallery
-    New-ConfigurationModule -Type RequiredModule -Name 'ADEssentials' -Guid Auto -Version '1.0.6' -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'ADEssentials' -Guid Auto -Version '1.0.7' -VersionSource PSGallery
     New-ConfigurationModule -Type ApprovedModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -Version 'Latest' -VersionSource PSGallery
     New-ConfigurationModule -Type ExternalModule -Name @(
         'ActiveDirectory', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Management'
@@ -96,7 +98,9 @@ Build-Module -ModuleName 'CleanupMonster' {
 
     # options for publishing to github/psgallery
     New-ConfigurationPublish -Type PowerShellGallery -FilePath $PowerShellGalleryApiKeyPath -Enabled:$true -UseAsDependencyVersionSource
-    New-ConfigurationPublish -Type GitHub -FilePath $GitHubApiKeyPath -UserName 'EvotecIT' -Enabled:$true -GenerateReleaseNotes
+    if ($PublishGitHub) {
+        New-ConfigurationPublish -Type GitHub -FilePath $GitHubApiKeyPath -UserName 'EvotecIT' -Enabled:$true -GenerateReleaseNotes
+    }
 
     New-ConfigurationGate -Mode $RunMode
 } -ExitCode
