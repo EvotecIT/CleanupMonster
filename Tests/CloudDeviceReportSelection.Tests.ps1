@@ -30,6 +30,9 @@ Describe 'Bounded cloud device review selection' {
         $rows[0].Device.Name | Should -Be 'Device-509'
         $rows[-1].Device.Name | Should -Be 'Device-10'
         $rows[0].Reason | Should -Be 'Inventory sample'
+        $devices[508].EntraLastSeenDays = 509
+        $tied = @(Get-CloudDeviceReportSelection -Devices $devices -Export @{CurrentRun=@();PendingActions=@{}} -Limit 2)
+        $tied.Device.Name -join ',' | Should -Be 'Device-508,Device-509'
     }
 
     It 'does not prioritize an unrelated target that shares an Azure alias' {
