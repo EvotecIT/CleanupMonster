@@ -123,9 +123,9 @@ table.dataTable > tbody > tr.child .dtr-title { margin-right: 0.5rem; }
             New-HTMLSection -HeaderText 'Actions attempted this run' -Direction column {
                 New-HTMLText -Text "$previewCount WhatIf preview(s), $reportOnlyCount report-only result(s), $completedCount completed, $failedCount failed. WhatIf previews enter History but never start pending actions."
                 if ($currentRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $currentRows -HideButtons -HideFooter -PagingLength 25 -TextWhenNoData 'No actions in this run.' {
+                    New-HTMLTable -DataTable $currentRows -WordBreak break-word -HideButtons -HideFooter -PagingLength 25 -TextWhenNoData 'No actions in this run.' {
                         New-HTMLTableHeader -Names 'Device', 'Action', 'Outcome' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations desktop
                         New-HTMLTableHeader -Names @($currentRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Action', 'Outcome', 'When', 'Why selected', 'Result') }) -ResponsiveOperations none
                     }
                 } else {
@@ -138,9 +138,9 @@ table.dataTable > tbody > tr.child .dtr-title { margin-right: 0.5rem; }
             New-HTMLSection -HeaderText 'Action history' -Direction column {
                 New-HTMLText -Text 'Completed, failed, and WhatIf attempts are retained across runs. A WhatIf entry is a preview, not a completed change. Report-only results are not retained. Expanded details show the saved action-time evidence; missing facts in older snapshots are Not captured.'
                 if ($historyRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $historyRows -HideButtons -HideFooter -PagingLength 25 -TextWhenNoData 'No history recorded.' {
+                    New-HTMLTable -DataTable $historyRows -WordBreak break-word -HideButtons -HideFooter -PagingLength 25 -TextWhenNoData 'No history recorded.' {
                         New-HTMLTableHeader -Names 'Device', 'Action', 'Outcome' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations desktop
                         New-HTMLTableHeader -Names @($historyRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Action', 'Outcome', 'When', 'Why selected', 'Result') }) -ResponsiveOperations none
                     }
                 } else {
@@ -153,9 +153,9 @@ table.dataTable > tbody > tr.child .dtr-title { margin-right: 0.5rem; }
             New-HTMLSection -HeaderText 'Waiting for the next stage' -Direction column {
                 New-HTMLText -Text 'These are saved action-time snapshots awaiting a later stage, not current inventory values. Only completed actions enter this list. WhatIf previews never start a pending period. Current rules and activity are checked again before the next action.'
                 if ($pendingRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $pendingRows -HideButtons -HideFooter -PagingLength 25 {
+                    New-HTMLTable -DataTable $pendingRows -WordBreak break-word -HideButtons -HideFooter -PagingLength 25 {
                         New-HTMLTableHeader -Names 'Device', 'Action', 'Days pending' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'When', 'Why selected', 'Result' -ResponsiveOperations desktop
                         New-HTMLTableHeader -Names @($pendingRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Action', 'Days pending', 'When', 'Why selected', 'Result') }) -ResponsiveOperations none
                     }
                 } else {
@@ -169,8 +169,9 @@ table.dataTable > tbody > tr.child .dtr-title { margin-right: 0.5rem; }
                 New-HTMLText -Text ('All {0:N0} inventory records are included and searchable. Expand a row for decision context and target IDs. Selected actions and reasons cover rule candidates before action limits; recorded actions show attempts made this run.' -f $deviceRows.Count)
                 New-HTMLText -Text 'This is current inventory, not a deletion approval. A blank action field means no matching record for that stage, not safe to delete. Check Rules, matching and duplicate protection, and the action-time evidence in Current Run, History or Pending Actions. A separate Autopilot removal query can add rows marked Autopilot removal only. Full normalized action snapshots remain in the XML datastore; this standalone HTML contains focused investigation fields.'
                 if ($deviceRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $deviceRows -DataTableID 'cloud-device-inventory' -DisableStateSave -HideButtons -HideFooter -PagingLength 25 {
-                        New-HTMLTableHeader -Names 'Device', 'Scope', 'OS', 'Enabled' -ResponsiveOperations all
+                    New-HTMLTable -DataTable $deviceRows -WordBreak break-word -DataTableID 'cloud-device-inventory' -DisableStateSave -HideButtons -HideFooter -PagingLength 25 {
+                        New-HTMLTableHeader -Names 'Device', 'OS', 'Enabled' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Scope', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run' -ResponsiveOperations desktop
                         $detailColumns = @($deviceRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Scope', 'OS', 'Enabled', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run') })
                         New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none
                     }
