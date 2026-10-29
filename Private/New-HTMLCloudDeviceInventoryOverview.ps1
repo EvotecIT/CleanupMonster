@@ -109,7 +109,7 @@ function New-HTMLCloudDeviceInventoryOverview {
             }
         }
 
-        New-HTMLSection -HeaderText 'Detailed inventory counts' -CanCollapse -Collapsed -Direction column {
+        New-HTMLSection -HeaderText 'Detailed inventory counts' -CanCollapse -Direction column {
             if ($entraRows.Count -gt 0) {
                 New-HTMLSection -HeaderText 'Entra inventory by OS' -Direction column {
                     New-HTMLText -Text 'Activity age is cumulative: over 180 days is included in over 90 days. These counts alone do not make a device eligible for action.'

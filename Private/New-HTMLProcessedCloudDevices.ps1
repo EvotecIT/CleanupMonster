@@ -72,23 +72,40 @@ function New-HTMLProcessedCloudDevices {
         }
     )
     $primaryCount = if ($PrimaryDeviceCount -ge 0) { $PrimaryDeviceCount } else { $Devices.Count }
+    $actionsByIdentity = @{}
+    $pendingByIdentity = @{}
+    foreach ($recordSet in @(
+            @{ Records = @($Export.CurrentRun); Index = $actionsByIdentity },
+            @{ Records = @($Export.PendingActions.Values); Index = $pendingByIdentity }
+        )) {
+        foreach ($record in $recordSet.Records) {
+            foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
+                if (-not $record.$identity) { continue }
+                $key = '{0}:{1}' -f $identity, $record.$identity
+                if (-not $recordSet.Index.ContainsKey($key)) {
+                    $recordSet.Index[$key] = [System.Collections.Generic.List[object]]::new()
+                }
+                $recordSet.Index[$key].Add($record)
+            }
+        }
+    }
     $deviceRows = @(
         for ($deviceIndex = 0; $deviceIndex -lt $Devices.Count; $deviceIndex++) {
             $device = $Devices[$deviceIndex]
-            $enabled = if ($device.Enabled -eq $true) { 'Yes' } elseif ($device.Enabled -eq $false) { 'No' } else { 'Unknown' }
-            [pscustomobject] @{
-                Device = $device.Name
-                Scope = if ($deviceIndex -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
-                OS = $device.OperatingSystem
-                Source = $device.RecordState
-                Enabled = $enabled
-                'Entra age (days)' = $device.EntraLastSeenDays
-                'Intune age (days)' = $device.IntuneLastSeenDays
-                'Intune link' = $device.IntuneLinkState
-                'Entra object ID' = $device.EntraDeviceObjectId
-                'Intune device ID' = $device.ManagedDeviceId
-                'Autopilot identity ID' = $device.AutopilotDeviceId
+            $currentActions = @()
+            $pendingAction = $null
+            foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
+                if (-not $device.$identity) { continue }
+                $key = '{0}:{1}' -f $identity, $device.$identity
+                if ($currentActions.Count -eq 0 -and $actionsByIdentity.ContainsKey($key)) {
+                    $currentActions = $actionsByIdentity[$key].ToArray()
+                }
+                if (-not $pendingAction -and $pendingByIdentity.ContainsKey($key)) {
+                    $pendingAction = $pendingByIdentity[$key][0]
+                }
             }
+            $scope = if ($deviceIndex -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
+            ConvertTo-CloudDeviceReportRow -Device $device -Scope $scope -CurrentActions $currentActions -PendingAction $pendingAction
         }
     )
     $enabledActions = @($ActionConfiguration | Where-Object { $_.Enabled })
@@ -157,6 +174,11 @@ function New-HTMLProcessedCloudDevices {
         New-HTMLSectionStyle -BorderRadius 0px -HeaderBackGroundColor Grey -RemoveShadow
         New-HTMLPanelStyle -BorderRadius 0px
         New-HTMLTableOption -DataStore JavaScript -BoolAsString -ArrayJoinString ', ' -ArrayJoin
+        Add-HTMLStyle -Placement Header -Content @'
+#cloud-device-inventory > tbody > tr.child ul.dtr-details { display: block; width: 100%; columns: 26rem; column-gap: 2rem; }
+#cloud-device-inventory > tbody > tr.child ul.dtr-details > li { break-inside: avoid; overflow-wrap: anywhere; }
+#cloud-device-inventory > tbody > tr.child .dtr-title { margin-right: 0.5rem; }
+'@
 
         New-HTMLHeader {
             New-HTMLSection -Invisible {
@@ -176,7 +198,7 @@ function New-HTMLProcessedCloudDevices {
                     New-HTMLText -Text 'No cleanup action was selected for this run.'
                 }
                 if ($candidateRows.Count -gt 0) {
-                    New-HTMLSection -HeaderText 'Selected by OS' -CanCollapse -Collapsed {
+                    New-HTMLSection -HeaderText 'Selected by OS' -CanCollapse {
                         New-HTMLTable -DataTable $candidateRows -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering
                     }
                 }
@@ -229,10 +251,13 @@ function New-HTMLProcessedCloudDevices {
         New-HTMLTab -Name 'Devices' {
             New-HTMLSection -HeaderText 'Devices returned for reporting' -Direction column {
                 New-HTMLText -Text 'The primary cleanup inventory appears first. A separate Autopilot removal query can add rows; those rows are marked Autopilot removal only. A primary row can also match the Autopilot query. This is inventory context, not an action list.'
+                New-HTMLText -Text 'Expand a device row for activity dates, registration, ownership, matching and duplicate-protection facts, Autopilot context, and recorded action reasons. None recorded does not mean eligible or safe to delete: limits, confirmation and action rules still apply. Entra records must be disabled before the Delete stage can select them. Check Rules and the recorded action results before approving removal.'
                 if ($deviceRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $deviceRows -HideButtons -HideFooter -PagingLength 25 {
+                    New-HTMLTable -DataTable $deviceRows -DataTableID 'cloud-device-inventory' -HideButtons -HideFooter -PagingLength 25 {
                         New-HTMLTableHeader -Names 'Device', 'Scope', 'OS', 'Enabled' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'Source', 'Entra age (days)', 'Intune age (days)', 'Intune link', 'Entra object ID', 'Intune device ID', 'Autopilot identity ID' -ResponsiveOperations not-mobile
+                        New-HTMLTableHeader -Names 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run' -ResponsiveOperations not-mobile
+                        $detailColumns = @($deviceRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Scope', 'OS', 'Enabled', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run') })
+                        New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none
                     }
                 } else {
                     New-HTMLText -Text 'No devices entered cleanup scope.'

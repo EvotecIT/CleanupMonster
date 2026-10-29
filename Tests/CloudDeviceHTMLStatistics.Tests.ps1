@@ -9,6 +9,7 @@ Describe 'Cloud device HTML inventory overview' {
             Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
             . (Join-Path $RepositoryRoot 'Private/Write-CloudDeviceStatistics.ps1')
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
+            . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceReportRow.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLCloudDeviceInventoryOverview.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLProcessedCloudDevices.ps1')
             function Write-Color { param([object[]] $Text, [object[]] $Color, [string] $LogFile) }
@@ -21,8 +22,8 @@ Describe 'Cloud device HTML inventory overview' {
             $intune = Write-CloudDeviceStatistics -Label 'Intune seen' -Mode Intune -Devices @(
                 [pscustomobject] @{ OperatingSystem = 'macOS'; LastSeenDays = 210 }
             ) -PassThru
-            $scopeDevice = [pscustomobject] @{ Name = 'PC-01'; OperatingSystem = 'Windows'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 200; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed' }
-            $intuneOnlyDevice = [pscustomobject] @{ Name = 'TABLET-02'; OperatingSystem = 'Android'; Enabled = $null; HasEntraRecord = $false; EntraLastSeenDays = $null; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
+            $scopeDevice = [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-1'; OperatingSystem = 'Windows'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 200; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed' }
+            $intuneOnlyDevice = [pscustomobject] @{ Name = 'PC-01'; ManagedDeviceId = 'intune-unrelated'; OperatingSystem = 'Android'; Enabled = $null; HasEntraRecord = $false; EntraLastSeenDays = $null; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
             $scope = Write-CloudDeviceStatistics -Label 'Cleanup scope' -Mode Scoped -Devices @($scopeDevice, $intuneOnlyDevice) -PassThru
             $candidate = Write-CloudDeviceStatistics -Label 'Disable candidates' -Mode Candidates -Devices @($scopeDevice) -PassThru
             $autopilotDevice = [pscustomobject] @{ Name = 'AP-03'; OperatingSystem = 'Windows'; Enabled = $false; HasEntraRecord = $true; EntraLastSeenDays = 210; RecordState = 'Matched'; IntuneLinkState = 'Healthy'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
@@ -86,6 +87,13 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'No Entra record'
         $html | Should -Match 'autopilot-identity-03'
         $html | Should -Match 'Autopilot removal only'
+        $inventoryOptions = [regex]::Match($html, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
+        $inventory = ($inventoryOptions.Groups[1].Value | ConvertFrom-Json).data
+        $inventory[0].'Recorded actions this run' | Should -Be 'Disable'
+        $inventory[0].'Why selected this run' | Should -Match 'Entra age 200 days'
+        $inventory[1].Device | Should -Be $inventory[0].Device
+        $inventory[1].'Recorded actions this run' | Should -Be 'None recorded'
+        $inventory[2].'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity'
         $html | Should -Not -Match 'No action history has been recorded yet'
         $html | Should -Not -Match 'Entra records by OS'
     }
