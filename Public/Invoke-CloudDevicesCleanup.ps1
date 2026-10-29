@@ -276,7 +276,8 @@ function Invoke-CloudDevicesCleanup {
     Uses CDN-hosted CSS and JavaScript assets for the HTML report, reducing report file size.
 
     .PARAMETER ReportPath
-    Path where the HTML report is written.
+    Path where the standalone HTML report is written. Includes all scoped inventory rows
+    with focused decision fields; full normalized action snapshots remain in DataStorePath.
     Defaults to ProcessedCloudDevices.html next to this function.
 
     .PARAMETER SafetyEntraLimit
@@ -815,7 +816,8 @@ function Invoke-CloudDevicesCleanup {
         $reportScopeConfiguration['Separate Autopilot join types'] = @($autopilotRemovalIncludeJoinType) -join ', '
         $reportScopeConfiguration['Separate Autopilot included OS'] = @($autopilotRemovalIncludeOperatingSystem) -join ', '
     }
-    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    $reportCandidates = @($devicesToRetire) + @($devicesToDisable) + @($devicesToStageForDelete) + @($devicesToDelete) + @($devicesToRemoveAutopilotIdentity)
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -CandidateDevices $reportCandidates -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 

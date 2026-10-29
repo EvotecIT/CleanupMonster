@@ -33,7 +33,7 @@ Build-Module -ModuleName 'CleanupMonster' {
     New-ConfigurationManifest @Manifest
 
     New-ConfigurationModule -Type ApprovedModule -Name 'PSSharedGoods' -Guid Auto -Version 'Latest' -VersionSource PSGallery
-    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteHTML' -Guid Auto -Version Latest -VersionSource PSGallery
+    New-ConfigurationModule -Type RequiredModule -Name 'PSWriteHTML' -Guid Auto -Version '1.42.0' -VersionSource PSGallery
     New-ConfigurationModule -Type RequiredModule -Name 'PSEventViewer' -Guid Auto -Version '4.0.0' -VersionSource PSGallery
     New-ConfigurationModule -Type RequiredModule -Name 'ADEssentials' -Guid Auto -Version '1.0.7' -VersionSource PSGallery
     New-ConfigurationModule -Type ApprovedModule -Name 'PSWriteColor' -Guid '0b0ba5c5-ec85-4c2b-a718-874e55a8bc3f' -Version 'Latest' -VersionSource PSGallery

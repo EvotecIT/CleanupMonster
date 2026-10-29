@@ -9,6 +9,10 @@ Describe 'Cloud device HTML inventory overview' {
             Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
             . (Join-Path $RepositoryRoot 'Private/Write-CloudDeviceStatistics.ps1')
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
+            . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceReportRow.ps1')
+            . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceActionReportRow.ps1')
+            . (Join-Path $RepositoryRoot 'Private/Test-CloudDeviceReportIdentity.ps1')
+            . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceReportSelection.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLCloudDeviceInventoryOverview.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLProcessedCloudDevices.ps1')
             function Write-Color { param([object[]] $Text, [object[]] $Color, [string] $LogFile) }
@@ -21,8 +25,8 @@ Describe 'Cloud device HTML inventory overview' {
             $intune = Write-CloudDeviceStatistics -Label 'Intune seen' -Mode Intune -Devices @(
                 [pscustomobject] @{ OperatingSystem = 'macOS'; LastSeenDays = 210 }
             ) -PassThru
-            $scopeDevice = [pscustomobject] @{ Name = 'PC-01'; OperatingSystem = 'Windows'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 200; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed' }
-            $intuneOnlyDevice = [pscustomobject] @{ Name = 'TABLET-02'; OperatingSystem = 'Android'; Enabled = $null; HasEntraRecord = $false; EntraLastSeenDays = $null; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
+            $scopeDevice = [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-1'; ManagedDeviceId = 'intune-one'; DeviceId = 'shared-device-id'; OperatingSystem = 'Windows'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 200; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed' }
+            $intuneOnlyDevice = [pscustomobject] @{ Name = 'PC-01'; ManagedDeviceId = 'intune-unrelated'; DeviceId = 'shared-device-id'; OperatingSystem = 'Android'; Enabled = $null; HasEntraRecord = $false; EntraLastSeenDays = $null; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
             $scope = Write-CloudDeviceStatistics -Label 'Cleanup scope' -Mode Scoped -Devices @($scopeDevice, $intuneOnlyDevice) -PassThru
             $candidate = Write-CloudDeviceStatistics -Label 'Disable candidates' -Mode Candidates -Devices @($scopeDevice) -PassThru
             $autopilotDevice = [pscustomobject] @{ Name = 'AP-03'; OperatingSystem = 'Windows'; Enabled = $false; HasEntraRecord = $true; EntraLastSeenDays = 210; RecordState = 'Matched'; IntuneLinkState = 'Healthy'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
@@ -34,9 +38,14 @@ Describe 'Cloud device HTML inventory overview' {
                 Candidates = @($candidate); CandidateTotals = [ordered] @{ Disable = 1; Delete = 0 }
                 AutopilotScope = $autopilotScope; AutopilotEntra = $autopilotEntra; AutopilotIntune = $autopilotIntune
             }
-            $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1'; HasIntuneRecord = $false; OwnerDisplayName = @('Audit Owner'); OwnerUserPrincipalName = @('audit.owner@contoso.com'); IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null; IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'; ManagementAgent = $null }
+            $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1'; ManagedDeviceId = 'intune-one'; DeviceId = 'shared-device-id'; HasIntuneRecord = $false; OwnerDisplayName = @('Audit Owner'); OwnerUserPrincipalName = @('audit.owner@contoso.com'); IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null; IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'; ManagementAgent = $null }
             $autopilotPreview = [pscustomobject] @{ Name = 'AP-03'; Action = 'RemoveAutopilotIdentity'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Autopilot contact 210 days'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
-            $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{} }
+            $pending = $preview | Select-Object *
+            $pending.ActionStatus = 'True'
+            $pending.SelectionReason = 'Stored Entra age 180 >90; registration 680 >90'
+            $pending | Add-Member ActionNotes 'Disabled successfully'
+            $pending | Add-Member TimeOnPendingList 28
+            $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{ first = $pending } }
             $actionConfiguration = @(
                 [pscustomobject] @{ Name = 'Retire'; Enabled = $false; Mode = 'Live'; Limit = 10; Rules = [ordered] @{ LastSeenEntraMoreThan = 90 } }
                 [pscustomobject] @{ Name = 'Disable'; Enabled = $true; Mode = 'WhatIf'; Limit = 10; Rules = [ordered] @{ LastSeenEntraMoreThan = 90; IntuneStaleWhenPresentMoreThan = 90 } }
@@ -76,16 +85,30 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'Entra seen'
         $html | Should -Match 'Separate Autopilot removal query'
         $html | Should -Match 'Source and link state within this scope'
+        $html | Should -Match 'Stored Entra age 180'
+        $html | Should -Match 'Disabled successfully'
         $html | Should -Match 'WhatIf preview'
         $html | Should -Match 'Entra age 200 days'
-        $html | Should -Match 'Registered owner'
         $html | Should -Match 'audit.owner@contoso.com'
-        $html | Should -Match 'No Intune record'
         $html | Should -Match '0000000a-0000-0000-c000-000000000000'
+        $html | Should -Match 'No Intune record'
         $html | Should -Match 'Activity unknown'
         $html | Should -Match 'No Entra record'
         $html | Should -Match 'autopilot-identity-03'
         $html | Should -Match 'Autopilot removal only'
+        $inventoryOptions = [regex]::Match($html, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
+        $inventoryConfiguration = $inventoryOptions.Groups[1].Value | ConvertFrom-Json
+        $inventory = $inventoryConfiguration.data
+        $inventoryConfiguration.stateSave | Should -BeFalse
+        $primary = $inventory | Where-Object 'Entra object ID' -eq 'entra-1'
+        $unrelated = $inventory | Where-Object 'Intune device ID' -eq 'intune-unrelated'
+        $autopilot = $inventory | Where-Object 'Autopilot identity ID' -eq 'autopilot-identity-03'
+        $primary.'Recorded actions this run' | Should -Be 'Disable: WhatIf'
+        $unrelated.Device | Should -Be $primary.Device
+        $unrelated.'Recorded actions this run' | Should -Be ''
+        $autopilot.'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity: WhatIf'
+        @($inventory).Count | Should -Be 3
+        $html | Should -Match 'All 3 inventory records are included and searchable'
         $html | Should -Not -Match 'No action history has been recorded yet'
         $html | Should -Not -Match 'Entra records by OS'
     }
