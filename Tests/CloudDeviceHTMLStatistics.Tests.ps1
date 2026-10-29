@@ -11,6 +11,7 @@ Describe 'Cloud device HTML inventory overview' {
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
             . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceReportRow.ps1')
             . (Join-Path $RepositoryRoot 'Private/Test-CloudDeviceReportIdentity.ps1')
+            . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceReportSelection.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLCloudDeviceInventoryOverview.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLProcessedCloudDevices.ps1')
             function Write-Color { param([object[]] $Text, [object[]] $Color, [string] $LogFile) }
@@ -46,6 +47,7 @@ Describe 'Cloud device HTML inventory overview' {
             )
             $scopeConfiguration = [ordered] @{ 'Join types' = 'AzureAD registered'; 'Included OS' = 'Windows, Android'; 'Excluded OS' = 'macOS' }
             New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath $FilePath
+            New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -ReportDeviceLimit 2 -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath ($FilePath + '.limited.html')
         } -ArgumentList $root, $reportPath
 
         try {
@@ -90,11 +92,22 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'Autopilot removal only'
         $inventoryOptions = [regex]::Match($html, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
         $inventory = ($inventoryOptions.Groups[1].Value | ConvertFrom-Json).data
-        $inventory[0].'Recorded actions this run' | Should -Be 'Disable'
-        $inventory[0].'Why selected this run' | Should -Match 'Entra age 200 days'
-        $inventory[1].Device | Should -Be $inventory[0].Device
-        $inventory[1].'Recorded actions this run' | Should -Be 'None recorded'
-        $inventory[2].'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity'
+        $primary = $inventory | Where-Object 'Entra object ID' -eq 'entra-1'
+        $unrelated = $inventory | Where-Object 'Intune device ID' -eq 'intune-unrelated'
+        $autopilot = $inventory | Where-Object 'Autopilot identity ID' -eq 'autopilot-identity-03'
+        $primary.'Recorded actions this run' | Should -Be 'Disable'
+        $primary.'Why selected this run' | Should -Match 'Entra age 200 days'
+        $primary.'Review selection' | Should -Be 'Current run'
+        $unrelated.Device | Should -Be $primary.Device
+        $unrelated.'Recorded actions this run' | Should -Be 'None recorded'
+        $autopilot.'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity'
+        $limitedHtml = Get-Content -LiteralPath ($reportPath + '.limited.html') -Raw
+        $limitedOptions = [regex]::Match($limitedHtml, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
+        $limitedInventory = ($limitedOptions.Groups[1].Value | ConvertFrom-Json).data
+        @($limitedInventory).Count | Should -Be 2
+        $limitedInventory.'Recorded actions this run' | Should -Not -Contain 'None recorded'
+        $limitedHtml | Should -Match 'Showing 2 of 3 inventory records'
+        $limitedHtml | Should -Match 'overview counts still cover the full inventory'
         $html | Should -Not -Match 'No action history has been recorded yet'
         $html | Should -Not -Match 'Entra records by OS'
     }

@@ -10,6 +10,7 @@ function ConvertTo-CloudDeviceReportRow {
     param(
         [Parameter(Mandatory)] [psobject] $Device,
         [Parameter(Mandatory)] [string] $Scope,
+        [string] $ReviewSelection = 'Inventory context',
         [Array] $CurrentActions = @(),
         [psobject] $PendingAction
     )
@@ -31,6 +32,7 @@ function ConvertTo-CloudDeviceReportRow {
     [pscustomobject] [ordered] @{
         Device = $Device.Name
         Scope = $Scope
+        'Review selection' = $ReviewSelection
         OS = $Device.OperatingSystem
         Source = $Device.RecordState
         Enabled = & $value 'Enabled'

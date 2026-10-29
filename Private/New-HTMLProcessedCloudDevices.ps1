@@ -4,6 +4,8 @@ function New-HTMLProcessedCloudDevices {
         [Parameter(Mandatory)] [System.Collections.IDictionary] $Export,
         [Parameter(Mandatory)] [Array] $Devices,
         [int] $PrimaryDeviceCount = -1,
+        [ValidateRange(1, 2147483647)] [int] $ReportDeviceLimit = 500,
+        [Array] $CandidateDevices = @(),
         [System.Collections.IDictionary] $Statistics,
         [Parameter(Mandatory)] [Array] $ActionConfiguration,
         [Parameter(Mandatory)] [System.Collections.IDictionary] $ScopeConfiguration,
@@ -72,51 +74,11 @@ function New-HTMLProcessedCloudDevices {
         }
     )
     $primaryCount = if ($PrimaryDeviceCount -ge 0) { $PrimaryDeviceCount } else { $Devices.Count }
-    $actionsByIdentity = @{}
-    $pendingByIdentity = @{}
-    foreach ($recordSet in @(
-            @{ Records = @($Export.CurrentRun); Index = $actionsByIdentity },
-            @{ Records = @($Export.PendingActions.Values); Index = $pendingByIdentity }
-        )) {
-        foreach ($record in $recordSet.Records) {
-            foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
-                if ([string]::IsNullOrWhiteSpace([string] $record.$identity)) { continue }
-                $identityGuid = [guid]::Empty
-                if ([guid]::TryParse([string] $record.$identity, [ref] $identityGuid) -and $identityGuid -eq [guid]::Empty) { continue }
-                $key = '{0}:{1}' -f $identity, $record.$identity
-                if (-not $recordSet.Index.ContainsKey($key)) {
-                    $recordSet.Index[$key] = [System.Collections.Generic.List[object]]::new()
-                }
-                $recordSet.Index[$key].Add($record)
-            }
-        }
-    }
+    $reviewSelection = @(Get-CloudDeviceReportSelection -Devices $Devices -Export $Export -CandidateDevices $CandidateDevices -Limit $ReportDeviceLimit)
     $deviceRows = @(
-        for ($deviceIndex = 0; $deviceIndex -lt $Devices.Count; $deviceIndex++) {
-            $device = $Devices[$deviceIndex]
-            $currentActions = [System.Collections.Generic.HashSet[object]]::new()
-            $pendingAction = $null
-            foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
-                if (-not $device.$identity) { continue }
-                $key = '{0}:{1}' -f $identity, $device.$identity
-                if ($actionsByIdentity.ContainsKey($key)) {
-                    foreach ($record in $actionsByIdentity[$key]) {
-                        if (Test-CloudDeviceReportIdentity -Device $device -Record $record) {
-                            $null = $currentActions.Add($record)
-                        }
-                    }
-                }
-                if (-not $pendingAction -and $pendingByIdentity.ContainsKey($key)) {
-                    foreach ($record in $pendingByIdentity[$key]) {
-                        if (Test-CloudDeviceReportIdentity -Device $device -Record $record) {
-                            $pendingAction = $record
-                            break
-                        }
-                    }
-                }
-            }
-            $scope = if ($deviceIndex -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
-            ConvertTo-CloudDeviceReportRow -Device $device -Scope $scope -CurrentActions @($currentActions) -PendingAction $pendingAction
+        foreach ($selected in $reviewSelection) {
+            $scope = if ($selected.Index -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
+            ConvertTo-CloudDeviceReportRow -Device $selected.Device -Scope $scope -CurrentActions $selected.CurrentActions -PendingAction $selected.PendingAction -ReviewSelection $selected.Reason
         }
     )
     $enabledActions = @($ActionConfiguration | Where-Object { $_.Enabled })
@@ -260,8 +222,9 @@ function New-HTMLProcessedCloudDevices {
         }
 
         New-HTMLTab -Name 'Devices' {
-            New-HTMLSection -HeaderText 'Devices returned for reporting' -Direction column {
-                New-HTMLText -Text 'The primary cleanup inventory appears first. A separate Autopilot removal query can add rows; those rows are marked Autopilot removal only. A primary row can also match the Autopilot query. This is inventory context, not an action list.'
+            New-HTMLSection -HeaderText 'Device review sample' -Direction column {
+                New-HTMLText -Text ('Showing {0:N0} of {1:N0} inventory records. Detail limit: {2:N0}. Search in this table covers only the displayed sample; the overview counts still cover the full inventory.' -f $deviceRows.Count, $Devices.Count, $ReportDeviceLimit)
+                New-HTMLText -Text 'Current-run devices come first, then pending actions, actual rule candidates, and an inventory sample. Older recorded activity comes first within each group. A separate Autopilot removal query can add rows marked Autopilot removal only. Review selection explains why a row is included; it is not a deletion approval.'
                 New-HTMLText -Text 'Expand a device row for activity dates, registration, ownership, matching and duplicate-protection facts, Autopilot context, and recorded action reasons. None recorded does not mean eligible or safe to delete: limits, confirmation and action rules still apply. Entra records must be disabled before the Delete stage can select them. Check Rules and the recorded action results before approving removal.'
                 if ($deviceRows.Count -gt 0) {
                     New-HTMLTable -DataTable $deviceRows -DataTableID 'cloud-device-inventory' -HideButtons -HideFooter -PagingLength 25 {
