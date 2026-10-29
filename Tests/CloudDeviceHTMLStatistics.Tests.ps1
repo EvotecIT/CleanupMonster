@@ -10,6 +10,7 @@ Describe 'Cloud device HTML inventory overview' {
             . (Join-Path $RepositoryRoot 'Private/Write-CloudDeviceStatistics.ps1')
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
             . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceReportRow.ps1')
+            . (Join-Path $RepositoryRoot 'Private/Test-CloudDeviceReportIdentity.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLCloudDeviceInventoryOverview.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLProcessedCloudDevices.ps1')
             function Write-Color { param([object[]] $Text, [object[]] $Color, [string] $LogFile) }
@@ -22,8 +23,8 @@ Describe 'Cloud device HTML inventory overview' {
             $intune = Write-CloudDeviceStatistics -Label 'Intune seen' -Mode Intune -Devices @(
                 [pscustomobject] @{ OperatingSystem = 'macOS'; LastSeenDays = 210 }
             ) -PassThru
-            $scopeDevice = [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-1'; OperatingSystem = 'Windows'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 200; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed' }
-            $intuneOnlyDevice = [pscustomobject] @{ Name = 'PC-01'; ManagedDeviceId = 'intune-unrelated'; OperatingSystem = 'Android'; Enabled = $null; HasEntraRecord = $false; EntraLastSeenDays = $null; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
+            $scopeDevice = [pscustomobject] @{ Name = 'PC-01'; EntraDeviceObjectId = 'entra-1'; ManagedDeviceId = 'intune-one'; DeviceId = 'shared-device-id'; OperatingSystem = 'Windows'; Enabled = $true; HasEntraRecord = $true; EntraLastSeenDays = 200; RecordState = 'EntraOnly'; IntuneLinkState = 'NotClaimed' }
+            $intuneOnlyDevice = [pscustomobject] @{ Name = 'PC-01'; ManagedDeviceId = 'intune-unrelated'; DeviceId = 'shared-device-id'; OperatingSystem = 'Android'; Enabled = $null; HasEntraRecord = $false; EntraLastSeenDays = $null; RecordState = 'IntuneOnly'; IntuneLinkState = 'IntuneOnly' }
             $scope = Write-CloudDeviceStatistics -Label 'Cleanup scope' -Mode Scoped -Devices @($scopeDevice, $intuneOnlyDevice) -PassThru
             $candidate = Write-CloudDeviceStatistics -Label 'Disable candidates' -Mode Candidates -Devices @($scopeDevice) -PassThru
             $autopilotDevice = [pscustomobject] @{ Name = 'AP-03'; OperatingSystem = 'Windows'; Enabled = $false; HasEntraRecord = $true; EntraLastSeenDays = 210; RecordState = 'Matched'; IntuneLinkState = 'Healthy'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
@@ -35,7 +36,7 @@ Describe 'Cloud device HTML inventory overview' {
                 Candidates = @($candidate); CandidateTotals = [ordered] @{ Disable = 1; Delete = 0 }
                 AutopilotScope = $autopilotScope; AutopilotEntra = $autopilotEntra; AutopilotIntune = $autopilotIntune
             }
-            $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1'; HasIntuneRecord = $false; OwnerDisplayName = @('Audit Owner'); OwnerUserPrincipalName = @('audit.owner@contoso.com'); IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null; IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'; ManagementAgent = $null }
+            $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1'; ManagedDeviceId = 'intune-one'; DeviceId = 'shared-device-id'; HasIntuneRecord = $false; OwnerDisplayName = @('Audit Owner'); OwnerUserPrincipalName = @('audit.owner@contoso.com'); IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null; IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'; ManagementAgent = $null }
             $autopilotPreview = [pscustomobject] @{ Name = 'AP-03'; Action = 'RemoveAutopilotIdentity'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Autopilot contact 210 days'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
             $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{} }
             $actionConfiguration = @(

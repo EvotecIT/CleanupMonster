@@ -1,9 +1,20 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot '../Private/Get-CloudDeviceAuditContext.ps1')
     . (Join-Path $PSScriptRoot '../Private/ConvertTo-CloudDeviceReportRow.ps1')
+    . (Join-Path $PSScriptRoot '../Private/Test-CloudDeviceReportIdentity.ps1')
 }
 
 Describe 'Cloud device review context' {
+    It 'rejects shared Azure aliases when target records conflict and rejects empty GUID aliases' {
+        $record = [pscustomobject]@{ ManagedDeviceId = 'intune-one'; DeviceId = '00000000-0000-0000-0000-000000000001' }
+        $other = [pscustomobject]@{ ManagedDeviceId = 'intune-two'; DeviceId = $record.DeviceId }
+        Test-CloudDeviceReportIdentity -Device $other -Record $record | Should -BeFalse
+        Test-CloudDeviceReportIdentity -Device $record -Record $record | Should -BeTrue
+        $empty = [pscustomobject]@{ DeviceId = '00000000-0000-0000-0000-000000000000' }
+        Test-CloudDeviceReportIdentity -Device $empty -Record $empty | Should -BeFalse
+        Test-CloudDeviceReportIdentity -Device ([pscustomobject]@{Name='Same'}) -Record ([pscustomobject]@{Name='Same'}) | Should -BeFalse
+    }
+
     It 'preserves zero ages and false flags while distinguishing missing and unknown facts' {
         $device = [pscustomobject]@{
             Name = 'Recent'

@@ -80,7 +80,9 @@ function New-HTMLProcessedCloudDevices {
         )) {
         foreach ($record in $recordSet.Records) {
             foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
-                if (-not $record.$identity) { continue }
+                if ([string]::IsNullOrWhiteSpace([string] $record.$identity)) { continue }
+                $identityGuid = [guid]::Empty
+                if ([guid]::TryParse([string] $record.$identity, [ref] $identityGuid) -and $identityGuid -eq [guid]::Empty) { continue }
                 $key = '{0}:{1}' -f $identity, $record.$identity
                 if (-not $recordSet.Index.ContainsKey($key)) {
                     $recordSet.Index[$key] = [System.Collections.Generic.List[object]]::new()
@@ -92,20 +94,29 @@ function New-HTMLProcessedCloudDevices {
     $deviceRows = @(
         for ($deviceIndex = 0; $deviceIndex -lt $Devices.Count; $deviceIndex++) {
             $device = $Devices[$deviceIndex]
-            $currentActions = @()
+            $currentActions = [System.Collections.Generic.HashSet[object]]::new()
             $pendingAction = $null
             foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
                 if (-not $device.$identity) { continue }
                 $key = '{0}:{1}' -f $identity, $device.$identity
-                if ($currentActions.Count -eq 0 -and $actionsByIdentity.ContainsKey($key)) {
-                    $currentActions = $actionsByIdentity[$key].ToArray()
+                if ($actionsByIdentity.ContainsKey($key)) {
+                    foreach ($record in $actionsByIdentity[$key]) {
+                        if (Test-CloudDeviceReportIdentity -Device $device -Record $record) {
+                            $null = $currentActions.Add($record)
+                        }
+                    }
                 }
                 if (-not $pendingAction -and $pendingByIdentity.ContainsKey($key)) {
-                    $pendingAction = $pendingByIdentity[$key][0]
+                    foreach ($record in $pendingByIdentity[$key]) {
+                        if (Test-CloudDeviceReportIdentity -Device $device -Record $record) {
+                            $pendingAction = $record
+                            break
+                        }
+                    }
                 }
             }
             $scope = if ($deviceIndex -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
-            ConvertTo-CloudDeviceReportRow -Device $device -Scope $scope -CurrentActions $currentActions -PendingAction $pendingAction
+            ConvertTo-CloudDeviceReportRow -Device $device -Scope $scope -CurrentActions @($currentActions) -PendingAction $pendingAction
         }
     )
     $enabledActions = @($ActionConfiguration | Where-Object { $_.Enabled })
@@ -255,7 +266,6 @@ function New-HTMLProcessedCloudDevices {
                 if ($deviceRows.Count -gt 0) {
                     New-HTMLTable -DataTable $deviceRows -DataTableID 'cloud-device-inventory' -HideButtons -HideFooter -PagingLength 25 {
                         New-HTMLTableHeader -Names 'Device', 'Scope', 'OS', 'Enabled' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run' -ResponsiveOperations not-mobile
                         $detailColumns = @($deviceRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Scope', 'OS', 'Enabled', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run') })
                         New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none
                     }
