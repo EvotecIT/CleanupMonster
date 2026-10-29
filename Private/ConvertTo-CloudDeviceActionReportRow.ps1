@@ -50,6 +50,7 @@ function ConvertTo-CloudDeviceActionReportRow {
         'Intune link' = & $value 'IntuneLinkState'
         'Ambiguous Intune match' = & $value 'IntuneMatchAmbiguous'
         'Duplicate protection' = & $value 'PreserveDuplicateNameGroup'
+        'Registered owner' = $audit.RegisteredOwner
         'Owner UPN' = $audit.RegisteredOwnerUPN
         'Intune user UPN' = $audit.IntuneUserUPN
         'Autopilot contact age (days)' = & $value 'AutopilotLastContactedDays'
@@ -59,8 +60,13 @@ function ConvertTo-CloudDeviceActionReportRow {
         'Intune device ID' = $Record.ManagedDeviceId
         'Autopilot identity ID' = $Record.AutopilotDeviceId
         'Autopilot serial' = $Record.AutopilotSerialNumber
+        'Autopilot resource' = $Record.AutopilotResourceName
         'Entra compliant' = $audit.EntraCompliant
         'Intune compliance' = $audit.IntuneCompliance
+        'Entra managed' = $audit.EntraManaged
+        'Entra management type' = $audit.EntraManagementType
+        'MDM app ID' = $audit.MdmAppId
+        'Intune management agent' = $audit.IntuneManagementAgent
     }
     if ($Pending) {
         $row['Days pending'] = & $value 'TimeOnPendingList'

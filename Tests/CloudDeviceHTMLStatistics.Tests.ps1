@@ -90,6 +90,7 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'WhatIf preview'
         $html | Should -Match 'Entra age 200 days'
         $html | Should -Match 'audit.owner@contoso.com'
+        $html | Should -Match '0000000a-0000-0000-c000-000000000000'
         $html | Should -Match 'No Intune record'
         $html | Should -Match 'Activity unknown'
         $html | Should -Match 'No Entra record'
