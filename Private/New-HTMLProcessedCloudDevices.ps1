@@ -227,7 +227,7 @@ function New-HTMLProcessedCloudDevices {
                 New-HTMLText -Text 'Current-run devices come first, then pending actions, actual rule candidates, and an inventory sample. Older recorded activity comes first within each group. A separate Autopilot removal query can add rows marked Autopilot removal only. Review selection explains why a row is included; it is not a deletion approval.'
                 New-HTMLText -Text 'Expand a device row for activity dates, registration, ownership, matching and duplicate-protection facts, Autopilot context, and recorded action reasons. None recorded does not mean eligible or safe to delete: limits, confirmation and action rules still apply. Entra records must be disabled before the Delete stage can select them. Check Rules and the recorded action results before approving removal.'
                 if ($deviceRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $deviceRows -DataTableID 'cloud-device-inventory' -HideButtons -HideFooter -PagingLength 25 {
+                    New-HTMLTable -DataTable $deviceRows -DataTableID 'cloud-device-inventory' -DisableStateSave -HideButtons -HideFooter -PagingLength 25 {
                         New-HTMLTableHeader -Names 'Device', 'Scope', 'OS', 'Enabled' -ResponsiveOperations all
                         $detailColumns = @($deviceRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Scope', 'OS', 'Enabled', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run') })
                         New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none

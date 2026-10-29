@@ -91,7 +91,9 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'autopilot-identity-03'
         $html | Should -Match 'Autopilot removal only'
         $inventoryOptions = [regex]::Match($html, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
-        $inventory = ($inventoryOptions.Groups[1].Value | ConvertFrom-Json).data
+        $inventoryConfiguration = $inventoryOptions.Groups[1].Value | ConvertFrom-Json
+        $inventory = $inventoryConfiguration.data
+        $inventoryConfiguration.stateSave | Should -BeFalse
         $primary = $inventory | Where-Object 'Entra object ID' -eq 'entra-1'
         $unrelated = $inventory | Where-Object 'Intune device ID' -eq 'intune-unrelated'
         $autopilot = $inventory | Where-Object 'Autopilot identity ID' -eq 'autopilot-identity-03'
