@@ -10,7 +10,7 @@ function ConvertTo-CloudDeviceReportRow {
     param(
         [Parameter(Mandatory)] [psobject] $Device,
         [Parameter(Mandatory)] [string] $Scope,
-        [string] $ReviewSelection = 'Inventory context',
+        [Array] $Candidates = @(),
         [Array] $CurrentActions = @(),
         [psobject] $PendingAction
     )
@@ -28,11 +28,9 @@ function ConvertTo-CloudDeviceReportRow {
         if ($property.Value -is [array]) { return $property.Value -join ', ' }
         $property.Value
     }
-    $audit = Get-CloudDeviceAuditContext -Device $Device
-    [pscustomobject] [ordered] @{
+    [pscustomobject] @{
         Device = $Device.Name
         Scope = $Scope
-        'Review selection' = $ReviewSelection
         OS = $Device.OperatingSystem
         Source = $Device.RecordState
         Enabled = & $value 'Enabled'
@@ -40,48 +38,17 @@ function ConvertTo-CloudDeviceReportRow {
         'Intune age (days)' = & $value 'IntuneLastSeenDays'
         'Registration age (days)' = & $value 'RegisteredDays'
         'Intune link' = & $value 'IntuneLinkState'
-        'Recorded actions this run' = if ($CurrentActions.Count) { ($CurrentActions.Action | Select-Object -Unique) -join ', ' } else { 'None recorded' }
-        'Why selected this run' = if ($CurrentActions.Count) { ($CurrentActions | ForEach-Object { '{0}: {1}' -f $_.Action, $_.SelectionReason }) -join '; ' } else { 'No action recorded; see Rules for selection settings' }
-        'Action outcomes this run' = ($CurrentActions | ForEach-Object { '{0}: {1}' -f $_.Action, $_.ActionStatus }) -join '; '
-        'Action results this run' = ($CurrentActions | ForEach-Object { $_.ActionNotes } | Where-Object { $_ }) -join '; '
-        'Pending action' = if ($PendingAction) { $PendingAction.Action } else { 'None recorded' }
-        'Pending since' = if ($PendingAction -and $PendingAction.ActionDate) { ([datetime] $PendingAction.ActionDate).ToString('yyyy-MM-dd HH:mm') } else { 'Not applicable' }
-        'Days pending' = if ($PendingAction) { $PendingAction.TimeOnPendingList } else { 'Not applicable' }
-        'Entra last activity' = & $value 'EntraLastSeen'
-        'Intune last sync' = & $value 'IntuneLastSeen'
-        'Registered on' = & $value 'FirstSeen'
-        'Entra registration age (days)' = & $value 'EntraRegisteredDays'
-        'Intune registration age (days)' = & $value 'IntuneRegisteredDays'
+        'Selected actions' = ($Candidates.Action | Select-Object -Unique) -join ', '
+        'Selection reasons' = ($Candidates | ForEach-Object { '{0}: {1}' -f $_.Action, $_.SelectionReason }) -join '; '
+        'Recorded actions this run' = ($CurrentActions | ForEach-Object { '{0}: {1}' -f $_.Action, $_.ActionStatus }) -join '; '
+        'Pending action' = if ($PendingAction) { $PendingAction.Action } else { '' }
         'Join type' = & $value 'TrustType'
-        'OS version' = & $value 'OperatingSystemVersion'
-        'Has Entra record' = & $value 'HasEntraRecord'
-        'Has Intune record' = & $value 'HasIntuneRecord'
         'Ambiguous Intune match' = & $value 'IntuneMatchAmbiguous'
-        'Duplicate name count' = & $value 'DuplicateNameCount'
-        'Duplicate protection group' = & $value 'PreserveDuplicateNameGroup'
-        'Duplicate protection reason' = & $value 'DuplicateNameProtectionReason' 'None'
-        'Duplicate join types' = & $value 'DuplicateNameJoinTypes' 'None'
-        'Registered owner' = $audit.RegisteredOwner
-        'Owner UPN' = $audit.RegisteredOwnerUPN
-        'Intune user UPN' = $audit.IntuneUserUPN
-        'Ownership type' = & $value 'ManagedDeviceOwnerType'
-        'Entra compliant' = $audit.EntraCompliant
-        'Intune compliance' = $audit.IntuneCompliance
-        'Entra managed' = $audit.EntraManaged
-        'Entra management type' = $audit.EntraManagementType
-        'MDM app ID' = $audit.MdmAppId
-        'Intune management agent' = $audit.IntuneManagementAgent
-        'Enrollment type' = & $value 'EnrollmentType'
-        'Intune enrollment type' = & $value 'DeviceEnrollmentType'
-        'Device registration state' = & $value 'DeviceRegistrationState'
-        'Autopilot inventory loaded' = & $value 'AutopilotInventoryLoaded'
+        'Duplicate protection' = & $value 'PreserveDuplicateNameGroup'
+        'Owner UPN' = & $value 'OwnerUserPrincipalName' ''
+        'Intune user UPN' = & $value 'IntuneUserPrincipalName' ''
         'Ambiguous Autopilot match' = & $value 'AutopilotMatchAmbiguous'
-        'Autopilot onboarded' = & $value 'AutopilotOnboarded'
-        'Autopilot last contact' = & $value 'AutopilotLastContacted'
         'Autopilot contact age (days)' = & $value 'AutopilotLastContactedDays'
-        'Autopilot group tag' = & $value 'AutopilotGroupTag' 'None'
-        'Autopilot enrollment state' = & $value 'AutopilotEnrollmentState'
-        'Autopilot serial' = & $value 'AutopilotSerialNumber'
         'Entra object ID' = $Device.EntraDeviceObjectId
         'Entra device ID' = $Device.DeviceId
         'Intune device ID' = $Device.ManagedDeviceId

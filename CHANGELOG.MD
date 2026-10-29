@@ -1,4 +1,11 @@
-﻿### 3.1.22 - 2026.09.27
+### Unreleased
+
+- Keep every scoped cloud device searchable in one standalone HTML report, with focused activity, registration, ownership, matching, protection and target-identity fields.
+- Show selected actions and their rule reasons before action limits, separately from recorded attempts. Match records by target identifiers rather than device names.
+- Include saved action-time decision evidence in Current Run, History and Pending Actions. Preserve full normalized action snapshots in the XML datastore and label fields missing from older snapshots.
+- Expand cloud inventory summaries by default and wrap expandable details at wide and compact report widths.
+
+### 3.1.22 - 2026.09.27
 
 - Use compact PSWriteHTML email summary and result tables for AD computers, cloud devices, service accounts, and SID history, with outcomes, selection reasons, notes, and configured limits.
 - Separate completed actions from WhatIf previews, report-only candidates, confirmation skips, failures, and partial results. Report actual staging and AD move limit stops and keep service-account limits separate per domain.

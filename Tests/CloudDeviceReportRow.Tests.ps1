@@ -2,6 +2,7 @@ BeforeAll {
     . (Join-Path $PSScriptRoot '../Private/Get-CloudDeviceAuditContext.ps1')
     . (Join-Path $PSScriptRoot '../Private/ConvertTo-CloudDeviceReportRow.ps1')
     . (Join-Path $PSScriptRoot '../Private/Test-CloudDeviceReportIdentity.ps1')
+    . (Join-Path $PSScriptRoot '../Private/ConvertTo-CloudDeviceActionReportRow.ps1')
 }
 
 Describe 'Cloud device review context' {
@@ -32,11 +33,10 @@ Describe 'Cloud device review context' {
         $row.'Entra age (days)' | Should -Be 0
         $row.'Registration age (days)' | Should -Be 0
         $row.'Intune age (days)' | Should -Be 'Unknown'
-        $row.'Autopilot inventory loaded' | Should -Be 'Not captured'
+        $row.'Autopilot contact age (days)' | Should -Be 'Not captured'
         $row.'Ambiguous Intune match' | Should -Be 'No'
-        $row.'Intune compliance' | Should -Be 'No Intune record'
-        $row.'Recorded actions this run' | Should -Be 'None recorded'
-        $row.'Pending action' | Should -Be 'None recorded'
+        $row.'Recorded actions this run' | Should -Be ''
+        $row.'Pending action' | Should -Be ''
     }
 
     It 'shows recorded action reasons, pending timing, and protection facts without an eligibility verdict' {
@@ -56,15 +56,36 @@ Describe 'Cloud device review context' {
         }
         $current = @([pscustomobject]@{Action='Disable';ActionStatus='WhatIf';SelectionReason='Entra age > 90';ActionNotes='Preview only'})
         $pending = [pscustomobject]@{Action='Disable';ActionDate=[datetime]'2026-10-01';TimeOnPendingList=28}
-        $row = ConvertTo-CloudDeviceReportRow -Device $device -Scope 'Primary cleanup' -CurrentActions $current -PendingAction $pending
-        $row.'Why selected this run' | Should -Be 'Disable: Entra age > 90'
-        $row.'Action outcomes this run' | Should -Be 'Disable: WhatIf'
-        $row.'Days pending' | Should -Be 28
-        $row.'Pending since' | Should -Be '2026-10-01 00:00'
-        $row.'Duplicate protection group' | Should -Be 'Yes'
-        $row.'Duplicate protection reason' | Should -Be $device.DuplicateNameProtectionReason
+        $row = ConvertTo-CloudDeviceReportRow -Device $device -Scope 'Primary cleanup' -CurrentActions $current -PendingAction $pending -Candidates $current
+        $row.'Selection reasons' | Should -Be 'Disable: Entra age > 90'
+        $row.'Recorded actions this run' | Should -Be 'Disable: WhatIf'
+        $row.'Duplicate protection' | Should -Be 'Yes'
         $row.'Ambiguous Autopilot match' | Should -Be 'Yes'
         $row.'Owner UPN' | Should -Be 'review@example.test'
         $row.PSObject.Properties.Name | Should -Not -Contain 'Safe to delete'
+    }
+}
+
+Describe 'Cloud action snapshot report context' {
+    It 'preserves action-time facts and pending evidence without inventing fields absent from old snapshots' {
+        $record = [pscustomobject] @{
+            Name='Archived'; Action='Disable'; ActionStatus='True'; ActionDate=[datetime]'2026-10-01'
+            SelectionReason='Entra age 180 >90; registration 680 >90'; ActionNotes='Disabled successfully'
+            Enabled=$true; EntraLastSeenDays=180; RegisteredDays=680; TimeOnPendingList=28
+            EntraDeviceObjectId='old-object'; ManagedDeviceId='old-intune'; IsCompliant=$false
+        }
+        $row = ConvertTo-CloudDeviceActionReportRow -Record $record -Pending
+        $row.Outcome | Should -Be 'Completed'
+        $row.When | Should -Be '2026-10-01 00:00'
+        $row.'Days pending' | Should -Be 28
+        $row.'Why selected' | Should -Be $record.SelectionReason
+        $row.Result | Should -Be 'Disabled successfully'
+        $row.'Entra age (days)' | Should -Be 180
+        $row.'Registration age (days)' | Should -Be 680
+        $row.'Saved enabled state' | Should -BeTrue
+        $row.'Entra compliant' | Should -Be 'False'
+        $row.'Entra object ID' | Should -Be 'old-object'
+        $row.'Intune age (days)' | Should -Be 'Not captured'
+        $record.PSObject.Properties.Name | Should -Not -Contain 'IntuneLastSeenDays'
     }
 }

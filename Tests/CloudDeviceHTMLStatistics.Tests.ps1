@@ -10,6 +10,7 @@ Describe 'Cloud device HTML inventory overview' {
             . (Join-Path $RepositoryRoot 'Private/Write-CloudDeviceStatistics.ps1')
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
             . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceReportRow.ps1')
+            . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceActionReportRow.ps1')
             . (Join-Path $RepositoryRoot 'Private/Test-CloudDeviceReportIdentity.ps1')
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceReportSelection.ps1')
             . (Join-Path $RepositoryRoot 'Private/New-HTMLCloudDeviceInventoryOverview.ps1')
@@ -39,7 +40,12 @@ Describe 'Cloud device HTML inventory overview' {
             }
             $preview = [pscustomobject] @{ Name = 'PC-01'; Action = 'Disable'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Entra age 200 days'; EntraDeviceObjectId = 'entra-1'; ManagedDeviceId = 'intune-one'; DeviceId = 'shared-device-id'; HasIntuneRecord = $false; OwnerDisplayName = @('Audit Owner'); OwnerUserPrincipalName = @('audit.owner@contoso.com'); IntuneUserPrincipalName = $null; IsCompliant = $false; ComplianceState = $null; IsManaged = $true; ManagementType = 'mdm'; MdmAppId = '0000000a-0000-0000-c000-000000000000'; ManagementAgent = $null }
             $autopilotPreview = [pscustomobject] @{ Name = 'AP-03'; Action = 'RemoveAutopilotIdentity'; ActionStatus = 'WhatIf'; ActionDate = [datetime] '2026-09-25'; OperatingSystem = 'Windows'; SelectionReason = 'Autopilot contact 210 days'; AutopilotDeviceId = 'autopilot-identity-03'; AutopilotSerialNumber = 'SERIAL-03' }
-            $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{} }
+            $pending = $preview | Select-Object *
+            $pending.ActionStatus = 'True'
+            $pending.SelectionReason = 'Stored Entra age 180 >90; registration 680 >90'
+            $pending | Add-Member ActionNotes 'Disabled successfully'
+            $pending | Add-Member TimeOnPendingList 28
+            $export = [ordered] @{ Version = 'test'; CurrentRun = @($preview, $autopilotPreview); History = @($preview, $autopilotPreview); PendingActions = [ordered] @{ first = $pending } }
             $actionConfiguration = @(
                 [pscustomobject] @{ Name = 'Retire'; Enabled = $false; Mode = 'Live'; Limit = 10; Rules = [ordered] @{ LastSeenEntraMoreThan = 90 } }
                 [pscustomobject] @{ Name = 'Disable'; Enabled = $true; Mode = 'WhatIf'; Limit = 10; Rules = [ordered] @{ LastSeenEntraMoreThan = 90; IntuneStaleWhenPresentMoreThan = 90 } }
@@ -47,7 +53,6 @@ Describe 'Cloud device HTML inventory overview' {
             )
             $scopeConfiguration = [ordered] @{ 'Join types' = 'AzureAD registered'; 'Included OS' = 'Windows, Android'; 'Excluded OS' = 'macOS' }
             New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath $FilePath
-            New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -ReportDeviceLimit 2 -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath ($FilePath + '.limited.html')
         } -ArgumentList $root, $reportPath
 
         try {
@@ -80,12 +85,12 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'Entra seen'
         $html | Should -Match 'Separate Autopilot removal query'
         $html | Should -Match 'Source and link state within this scope'
+        $html | Should -Match 'Stored Entra age 180'
+        $html | Should -Match 'Disabled successfully'
         $html | Should -Match 'WhatIf preview'
         $html | Should -Match 'Entra age 200 days'
-        $html | Should -Match 'Registered owner'
         $html | Should -Match 'audit.owner@contoso.com'
         $html | Should -Match 'No Intune record'
-        $html | Should -Match '0000000a-0000-0000-c000-000000000000'
         $html | Should -Match 'Activity unknown'
         $html | Should -Match 'No Entra record'
         $html | Should -Match 'autopilot-identity-03'
@@ -97,19 +102,12 @@ Describe 'Cloud device HTML inventory overview' {
         $primary = $inventory | Where-Object 'Entra object ID' -eq 'entra-1'
         $unrelated = $inventory | Where-Object 'Intune device ID' -eq 'intune-unrelated'
         $autopilot = $inventory | Where-Object 'Autopilot identity ID' -eq 'autopilot-identity-03'
-        $primary.'Recorded actions this run' | Should -Be 'Disable'
-        $primary.'Why selected this run' | Should -Match 'Entra age 200 days'
-        $primary.'Review selection' | Should -Be 'Current run'
+        $primary.'Recorded actions this run' | Should -Be 'Disable: WhatIf'
         $unrelated.Device | Should -Be $primary.Device
-        $unrelated.'Recorded actions this run' | Should -Be 'None recorded'
-        $autopilot.'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity'
-        $limitedHtml = Get-Content -LiteralPath ($reportPath + '.limited.html') -Raw
-        $limitedOptions = [regex]::Match($limitedHtml, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
-        $limitedInventory = ($limitedOptions.Groups[1].Value | ConvertFrom-Json).data
-        @($limitedInventory).Count | Should -Be 2
-        $limitedInventory.'Recorded actions this run' | Should -Not -Contain 'None recorded'
-        $limitedHtml | Should -Match 'Showing 2 of 3 inventory records'
-        $limitedHtml | Should -Match 'overview counts still cover the full inventory'
+        $unrelated.'Recorded actions this run' | Should -Be ''
+        $autopilot.'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity: WhatIf'
+        @($inventory).Count | Should -Be 3
+        $html | Should -Match 'All 3 inventory records are included and searchable'
         $html | Should -Not -Match 'No action history has been recorded yet'
         $html | Should -Not -Match 'Entra records by OS'
     }

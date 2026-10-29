@@ -1,10 +1,9 @@
 function Get-CloudDeviceReportSelection {
     <#
     .SYNOPSIS
-    Selects a bounded review sample without changing cleanup eligibility or totals.
+    Correlates every inventory row with its recorded actions and rule candidates.
     .DESCRIPTION
-    Current-run records come first, then pending actions, actual rule candidates,
-    and inventory context. Within each group, older recorded activity comes first.
+    Preserves every input row and its order without changing cleanup eligibility.
     Stable target identifiers must agree; a shared display name or conflicting
     Intune target never makes another record part of the current run.
     #>
@@ -12,8 +11,7 @@ function Get-CloudDeviceReportSelection {
     param(
         [Parameter(Mandatory)] [AllowEmptyCollection()] [Array] $Devices,
         [Parameter(Mandatory)] [System.Collections.IDictionary] $Export,
-        [Array] $CandidateDevices = @(),
-        [ValidateRange(1, 2147483647)] [int] $Limit = 500
+        [Array] $CandidateDevices = @()
     )
 
     $actionsByIdentity = @{}
@@ -38,11 +36,11 @@ function Get-CloudDeviceReportSelection {
         }
     }
 
-    $review = for ($deviceIndex = 0; $deviceIndex -lt $Devices.Count; $deviceIndex++) {
+    for ($deviceIndex = 0; $deviceIndex -lt $Devices.Count; $deviceIndex++) {
         $device = $Devices[$deviceIndex]
         $currentActions = [System.Collections.Generic.HashSet[object]]::new()
         $pendingAction = $null
-        $candidate = $false
+        $candidates = [System.Collections.Generic.HashSet[object]]::new()
         foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
             if ([string]::IsNullOrWhiteSpace([string] $device.$identity)) { continue }
             $key = '{0}:{1}' -f $identity, $device.$identity
@@ -61,42 +59,20 @@ function Get-CloudDeviceReportSelection {
                     }
                 }
             }
-            if (-not $candidate -and $candidatesByIdentity.ContainsKey($key)) {
+            if ($candidatesByIdentity.ContainsKey($key)) {
                 foreach ($record in $candidatesByIdentity[$key]) {
                     if (Test-CloudDeviceReportIdentity -Device $device -Record $record) {
-                        $candidate = $true
-                        break
+                        $null = $candidates.Add($record)
                     }
                 }
             }
-        }
-        $priority = 3
-        $reason = 'Inventory sample'
-        if ($currentActions.Count) {
-            $priority = 0
-            $reason = 'Current run'
-        } elseif ($pendingAction) {
-            $priority = 1
-            $reason = 'Pending action'
-        } elseif ($candidate) {
-            $priority = 2
-            $reason = 'Rule candidate'
-        }
-        $activityAge = -1
-        if ($null -ne $device.EntraLastSeenDays) {
-            $activityAge = $device.EntraLastSeenDays
-        } elseif ($null -ne $device.IntuneLastSeenDays) {
-            $activityAge = $device.IntuneLastSeenDays
         }
         [pscustomobject] @{
             Device = $device
             Index = $deviceIndex
             CurrentActions = @($currentActions)
             PendingAction = $pendingAction
-            Priority = $priority
-            Reason = $reason
-            ActivityAge = $activityAge
+            Candidates = @($candidates)
         }
     }
-    $review | Sort-Object -Property @{ Expression = 'Priority'; Ascending = $true }, @{ Expression = 'ActivityAge'; Descending = $true }, @{ Expression = 'Index'; Ascending = $true } | Select-Object -First $Limit
 }

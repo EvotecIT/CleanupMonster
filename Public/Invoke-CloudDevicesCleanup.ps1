@@ -276,15 +276,9 @@ function Invoke-CloudDevicesCleanup {
     Uses CDN-hosted CSS and JavaScript assets for the HTML report, reducing report file size.
 
     .PARAMETER ReportPath
-    Path where the HTML report is written.
+    Path where the standalone HTML report is written. Includes all scoped inventory rows
+    with focused decision fields; full normalized action snapshots remain in DataStorePath.
     Defaults to ProcessedCloudDevices.html next to this function.
-
-    .PARAMETER ReportDeviceLimit
-    Maximum device detail rows embedded in the HTML report. Defaults to 500.
-    Current-run devices, pending actions and actual rule candidates are prioritized,
-    with older recorded activity first within each group. Overview totals still cover
-    the full inventory. Search in the Devices table covers only this review sample.
-    This reporting limit does not change action selection, action limits or saved state.
 
     .PARAMETER SafetyEntraLimit
     Stops processing if the Entra inventory count is below this value.
@@ -418,7 +412,6 @@ function Invoke-CloudDevicesCleanup {
         [switch] $ShowHTML,
         [switch] $Online,
         [string] $ReportPath,
-        [ValidateRange(1, 2147483647)] [int] $ReportDeviceLimit = 500,
         [nullable[int]] $SafetyEntraLimit,
         [nullable[int]] $SafetyIntuneLimit
     )
@@ -824,7 +817,7 @@ function Invoke-CloudDevicesCleanup {
         $reportScopeConfiguration['Separate Autopilot included OS'] = @($autopilotRemovalIncludeOperatingSystem) -join ', '
     }
     $reportCandidates = @($devicesToRetire) + @($devicesToDisable) + @($devicesToStageForDelete) + @($devicesToDelete) + @($devicesToRemoveAutopilotIdentity)
-    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -ReportDeviceLimit $ReportDeviceLimit -CandidateDevices $reportCandidates -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -CandidateDevices $reportCandidates -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 
