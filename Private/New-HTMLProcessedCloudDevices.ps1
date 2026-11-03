@@ -5,6 +5,7 @@ function New-HTMLProcessedCloudDevices {
         [Parameter(Mandatory)] [Array] $Devices,
         [int] $PrimaryDeviceCount = -1,
         [Array] $CandidateDevices = @(),
+        [System.Collections.IDictionary] $SelectionDecisions = @{},
         [System.Collections.IDictionary] $Statistics,
         [Parameter(Mandatory)] [Array] $ActionConfiguration,
         [Parameter(Mandatory)] [System.Collections.IDictionary] $ScopeConfiguration,
@@ -18,11 +19,11 @@ function New-HTMLProcessedCloudDevices {
     $historyRows = @($Export.History | ForEach-Object { ConvertTo-CloudDeviceActionReportRow -Record $_ })
     $pendingRows = @($Export.PendingActions.Values | ForEach-Object { ConvertTo-CloudDeviceActionReportRow -Record $_ -Pending })
     $primaryCount = if ($PrimaryDeviceCount -ge 0) { $PrimaryDeviceCount } else { $Devices.Count }
-    $reviewSelection = @(Get-CloudDeviceReportSelection -Devices $Devices -Export $Export -CandidateDevices $CandidateDevices)
+    $reviewSelection = @(Get-CloudDeviceReportSelection -Devices $Devices -Export $Export -CandidateDevices $CandidateDevices -SelectionDecisions $SelectionDecisions)
     $deviceRows = @(
         foreach ($selected in $reviewSelection) {
-            $scope = if ($selected.Index -lt $primaryCount) { 'Primary cleanup' } else { 'Autopilot removal only' }
-            ConvertTo-CloudDeviceReportRow -Device $selected.Device -Scope $scope -CurrentActions $selected.CurrentActions -PendingAction $selected.PendingAction -Candidates $selected.Candidates
+            $scope = if ($selected.Index -lt $primaryCount) { 'Main inventory' } else { 'Additional Autopilot inventory' }
+            ConvertTo-CloudDeviceReportRow -Device $selected.Device -Scope $scope -CurrentActions $selected.CurrentActions -PendingAction $selected.PendingAction -Candidates $selected.Candidates -Decisions $selected.Decisions
         }
     )
     $enabledActions = @($ActionConfiguration | Where-Object { $_.Enabled })
@@ -165,18 +166,25 @@ table.dataTable > tbody > tr.child .dtr-title { margin-right: 0.5rem; }
         }
 
         New-HTMLTab -Name 'Devices' {
-            New-HTMLSection -HeaderText 'Devices returned for reporting' -Direction column {
-                New-HTMLText -Text ('All {0:N0} inventory records are included and searchable. Expand a row for decision context and target IDs. Selected actions and reasons cover rule candidates before action limits; recorded actions show attempts made this run.' -f $deviceRows.Count)
-                New-HTMLText -Text 'This is current inventory, not a deletion approval. A blank action field means no matching record for that stage, not safe to delete. Check Rules, matching and duplicate protection, and the action-time evidence in Current Run, History or Pending Actions. A separate Autopilot removal query can add rows marked Autopilot removal only. Full normalized action snapshots remain in the XML datastore; this standalone HTML contains focused investigation fields.'
+            New-HTMLSection -HeaderText 'Device inventory and cleanup classification' -Direction column {
+                New-HTMLText -Text ('All {0:N0} inventory records are included and searchable. Classification and Reason explain the enabled rules before action limits, including candidates that were not attempted this run. Current Run shows attempts and previews.' -f $deviceRows.Count)
+                New-HTMLText -Text 'Reason shows the first unmet rule for each applicable stage; other requirements may also apply. Expand a row for all stage decisions, inventory source and target IDs. Main inventory and Additional Autopilot inventory identify the source query. Devices excluded by inventory filters are outside this table.'
                 if ($deviceRows.Count -gt 0) {
-                    New-HTMLTable -DataTable $deviceRows -WordBreak break-word -DataTableID 'cloud-device-inventory' -DisableStateSave -HideButtons -HideFooter -PagingLength 25 {
-                        New-HTMLTableHeader -Names 'Device', 'OS', 'Enabled' -ResponsiveOperations all
-                        New-HTMLTableHeader -Names 'Scope', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run' -ResponsiveOperations desktop
-                        $detailColumns = @($deviceRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Scope', 'OS', 'Enabled', 'Source', 'Entra age (days)', 'Intune age (days)', 'Registration age (days)', 'Intune link', 'Recorded actions this run') })
+                    $classificationCounts = @($deviceRows | Group-Object Classification | ForEach-Object {
+                        [pscustomobject] @{ Classification = $_.Name; Devices = $_.Count }
+                    })
+                    New-HTMLTable -DataTable $classificationCounts -HideButtons -HideFooter -DisableSearch -DisablePaging -DisableInfo -DisableOrdering
+                    New-HTMLTable -DataTable $deviceRows -WordBreak break-word -DisableAutoWidthOptimization -DataTableID 'cloud-device-inventory' -DisableStateSave -HideButtons -HideFooter -PagingLength 25 {
+                        New-HTMLTableColumnOption -ColumnIndex 0 -Width '150px'
+                        New-HTMLTableColumnOption -ColumnIndex 1 -Width '300px'
+                        New-HTMLTableColumnOption -ColumnIndex 2 -Width '420px'
+                        New-HTMLTableHeader -Names 'Device', 'Classification' -ResponsiveOperations all
+                        New-HTMLTableHeader -Names 'Reason', 'OS', 'Enabled', 'Entra age (days)', 'Intune age (days)', 'Recorded actions this run' -ResponsiveOperations desktop
+                        $detailColumns = @($deviceRows[0].PSObject.Properties.Name | Where-Object { $_ -notin @('Device', 'Classification', 'Reason', 'OS', 'Enabled', 'Entra age (days)', 'Intune age (days)', 'Recorded actions this run') })
                         New-HTMLTableHeader -Names $detailColumns -ResponsiveOperations none
                     }
                 } else {
-                    New-HTMLText -Text 'No devices entered cleanup scope.'
+                    New-HTMLText -Text 'No devices were returned within the configured inventory scope.'
                 }
             }
         }

@@ -5,6 +5,7 @@ BeforeAll {
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesRetire.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDisable.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesStageDelete.ps1')
+    . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceAlreadyPending.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesDelete.ps1')
     . (Get-CleanupMonsterPath 'Private/Request-CloudDevicesRemoveAutopilotIdentity.ps1')
 

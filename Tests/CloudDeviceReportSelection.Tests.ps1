@@ -29,13 +29,19 @@ Describe 'Complete cloud device report correlation' {
         $other = [pscustomobject] @{Name='Same';ManagedDeviceId='intune-two';DeviceId='shared'}
         $candidate = $current | Select-Object *
         $candidate.Action = 'Delete'
-        $rows = @(Get-CloudDeviceReportSelection -Devices @($other,$current) -Export @{CurrentRun=@($current);PendingActions=@{pending=$current}} -CandidateDevices @($candidate))
+        $decision = $current | Select-Object ManagedDeviceId, DeviceId, EntraDeviceObjectId
+        $decision | Add-Member Classification Protected
+        $decision | Add-Member Reason 'Duplicate-name protection'
+        $rows = @(Get-CloudDeviceReportSelection -Devices @($other,$current) -Export @{CurrentRun=@($current);PendingActions=@{pending=$current}} -CandidateDevices @($candidate) -SelectionDecisions @{Disable=@($decision)})
         $rows.Count | Should -Be 2
         $rows[0].CurrentActions.Count | Should -Be 0
         $rows[0].Candidates.Count | Should -Be 0
         $rows[0].PendingAction | Should -BeNullOrEmpty
+        $rows[0].Decisions.Count | Should -Be 0
         $rows[1].CurrentActions.Count | Should -Be 1
         $rows[1].Candidates.Count | Should -Be 1
         $rows[1].PendingAction.ManagedDeviceId | Should -Be 'intune-one'
+        $rows[1].Decisions.Count | Should -Be 1
+        $rows[1].Decisions[0].Reason | Should -Be 'Duplicate-name protection'
     }
 }

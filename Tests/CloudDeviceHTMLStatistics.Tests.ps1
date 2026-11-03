@@ -6,7 +6,7 @@ Describe 'Cloud device HTML inventory overview' {
             param($RepositoryRoot, $FilePath)
 
             $ErrorActionPreference = 'Stop'
-            Import-Module PSWriteHTML -MinimumVersion 1.41.0 -ErrorAction Stop
+            Import-Module PSWriteHTML -MinimumVersion 1.42.0 -ErrorAction Stop
             . (Join-Path $RepositoryRoot 'Private/Write-CloudDeviceStatistics.ps1')
             . (Join-Path $RepositoryRoot 'Private/Get-CloudDeviceAuditContext.ps1')
             . (Join-Path $RepositoryRoot 'Private/ConvertTo-CloudDeviceReportRow.ps1')
@@ -52,7 +52,13 @@ Describe 'Cloud device HTML inventory overview' {
                 [pscustomobject] @{ Name = 'Delete'; Enabled = $true; Mode = 'WhatIf'; Limit = 5; Rules = [ordered] @{ LastSeenEntraMoreThan = 180 } }
             )
             $scopeConfiguration = [ordered] @{ 'Join types' = 'AzureAD registered'; 'Included OS' = 'Windows, Android'; 'Excluded OS' = 'macOS' }
-            New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath $FilePath
+            $decisions = [ordered] @{ Disable = @([pscustomobject] @{
+                ManagedDeviceId = 'intune-unrelated'
+                DeviceId = 'shared-device-id'
+                Classification = 'Not required'
+                Reason = 'Intune inactivity is 16 days; requires more than 90 days.'
+            }) }
+            New-HTMLProcessedCloudDevices -Export $export -Devices @($scopeDevice, $intuneOnlyDevice, $autopilotDevice) -PrimaryDeviceCount 2 -CandidateDevices @($preview, $autopilotPreview) -SelectionDecisions $decisions -Statistics $statistics -ActionConfiguration $actionConfiguration -ScopeConfiguration $scopeConfiguration -FilePath $FilePath
         } -ArgumentList $root, $reportPath
 
         try {
@@ -95,7 +101,7 @@ Describe 'Cloud device HTML inventory overview' {
         $html | Should -Match 'Activity unknown'
         $html | Should -Match 'No Entra record'
         $html | Should -Match 'autopilot-identity-03'
-        $html | Should -Match 'Autopilot removal only'
+        $html | Should -Match 'Additional Autopilot inventory'
         $inventoryOptions = [regex]::Match($html, '(?s)\$\(''#cloud-device-inventory''\)\.DataTable\(\s*(\{.*?\})\s*\);')
         $inventoryConfiguration = $inventoryOptions.Groups[1].Value | ConvertFrom-Json
         $inventory = $inventoryConfiguration.data
@@ -104,9 +110,15 @@ Describe 'Cloud device HTML inventory overview' {
         $unrelated = $inventory | Where-Object 'Intune device ID' -eq 'intune-unrelated'
         $autopilot = $inventory | Where-Object 'Autopilot identity ID' -eq 'autopilot-identity-03'
         $primary.'Recorded actions this run' | Should -Be 'Disable: WhatIf'
+        $primary.Classification | Should -Be 'Disable candidate'
+        $primary.'Inventory source' | Should -Be 'Main inventory'
         $unrelated.Device | Should -Be $primary.Device
+        $unrelated.Classification | Should -Be 'Not required'
+        $unrelated.Reason | Should -Match 'Intune inactivity is 16 days'
         $unrelated.'Recorded actions this run' | Should -Be ''
         $autopilot.'Recorded actions this run' | Should -Be 'RemoveAutopilotIdentity: WhatIf'
+        $autopilot.Classification | Should -Be 'Remove Autopilot identity candidate'
+        $autopilot.'Inventory source' | Should -Be 'Additional Autopilot inventory'
         @($inventory).Count | Should -Be 3
         $html | Should -Match 'All 3 inventory records are included and searchable'
         $html | Should -Not -Match 'No action history has been recorded yet'

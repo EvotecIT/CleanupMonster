@@ -1,4 +1,5 @@
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Private/Test-CloudDeviceAlreadyPending.ps1')
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceAuditContext.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')

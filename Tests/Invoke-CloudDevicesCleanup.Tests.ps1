@@ -1,6 +1,8 @@
 BeforeAll {
     . "$PSScriptRoot\TestHelpers.ps1"
     . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceAuditContext.ps1')
+    . (Get-CleanupMonsterPath 'Private/Test-CloudDeviceAlreadyPending.ps1')
+    . (Get-CleanupMonsterPath 'Private/Get-CloudDeviceSelectionReason.ps1')
     . (Get-CleanupMonsterPath 'Private/Merge-CloudDeviceReportInventory.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceActionLog.ps1')
     . (Get-CleanupMonsterPath 'Private/Write-CloudDeviceStatistics.ps1')

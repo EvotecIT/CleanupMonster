@@ -1,4 +1,5 @@
 BeforeAll {
+    . (Join-Path $PSScriptRoot '../Private/Test-CloudDeviceAlreadyPending.ps1')
     . "$PSScriptRoot\TestHelpers.ps1"
     foreach ($helper in @('Get-ADComputerReportOutcome', 'Get-CloudDeviceAuditContext', 'Get-CleanupEmailActionOutcome', 'Get-CleanupEmailReport', 'Get-ADComputerEmailStageConfiguration', 'New-EmailBodyCleanup', 'New-EmailBodyCloudDevices', 'Request-CloudDevicesDelete', 'Request-CloudDevicesStageDelete')) {
         . (Get-CleanupMonsterPath "Private/$helper.ps1")

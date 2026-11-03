@@ -11,16 +11,28 @@ function Get-CloudDeviceReportSelection {
     param(
         [Parameter(Mandatory)] [AllowEmptyCollection()] [Array] $Devices,
         [Parameter(Mandatory)] [System.Collections.IDictionary] $Export,
-        [Array] $CandidateDevices = @()
+        [Array] $CandidateDevices = @(),
+        [System.Collections.IDictionary] $SelectionDecisions = @{}
     )
 
     $actionsByIdentity = @{}
     $pendingByIdentity = @{}
     $candidatesByIdentity = @{}
+    $decisionsByIdentity = @{}
+    $decisions = @(
+        foreach ($stage in $SelectionDecisions.Keys) {
+            foreach ($decision in $SelectionDecisions[$stage]) {
+                $record = $decision | Select-Object *
+                $record | Add-Member -NotePropertyName Action -NotePropertyValue $stage
+                $record
+            }
+        }
+    )
     foreach ($recordSet in @(
             @{ Records = @($Export.CurrentRun); Index = $actionsByIdentity },
             @{ Records = @($Export.PendingActions.Values); Index = $pendingByIdentity },
-            @{ Records = $CandidateDevices; Index = $candidatesByIdentity }
+            @{ Records = $CandidateDevices; Index = $candidatesByIdentity },
+            @{ Records = $decisions; Index = $decisionsByIdentity }
         )) {
         foreach ($record in $recordSet.Records) {
             foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
@@ -41,6 +53,7 @@ function Get-CloudDeviceReportSelection {
         $currentActions = [System.Collections.Generic.HashSet[object]]::new()
         $pendingAction = $null
         $candidates = [System.Collections.Generic.HashSet[object]]::new()
+        $deviceDecisions = [System.Collections.Generic.HashSet[object]]::new()
         foreach ($identity in @('EntraDeviceObjectId', 'ManagedDeviceId', 'DeviceId', 'AutopilotDeviceId')) {
             if ([string]::IsNullOrWhiteSpace([string] $device.$identity)) { continue }
             $key = '{0}:{1}' -f $identity, $device.$identity
@@ -66,6 +79,13 @@ function Get-CloudDeviceReportSelection {
                     }
                 }
             }
+            if ($decisionsByIdentity.ContainsKey($key)) {
+                foreach ($record in $decisionsByIdentity[$key]) {
+                    if (Test-CloudDeviceReportIdentity -Device $device -Record $record) {
+                        $null = $deviceDecisions.Add($record)
+                    }
+                }
+            }
         }
         [pscustomobject] @{
             Device = $device
@@ -73,6 +93,7 @@ function Get-CloudDeviceReportSelection {
             CurrentActions = @($currentActions)
             PendingAction = $pendingAction
             Candidates = @($candidates)
+            Decisions = @($deviceDecisions)
         }
     }
 }

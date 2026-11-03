@@ -1,5 +1,7 @@
 ### Unreleased
 
+- Classify every scoped cloud device before action limits, with reasons for candidates, exclusions, protection rules and pending stages in the Devices report.
+
 - Keep every scoped cloud device searchable in one standalone HTML report, with focused activity, registration, ownership, matching, protection and target-identity fields.
 - Show selected actions and their rule reasons before action limits, separately from recorded attempts. Match records by target identifiers rather than device names.
 - Include saved action-time decision evidence in Current Run, History and Pending Actions. Preserve full normalized action snapshots in the XML datastore and label fields missing from older snapshots.

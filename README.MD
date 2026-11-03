@@ -691,6 +691,8 @@ $Output
 
 Cloud-device cleanup has its own datastore and report because the cloud lifecycle is staged differently from AD computers. The safest operating model is to preview first, retire stale Intune-managed devices, then use pending-list age before disable/delete stages.
 
+The **Devices** tab shows every device returned within the configured inventory scope, including candidates beyond the run's action limits. **Classification** and **Reason** distinguish action candidates, devices that do not meet an age requirement, exclusions, protection rules, and pending stages. Expand a row for each enabled stage's first unmet rule and its target IDs. **Main inventory** and **Additional Autopilot inventory** identify the source query; neither means a device qualified for cleanup. Devices excluded by inventory filters are outside this table. **Current Run** shows the actions actually attempted or previewed.
+
 #### Report only
 
 ```powershell
