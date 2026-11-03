@@ -662,11 +662,16 @@ function Invoke-CloudDevicesCleanup {
     $reportRetired = @()
     $reportDisabled = @()
     $reportStagedForDelete = @()
+    $stageDeleteReportCandidates = @()
     $reportDeleted = @()
     $reportAutopilotIdentityRemoved = @()
+    $selectionDecisions = [ordered] @{}
+    foreach ($stage in @('Retire', 'Disable', 'StageDelete', 'Delete', 'RemoveAutopilotIdentity')) {
+        $selectionDecisions[$stage] = [System.Collections.Generic.List[object]]::new()
+    }
 
     if ($Retire) {
-        $devicesToRetire = @(Get-CloudDevicesToProcess -Type Retire -Devices $allDevices -ActionIf $retireOnlyIf -ProcessedDevices $processedDevices)
+        $devicesToRetire = @(Get-CloudDevicesToProcess -Type Retire -Devices $allDevices -ActionIf $retireOnlyIf -ProcessedDevices $processedDevices -Decisions $selectionDecisions.Retire)
         Write-Color -Text '[i] ', 'Devices to be retired: ', $devicesToRetire.Count, '. Current retire limit: ', $(if ($RetireLimit -eq 0) { 'Unlimited' } else { $RetireLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         $reportStatistics.CandidateTotals.Retire = $devicesToRetire.Count
         if ($devicesToRetire.Count -gt 0) {
@@ -684,7 +689,7 @@ function Invoke-CloudDevicesCleanup {
     }
 
     if ($Disable) {
-        $devicesToDisable = @(Get-CloudDevicesToProcess -Type Disable -Devices $allDevices -ActionIf $disableOnlyIf -ProcessedDevices $processedDevices)
+        $devicesToDisable = @(Get-CloudDevicesToProcess -Type Disable -Devices $allDevices -ActionIf $disableOnlyIf -ProcessedDevices $processedDevices -Decisions $selectionDecisions.Disable)
         Write-Color -Text '[i] ', 'Devices to be disabled: ', $devicesToDisable.Count, '. Current disable limit: ', $(if ($DisableLimit -eq 0) { 'Unlimited' } else { $DisableLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         $reportStatistics.CandidateTotals.Disable = $devicesToDisable.Count
         if ($devicesToDisable.Count -gt 0) {
@@ -703,7 +708,25 @@ function Invoke-CloudDevicesCleanup {
 
     if ($processStageDisabledForDelete) {
         $stageDeleteRunStatistics = @{ LimitStoppedIteration = $false; AlreadyPendingSkipped = 0 }
-        $devicesToStageForDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $stageDeleteOnlyIf -ProcessedDevices $processedDevices)
+        $devicesToStageForDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $stageDeleteOnlyIf -ProcessedDevices $processedDevices -Decisions $selectionDecisions.StageDelete)
+        $stageDeleteReportCandidates = @(
+            foreach ($device in $devicesToStageForDelete) {
+                $device | Add-Member -NotePropertyName SelectionReason -NotePropertyValue (Get-CloudDeviceSelectionReason -Device $device -Type StageDelete -ActionIf $stageDeleteOnlyIf) -Force
+                if (Test-CloudDeviceAlreadyPending -Device $device -ProcessedDevices $processedDevices) { continue }
+                $candidate = $device | Select-Object *
+                $candidate | Add-Member -NotePropertyName Action -NotePropertyValue 'StageDelete' -Force
+                $candidate
+            }
+        )
+        foreach ($decision in $selectionDecisions.StageDelete) {
+            if ($decision.Classification -ne 'Selected by rules') { continue }
+            if (Test-CloudDeviceAlreadyPending -Device $decision -ProcessedDevices $processedDevices) {
+                $decision.Classification = 'Already pending'
+                $decision.Reason = 'Already on the pending list; staging does not restart its pending period.'
+            } else {
+                $decision.Reason = 'Meets staging rules; no device record is deleted by this stage.'
+            }
+        }
         Write-Color -Text '[i] ', 'Devices to be staged for delete: ', $devicesToStageForDelete.Count, '. Current stage limit: ', $(if ($StageDisabledForDeleteLimit -eq 0) { 'Unlimited' } else { $StageDisabledForDeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         $reportStatistics.CandidateTotals.StageDelete = $devicesToStageForDelete.Count
         if ($devicesToStageForDelete.Count -gt 0) {
@@ -721,7 +744,7 @@ function Invoke-CloudDevicesCleanup {
     }
 
     if ($Delete) {
-        $devicesToDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $deleteOnlyIf -ProcessedDevices $processedDevices)
+        $devicesToDelete = @(Get-CloudDevicesToProcess -Type Delete -Devices $allDevices -ActionIf $deleteOnlyIf -ProcessedDevices $processedDevices -Decisions $selectionDecisions.Delete)
         Write-Color -Text '[i] ', 'Devices to be deleted: ', $devicesToDelete.Count, '. Current delete limit: ', $(if ($DeleteLimit -eq 0) { 'Unlimited' } else { $DeleteLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         $reportStatistics.CandidateTotals.Delete = $devicesToDelete.Count
         if ($devicesToDelete.Count -gt 0) {
@@ -739,7 +762,7 @@ function Invoke-CloudDevicesCleanup {
     }
 
     if ($RemoveAutopilotIdentity) {
-        $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $autopilotRemovalDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices)
+        $devicesToRemoveAutopilotIdentity = @(Get-CloudDevicesToProcess -Type RemoveAutopilotIdentity -Devices $autopilotRemovalDevices -ActionIf $removeAutopilotIdentityOnlyIf -ProcessedDevices $processedDevices -Decisions $selectionDecisions.RemoveAutopilotIdentity)
         $autopilotDeviceIdsHandledByDelete = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
         foreach ($deletedDevice in @($reportDeleted | Where-Object { $_.AutopilotIdentityRemoved -eq $true })) {
             if (-not [string]::IsNullOrWhiteSpace([string] $deletedDevice.AutopilotDeviceId)) {
@@ -750,6 +773,12 @@ function Invoke-CloudDevicesCleanup {
             $devicesToRemoveAutopilotIdentity = @($devicesToRemoveAutopilotIdentity | Where-Object {
                     [string]::IsNullOrWhiteSpace([string] $_.AutopilotDeviceId) -or -not $autopilotDeviceIdsHandledByDelete.Contains([string] $_.AutopilotDeviceId)
                 })
+            foreach ($decision in $selectionDecisions.RemoveAutopilotIdentity) {
+                if ($decision.Classification -eq 'Selected by rules' -and $autopilotDeviceIdsHandledByDelete.Contains([string] $decision.AutopilotDeviceId)) {
+                    $decision.Classification = 'Already processed'
+                    $decision.Reason = 'The Autopilot identity was already removed by Delete this run.'
+                }
+            }
         }
         Write-Color -Text '[i] ', 'Autopilot identities to be removed: ', $devicesToRemoveAutopilotIdentity.Count, '. Current remove limit: ', $(if ($RemoveAutopilotIdentityLimit -eq 0) { 'Unlimited' } else { $RemoveAutopilotIdentityLimit }) -Color Yellow, Cyan, Green, Cyan, Yellow
         $reportStatistics.CandidateTotals.RemoveAutopilotIdentity = $devicesToRemoveAutopilotIdentity.Count
@@ -816,8 +845,8 @@ function Invoke-CloudDevicesCleanup {
         $reportScopeConfiguration['Separate Autopilot join types'] = @($autopilotRemovalIncludeJoinType) -join ', '
         $reportScopeConfiguration['Separate Autopilot included OS'] = @($autopilotRemovalIncludeOperatingSystem) -join ', '
     }
-    $reportCandidates = @($devicesToRetire) + @($devicesToDisable) + @($devicesToStageForDelete) + @($devicesToDelete) + @($devicesToRemoveAutopilotIdentity)
-    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -CandidateDevices $reportCandidates -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
+    $reportCandidates = @((@($devicesToRetire) + @($devicesToDisable) + $stageDeleteReportCandidates + @($devicesToDelete) + @($devicesToRemoveAutopilotIdentity)) | Where-Object { $null -ne $_ })
+    New-HTMLProcessedCloudDevices -Export $export -Devices $reportDevices -PrimaryDeviceCount $allDevices.Count -CandidateDevices $reportCandidates -SelectionDecisions $selectionDecisions -Statistics $reportStatistics -ActionConfiguration $reportActionConfiguration -ScopeConfiguration $reportScopeConfiguration -FilePath $ReportPath -Online:$Online -ShowHTML:$ShowHTML -LogFile $LogPath
 
     Write-Color -Text '[i] ', 'Finished process of cleaning up stale cloud devices' -Color Green
 

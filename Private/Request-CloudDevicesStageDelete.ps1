@@ -29,22 +29,7 @@ function Request-CloudDevicesStageDelete {
             break
         }
 
-        $alreadyPending = $false
-        foreach ($processedDeviceKey in @(
-                if ($device.PSObject.Properties['MatchedProcessedDeviceKey'] -and $device.MatchedProcessedDeviceKey) {
-                    $device.MatchedProcessedDeviceKey
-                }
-                if ($device.PSObject.Properties['ProcessedDeviceKey'] -and $device.ProcessedDeviceKey) {
-                    $device.ProcessedDeviceKey
-                }
-            )) {
-            if ($ProcessedDevices.Contains($processedDeviceKey)) {
-                $alreadyPending = $true
-                break
-            }
-        }
-
-        if ($alreadyPending) {
+        if (Test-CloudDeviceAlreadyPending -Device $device -ProcessedDevices $ProcessedDevices) {
             $RunStatistics['AlreadyPendingSkipped']++
             continue
         }

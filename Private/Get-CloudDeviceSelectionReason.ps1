@@ -5,7 +5,7 @@ function Get-CloudDeviceSelectionReason {
         [PSObject] $Device,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Retire', 'Disable', 'Delete', 'RemoveAutopilotIdentity')]
+        [ValidateSet('Retire', 'Disable', 'Delete', 'StageDelete', 'RemoveAutopilotIdentity')]
         [string] $Type,
 
         [Parameter(Mandatory)]
@@ -106,7 +106,9 @@ function Get-CloudDeviceSelectionReason {
         }
     }
 
-    if ($Type -eq 'Delete') {
+    if ($Type -eq 'StageDelete') {
+        $reasons.Add('Stage for deletion; no device record is deleted by this stage')
+    } elseif ($Type -eq 'Delete') {
         if ($Device.RecordState -eq 'Matched' -and $Device.HasIntuneRecord -and $Device.HasEntraRecord) {
             $reasons.Add('Delete Intune record and Entra device object')
         } elseif ($Device.RecordState -eq 'IntuneOnly' -and $Device.HasIntuneRecord) {
