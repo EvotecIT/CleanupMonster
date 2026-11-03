@@ -1,6 +1,10 @@
 ### Unreleased
 
+### 3.1.26 - 2026.11.03
+
 - Classify every scoped cloud device before action limits, with reasons for candidates, exclusions, protection rules and pending stages in the Devices report.
+
+### 3.1.25 - 2026.10.29
 
 - Keep every scoped cloud device searchable in one standalone HTML report, with focused activity, registration, ownership, matching, protection and target-identity fields.
 - Show selected actions and their rule reasons before action limits, separately from recorded attempts. Match records by target identifiers rather than device names.
