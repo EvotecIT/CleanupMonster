@@ -28,6 +28,7 @@ Build-Module -ModuleName 'CleanupMonster' {
         Tags                 = 'windows', 'activedirectory'
         IconUri              = 'https://evotec.xyz/wp-content/uploads/2023/04/CleanupMonster.png'
         ProjectUri           = 'https://github.com/EvotecIT/CleanupMonster'
+        LicenseUri           = 'https://github.com/EvotecIT/CleanupMonster/blob/master/LICENSE'
         #DotNetFrameworkVersion = '4.5.2'
     }
     New-ConfigurationManifest @Manifest
